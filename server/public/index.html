@@ -827,6 +827,17 @@
     let currentFilter = 'all';
     let searchQuery   = '';
 
+    // ── Lucide Icons Initializer ───────────────────────────────────────────────
+    function refreshIcons() {
+      try {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+          window.lucide.createIcons();
+        }
+      } catch (err) {
+        console.warn('Lucide icons error:', err);
+      }
+    }
+
     // ── Auth Helpers ───────────────────────────────────────────────────────────
     function saveToken(token) {
       authToken = token;
@@ -909,6 +920,7 @@
     function showDashboard() {
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('dashboard').classList.add('visible');
+      refreshIcons();
       loadStatus();
       fetchAllData();
     }
@@ -1701,6 +1713,7 @@
 
     // ── Init ───────────────────────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
+      refreshIcons();
       setupDragAndDrop();
       checkAuthOnLoad();
       window.addEventListener('keydown', (e) => {
