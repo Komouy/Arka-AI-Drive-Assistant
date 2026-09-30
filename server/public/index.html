@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ARKA — Data Viewer</title>
-  <meta name="description" content="ARKA personal workspace: manage files, prompts, and links.">
+  <link rel="icon" type="image/png" href="/arka-white-logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -72,18 +72,11 @@
       margin-bottom: 2rem;
     }
 
-    .login-logo-badge {
-      width: 32px;
-      height: 32px;
-      background: #27272a;
-      border: 1px solid #3f3f46;
+    .login-logo-img {
+      width: 38px;
+      height: 38px;
       border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 0.9rem;
-      color: #fafafa;
+      object-fit: contain;
       flex-shrink: 0;
     }
 
@@ -303,11 +296,14 @@
     .header-brand { display: flex; align-items: center; gap: 0.75rem; }
 
     .header-logo {
-      width: 28px; height: 28px;
-      background: #27272a; border: 1px solid #3f3f46;
-      border-radius: var(--radius-sm);
+      width: 32px; height: 32px;
       display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 0.85rem; color: #fafafa;
+      flex-shrink: 0;
+    }
+    .header-logo-img {
+      width: 100%; height: 100%;
+      border-radius: var(--radius-sm);
+      object-fit: contain;
     }
 
     .header-title { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; }
@@ -707,7 +703,7 @@
   <div id="loginScreen">
     <div class="login-card">
       <div class="login-logo">
-        <div class="login-logo-badge">A</div>
+        <img src="/arka-white-logo.png" alt="ARKA Logo" class="login-logo-img">
         <div>
           <div class="login-logo-title">ARKA Storage Viewer</div>
           <div class="login-logo-sub">Personal workspace</div>
@@ -756,7 +752,7 @@
       <!-- Header -->
       <header>
         <div class="header-brand">
-          <div class="header-logo"><i data-lucide="layers" class="icon-md"></i></div>
+          <div class="header-logo"><img src="/arka-white-logo.png" alt="ARKA Logo" class="header-logo-img"></div>
           <div>
             <div class="header-title">ARKA Storage Viewer</div>
             <div class="header-meta">Personal workspace data explorer</div>
