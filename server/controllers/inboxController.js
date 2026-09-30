@@ -23,12 +23,20 @@ export const inboxController = {
     try {
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
-        const { data: files, error } = await supabase
+        const userId = req.user?.id || null;
+
+        let query = supabase
           .from('files')
           .select('*, folders(name), file_metadata(description, category, project, tags, ai_analyzed)')
           .eq('is_inbox', true)
           .eq('is_trash', false)
           .order('created_at', { ascending: false });
+
+        if (userId) {
+          query = query.or(`user_id.eq.${userId},user_id.is.null`);
+        }
+
+        const { data: files, error } = await query;
 
         if (error) return fail(res, error);
 
@@ -43,7 +51,7 @@ export const inboxController = {
             tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
             ai_analyzed: meta?.ai_analyzed ? 1 : 0,
             typeCategory: getFileTypeCategory(f.mime_type, f.original_name),
-            publicUrl: f.public_url || `/storage/${f.storage_path}`
+            publicUrl: f.gdrive_view_url || f.public_url || `/storage/${f.storage_path}`
           };
         });
 
@@ -74,20 +82,32 @@ export const inboxController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+
         const { data: file, error: fErr } = await supabase.from('files').select('*').eq('id', id).maybeSingle();
         if (fErr) return fail(res, fErr);
         if (!file) return notFound(res, 'File not found');
+
+        // Multi-tenant check
+        if (file.user_id && userId && file.user_id !== userId) {
+          return notFound(res, 'File not found');
+        }
+
         if (file.is_trash) {
           return badRequest(res, `"${file.original_name}" is in the trash — restore it first.`);
         }
 
         let targetFolderId = folder_id;
         if (!targetFolderId && project_name) {
-          const { data: foundFolder } = await supabase.from('folders').select('id').ilike('name', project_name).maybeSingle();
+          let folderQuery = supabase.from('folders').select('id').ilike('name', project_name);
+          if (userId) {
+            folderQuery = folderQuery.or(`user_id.eq.${userId},user_id.is.null`);
+          }
+          const { data: foundFolder } = await folderQuery.maybeSingle();
           if (foundFolder) {
             targetFolderId = foundFolder.id;
           } else {
-            const { data: newF } = await supabase.from('folders').insert({ name: project_name }).select().single();
+            const { data: newF } = await supabase.from('folders').insert({ name: project_name, user_id: userId }).select().single();
             if (newF) targetFolderId = newF.id;
           }
         }

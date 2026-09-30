@@ -250,6 +250,33 @@
       border-radius: 50%;
       object-fit: cover;
     }
+    .drive-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      cursor: default;
+    }
+    .drive-pill.connected {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+    .drive-pill.btn-connect {
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #a5b4fc;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .drive-pill.btn-connect:hover {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: #818cf8;
+      color: #ffffff;
+    }
 
     /* ── Dashboard ────────────────────────────────────────────────────────── */
     #dashboard {
@@ -1005,10 +1032,16 @@
 
       const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email || user.username || 'User';
       const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+      const pt = providerToken || loadProviderToken();
+      const hasDrive = Boolean(pt);
       
       badge.innerHTML = `
         ${avatar ? `<img src="${escapeHtml(avatar)}" alt="Avatar" class="user-avatar-tiny" referrerpolicy="no-referrer">` : '<i data-lucide="user" class="icon"></i>'}
         <span>${escapeHtml(name)}</span>
+        ${hasDrive 
+          ? `<span class="drive-pill connected" title="Files will be saved in your personal Google Drive"><i data-lucide="hard-drive" class="icon-sm"></i> Drive Connected</span>`
+          : `<button type="button" class="drive-pill btn-connect" onclick="handleGoogleLogin()" title="Grant Google Drive permission to use your personal storage"><i data-lucide="link" class="icon-sm"></i> Connect Drive</button>`
+        }
       `;
       badge.style.display = 'inline-flex';
       refreshIcons();

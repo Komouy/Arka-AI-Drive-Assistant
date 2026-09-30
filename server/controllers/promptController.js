@@ -129,6 +129,14 @@ export const promptController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+
+        // Check ownership
+        let checkQuery = supabase.from('prompts').select('id, user_id').eq('id', id);
+        if (userId) checkQuery = checkQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        const { data: existing } = await checkQuery.maybeSingle();
+        if (!existing) return notFound(res, 'Prompt not found');
+
         const updates = { updated_at: new Date().toISOString() };
 
         if (title !== undefined) {
@@ -185,7 +193,11 @@ export const promptController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
-        const { error, count } = await supabase.from('prompts').delete({ count: 'exact' }).eq('id', id);
+        const userId = req.user?.id || null;
+
+        let delQuery = supabase.from('prompts').delete({ count: 'exact' }).eq('id', id);
+        if (userId) delQuery = delQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        const { error, count } = await delQuery;
         if (error) return fail(res, error);
         if (count === 0) return notFound(res, `Prompt ID ${id} not found`);
         return ok(res, { message: 'Prompt deleted', id });

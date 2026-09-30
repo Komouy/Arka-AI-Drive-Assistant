@@ -254,6 +254,8 @@ export const fileController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+
         let query = supabase
           .from('files')
           .select('*, folders(name), file_metadata(description, category, project, tags, ai_analyzed)');
@@ -263,6 +265,10 @@ export const fileController = {
           query = query.eq('id', id);
         } else {
           query = query.or(`original_name.eq.${id},stored_name.eq.${id}`).order('created_at', { ascending: false }).limit(1);
+        }
+
+        if (userId) {
+          query = query.or(`user_id.eq.${userId},user_id.is.null`);
         }
 
         const { data: result, error } = await query.maybeSingle();
@@ -508,7 +514,13 @@ export const fileController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
-        const { data: file, error: fErr } = await supabase.from('files').select('*').eq('id', id).maybeSingle();
+        const userId = req.user?.id || null;
+
+        let query = supabase.from('files').select('*').eq('id', id);
+        if (userId) {
+          query = query.or(`user_id.eq.${userId},user_id.is.null`);
+        }
+        const { data: file, error: fErr } = await query.maybeSingle();
         if (fErr) return fail(res, fErr);
         if (!file) return notFound(res, 'File not found');
 
@@ -608,6 +620,14 @@ export const fileController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+
+        // Check ownership
+        let checkQuery = supabase.from('files').select('id, user_id').eq('id', id);
+        if (userId) checkQuery = checkQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        const { data: existing } = await checkQuery.maybeSingle();
+        if (!existing) return notFound(res, 'File not found');
+
         const updates = { updated_at: new Date().toISOString() };
 
         if (original_name !== undefined) {
@@ -687,13 +707,27 @@ export const fileController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
-        const { data: file, error: fErr } = await supabase.from('files').select('*').eq('id', id).maybeSingle();
+        const userId = req.user?.id || null;
+
+        let checkQuery = supabase.from('files').select('*').eq('id', id);
+        if (userId) checkQuery = checkQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        const { data: file, error: fErr } = await checkQuery.maybeSingle();
         if (fErr) return fail(res, fErr);
         if (!file) return notFound(res, 'File not found');
 
         if (permanent === 'true' || file.is_trash) {
+          // If stored on user's Google Drive, delete from Drive via Drive API
+          if (file.gdrive_file_id && req.providerToken) {
+            try {
+              const { deleteFromGoogleDrive } = await import('./driveController.js');
+              await deleteFromGoogleDrive(req.providerToken, file.gdrive_file_id);
+            } catch (driveErr) {
+              console.warn('[GDrive Delete Warning]', driveErr.message);
+            }
+          }
+
           // Remove from Supabase Storage
-          if (file.storage_path) {
+          if (file.storage_path && !file.storage_path.startsWith('gdrive/')) {
             await supabase.storage.from(BUCKET_NAME).remove([file.storage_path]);
           }
           await supabase.from('files').delete().eq('id', id);
@@ -727,14 +761,37 @@ export const fileController = {
     try {
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
-        const { data: trashFiles } = await supabase.from('files').select('id, storage_path').eq('is_trash', true);
+        const userId = req.user?.id || null;
+
+        let query = supabase.from('files').select('id, storage_path, gdrive_file_id').eq('is_trash', true);
+        if (userId) query = query.or(`user_id.eq.${userId},user_id.is.null`);
+        const { data: trashFiles } = await query;
 
         const files = trashFiles || [];
-        const paths = files.map(f => f.storage_path).filter(Boolean);
+        const paths = files.map(f => f.storage_path).filter(p => p && !p.startsWith('gdrive/'));
         if (paths.length > 0) {
           await supabase.storage.from(BUCKET_NAME).remove(paths);
         }
-        await supabase.from('files').delete().eq('is_trash', true);
+
+        // If user has provider token, also delete their GDrive trash files
+        if (req.providerToken) {
+          const gdriveFiles = files.filter(f => f.gdrive_file_id);
+          if (gdriveFiles.length > 0) {
+            try {
+              const { deleteFromGoogleDrive } = await import('./driveController.js');
+              for (const gf of gdriveFiles) {
+                try {
+                  await deleteFromGoogleDrive(req.providerToken, gf.gdrive_file_id);
+                } catch {}
+              }
+            } catch {}
+          }
+        }
+
+        const idsToDelete = files.map(f => f.id);
+        if (idsToDelete.length > 0) {
+          await supabase.from('files').delete().in('id', idsToDelete);
+        }
 
         return ok(res, {
           message: `Emptied ${files.length} file(s) from cloud trash.`,
@@ -769,6 +826,7 @@ export const fileController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
         let query = supabase.from('files').select('*');
 
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id).trim());
@@ -778,11 +836,15 @@ export const fileController = {
           query = query.or(`original_name.eq.${id},stored_name.eq.${id}`).order('created_at', { ascending: false }).limit(1);
         }
 
+        if (userId) {
+          query = query.or(`user_id.eq.${userId},user_id.is.null`);
+        }
+
         const { data: file, error } = await query.maybeSingle();
         if (error || !file) return notFound(res, `File "${id}" not found`);
 
-        if (file.public_url) {
-          return res.redirect(file.public_url);
+        if (file.gdrive_view_url || file.public_url) {
+          return res.redirect(file.gdrive_view_url || file.public_url);
         }
 
         // Fallback: download blob and stream

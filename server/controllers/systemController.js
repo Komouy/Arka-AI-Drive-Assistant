@@ -22,6 +22,19 @@ export const systemController = {
     try {
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+
+        let filesQuery = supabase.from('files').select('mime_type, original_name, size, is_inbox, is_trash');
+        let foldersQuery = supabase.from('folders').select('*', { count: 'exact', head: true });
+        let promptsQuery = supabase.from('prompts').select('*', { count: 'exact', head: true });
+        let linksQuery = supabase.from('links').select('*', { count: 'exact', head: true });
+
+        if (userId) {
+          filesQuery = filesQuery.or(`user_id.eq.${userId},user_id.is.null`);
+          foldersQuery = foldersQuery.or(`user_id.eq.${userId},user_id.is.null`);
+          promptsQuery = promptsQuery.or(`user_id.eq.${userId},user_id.is.null`);
+          linksQuery = linksQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        }
 
         const [
           { data: allFiles, error: filesErr },
@@ -29,10 +42,10 @@ export const systemController = {
           { count: promptCount },
           { count: linkCount }
         ] = await Promise.all([
-          supabase.from('files').select('mime_type, original_name, size, is_inbox, is_trash'),
-          supabase.from('folders').select('*', { count: 'exact', head: true }),
-          supabase.from('prompts').select('*', { count: 'exact', head: true }),
-          supabase.from('links').select('*', { count: 'exact', head: true })
+          filesQuery,
+          foldersQuery,
+          promptsQuery,
+          linksQuery
         ]);
 
         if (filesErr) return fail(res, filesErr);

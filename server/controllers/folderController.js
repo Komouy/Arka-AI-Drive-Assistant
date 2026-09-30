@@ -19,10 +19,20 @@ export const folderController = {
     try {
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
-        const { data: folders, error: fErr } = await supabase.from('folders').select('*').order('name', { ascending: true });
+        const userId = req.user?.id || null;
+
+        let folderQuery = supabase.from('folders').select('*').order('name', { ascending: true });
+        if (userId) {
+          folderQuery = folderQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        }
+        const { data: folders, error: fErr } = await folderQuery;
         if (fErr) return fail(res, fErr);
 
-        const { data: files } = await supabase.from('files').select('folder_id').eq('is_trash', false);
+        let filesQuery = supabase.from('files').select('folder_id').eq('is_trash', false);
+        if (userId) {
+          filesQuery = filesQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        }
+        const { data: files } = await filesQuery;
         const fileCountMap = {};
         for (const f of (files || [])) {
           if (f.folder_id) fileCountMap[f.folder_id] = (fileCountMap[f.folder_id] || 0) + 1;
@@ -79,6 +89,7 @@ export const folderController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
 
         // Handle nested path segments if path_str is provided
         if (path_str && typeof path_str === 'string') {
@@ -95,6 +106,9 @@ export const folderController = {
             } else {
               query = query.is('parent_id', null);
             }
+            if (userId) {
+              query = query.or(`user_id.eq.${userId},user_id.is.null`);
+            }
             const { data: existing } = await query.maybeSingle();
 
             if (existing) {
@@ -105,7 +119,8 @@ export const folderController = {
                 name: segment,
                 parent_id: currentParentId,
                 color,
-                icon
+                icon,
+                user_id: userId
               }).select().single();
               if (insErr) return fail(res, insErr);
               currentParentId = inserted.id;
@@ -119,12 +134,15 @@ export const folderController = {
         const folderName = String(name || '').trim();
         if (!folderName) return badRequest(res, 'Folder name is required');
 
-        // Check for duplicates with same name and same parent
+        // Check for duplicates with same name and same parent (per-user)
         let dupQuery = supabase.from('folders').select('*').ilike('name', folderName);
         if (parent_id) {
           dupQuery = dupQuery.eq('parent_id', parent_id);
         } else {
           dupQuery = dupQuery.is('parent_id', null);
+        }
+        if (userId) {
+          dupQuery = dupQuery.or(`user_id.eq.${userId},user_id.is.null`);
         }
         const { data: duplicate } = await dupQuery.maybeSingle();
 
@@ -136,7 +154,8 @@ export const folderController = {
           name: folderName,
           parent_id: parent_id || null,
           color,
-          icon
+          icon,
+          user_id: userId
         }).select().single();
 
         if (crErr) return fail(res, crErr);
@@ -193,9 +212,16 @@ export const folderController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+
         const { data: folder, error: fetchErr } = await supabase.from('folders').select('*').eq('id', id).maybeSingle();
         if (fetchErr) return fail(res, fetchErr);
         if (!folder) return notFound(res, 'Folder not found');
+
+        // Multi-tenant check
+        if (folder.user_id && userId && folder.user_id !== userId) {
+          return notFound(res, 'Folder not found');
+        }
 
         const updates = { updated_at: new Date().toISOString() };
         if (name !== undefined) {
@@ -263,12 +289,23 @@ export const folderController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+
         const { data: folder, error: fetchErr } = await supabase.from('folders').select('*').eq('id', id).maybeSingle();
         if (fetchErr) return fail(res, fetchErr);
         if (!folder) return notFound(res, 'Folder not found');
 
-        // Move files in this folder to inbox
-        await supabase.from('files').update({ folder_id: null, is_inbox: true, updated_at: new Date().toISOString() }).eq('folder_id', id);
+        // Multi-tenant check
+        if (folder.user_id && userId && folder.user_id !== userId) {
+          return notFound(res, 'Folder not found');
+        }
+
+        // Move files in this folder to inbox (only for this user / shared)
+        let fileMoveQuery = supabase.from('files').update({ folder_id: null, is_inbox: true, updated_at: new Date().toISOString() }).eq('folder_id', id);
+        if (userId) {
+          fileMoveQuery = fileMoveQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        }
+        await fileMoveQuery;
 
         // Delete the folder
         const { error: delErr } = await supabase.from('folders').delete().eq('id', id);

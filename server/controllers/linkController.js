@@ -127,7 +127,12 @@ export const linkController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
-        const { data: link, error } = await supabase.from('links').select('*').eq('id', id).maybeSingle();
+        const userId = req.user?.id || null;
+        let query = supabase.from('links').select('*').eq('id', id);
+        if (userId) {
+          query = query.or(`user_id.eq.${userId},user_id.is.null`);
+        }
+        const { data: link, error } = await query.maybeSingle();
         if (error) return fail(res, error);
         if (!link) return notFound(res, 'Link not found');
         return ok(res, { data: link });
@@ -219,6 +224,14 @@ export const linkController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+
+        // Check ownership
+        let checkQuery = supabase.from('links').select('id, user_id').eq('id', id);
+        if (userId) checkQuery = checkQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        const { data: existing } = await checkQuery.maybeSingle();
+        if (!existing) return notFound(res, 'Link not found');
+
         const updates = { updated_at: new Date().toISOString() };
 
         if (url !== undefined) {
@@ -275,7 +288,11 @@ export const linkController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
-        const { error, count } = await supabase.from('links').delete({ count: 'exact' }).eq('id', id);
+        const userId = req.user?.id || null;
+
+        let delQuery = supabase.from('links').delete({ count: 'exact' }).eq('id', id);
+        if (userId) delQuery = delQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        const { error, count } = await delQuery;
         if (error) return fail(res, error);
         if (count === 0) return notFound(res, 'Link not found');
         return ok(res, { message: 'Link deleted successfully' });

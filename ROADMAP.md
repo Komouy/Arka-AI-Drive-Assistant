@@ -136,6 +136,7 @@ Roadmap perluasan ARKA agar dapat dipakai publik dengan autentikasi Google dan s
 | Tahap | Fitur | Status | Keterangan |
 |---|---|---|---|
 | **Fase 1** | **Google OAuth + Persistent Session** | ✅ Selesai | Autentikasi Google via Supabase Auth, sesi permanen di `localStorage`, auto-login, header user avatar/nama, fallback password login tetap aktif. |
-| **Fase 2** | **Opsi 2: BYOD Personal Google Drive** | ⏳ Selanjutnya | Pengguna menghubungkan Google Drive pribadi mereka; file diunggah & disimpan langsung di Google Drive pengguna, ARKA mengelola index metadata & AI Assistant. |
-| **Fase 3** | **Multi-Tenant Data Isolation** | 📋 Terjadwal | Isolasi data file, prompt, dan link per `user_id` di database Supabase Postgres (Row Level Security). |
+| **Fase 2** | **Opsi 2: BYOD Personal Google Drive** | ✅ Selesai | File diunggah & dikelola langsung di Google Drive pribadi pengguna melalui REST API (`drive.file` scope). Folder khusus "ARKA Files" dibuat otomatis di Google Drive user. |
+| **Fase 3** | **Multi-Tenant Data Isolation & RLS** | ✅ Selesai | Isolasi data file, folder, prompt, link, dan stats per `user_id` di backend controller + Row Level Security (RLS) policies di database Supabase Postgres (`phase3_migration.sql`). Siap publish untuk publik! |
+
 
