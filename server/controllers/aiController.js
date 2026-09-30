@@ -21,20 +21,20 @@ export const aiController = {
             groq: {
               available: providers.groq.available,
               model:     MODELS.groq.fast,
-              role:      'Primary — text, agent, search, fast inference',
+              role:      'Utama — teks, agent, pencarian, inferensi cepat',
               error:     providers.groq.error
             },
             gemini: {
               available: providers.gemini.available,
               model:     MODELS.gemini.flash,
-              role:      'Multimodal — image, video, audio analysis',
+              role:      'Multimodal — analisis gambar, video, audio',
               error:     providers.gemini.error
             }
           },
           configured,
           tip: configured
             ? null
-            : 'Add GROQ_API_KEY and GEMINI_API_KEY to your .env file, then restart the server.'
+            : 'Tambahkan GROQ_API_KEY dan GEMINI_API_KEY ke file .env, lalu jalankan ulang server.'
         }
       });
     } catch (err) {
@@ -47,7 +47,7 @@ export const aiController = {
     try {
       const { query, reset } = req.body || {};
       if (!query || typeof query !== 'string' || !query.trim()) {
-        return badRequest(res, 'Query is required');
+        return badRequest(res, 'Query wajib diisi');
       }
 
       const { runAgent } = await import('../ai/agent.js');

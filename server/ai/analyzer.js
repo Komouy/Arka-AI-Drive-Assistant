@@ -38,21 +38,21 @@ function selectProvider(mimeType = '', filename = '') {
 
 // ── Prompt builder for text-only files ───────────────────────────────────────
 function buildTextAnalysisPrompt(filename, mimeType, textPreview = '', hint = '') {
-  return `You are ARKA, a personal AI workspace assistant. Analyze this file and respond ONLY with a valid JSON object.
+  return `Kamu adalah ARKA, asisten workspace pribadi berbasis AI. Analisis file ini dan balas HANYA dengan objek JSON yang valid.
 
 File: "${filename}"
 MIME: "${mimeType}"
-${hint ? `Note: ${hint}\n` : ''}${textPreview ? `Content preview (first 500 chars):\n${textPreview.slice(0, 500)}` : ''}
+${hint ? `Catatan: ${hint}\n` : ''}${textPreview ? `Cuplikan isi (500 karakter pertama):\n${textPreview.slice(0, 500)}` : ''}
 
-Respond with ONLY this JSON (no markdown, no explanation):
+Balas HANYA dengan JSON berikut (tanpa markdown, tanpa penjelasan):
 {
-  "description": "One clear sentence describing what this file contains or does",
-  "category": "One of: Image, Video, Audio, Document, Code, Prompt, Archive, Other",
-  "topic": "Main topic/subject in 2-5 words (e.g. 'Mobile App Design', 'Database Schema')",
+  "description": "Satu kalimat jelas dalam bahasa Indonesia yang menjelaskan isi atau fungsi file ini",
+  "category": "Salah satu dari: Image, Video, Audio, Document, Code, Archive, Other",
+  "topic": "Topik utama dalam 2-5 kata (contoh: 'Desain Aplikasi Mobile', 'Skema Database')",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
-  "project": "Most likely project name this belongs to (e.g. 'Instagram', 'Programming', 'Personal', 'Website')",
-  "suggestedFolder": "Best folder path suggestion (e.g. 'Projects/Instagram' or 'Programming')",
-  "suggestedName": "A clean, human-readable, descriptive filename preserving the original extension (e.g. 'Database-Schema-Migration.sql' or 'API-Integration-Guide.md')"
+  "project": "Nama proyek yang paling mungkin (contoh: 'Instagram', 'Programming', 'Personal', 'Website')",
+  "suggestedFolder": "Saran path folder terbaik (contoh: 'Projects/Instagram' atau 'Programming')",
+  "suggestedName": "Nama file yang rapi, mudah dibaca, dan deskriptif dengan ekstensi asli dipertahankan (contoh: 'Database-Schema-Migration.sql' atau 'API-Integration-Guide.md')"
 }`;
 }
 
@@ -61,7 +61,7 @@ async function analyzeWithGemini(filePath, mimeType, filename) {
   const stats = fs.statSync(filePath);
   if (stats.size > MAX_INLINE_ANALYZE_BYTES) {
     throw new Error(
-      `File is too large for inline multimodal analysis ` +
+      `File terlalu besar untuk analisis multimodal inline ` +
       `(${(stats.size / 1024 / 1024).toFixed(1)} MB > ${MAX_INLINE_ANALYZE_BYTES / 1024 / 1024} MB)`
     );
   }
@@ -72,7 +72,7 @@ async function analyzeWithGemini(filePath, mimeType, filename) {
   try {
     fileBuffer = fs.readFileSync(filePath);
   } catch (err) {
-    throw new Error(`Could not read file for Gemini analysis: ${err.message}`);
+    throw new Error(`Tidak bisa membaca file untuk analisis Gemini: ${err.message}`);
   }
 
   const mediaPart = {
@@ -82,19 +82,19 @@ async function analyzeWithGemini(filePath, mimeType, filename) {
     }
   };
 
-  const textPart = `You are ARKA, a personal AI workspace assistant. Analyze this file and respond ONLY with a valid JSON object.
+  const textPart = `Kamu adalah ARKA, asisten workspace pribadi berbasis AI. Analisis file ini dan balas HANYA dengan objek JSON yang valid.
 
-File name: "${filename}"
+Nama file: "${filename}"
 
-Respond with ONLY this JSON (no markdown, no explanation):
+Balas HANYA dengan JSON berikut (tanpa markdown, tanpa penjelasan):
 {
-  "description": "One clear sentence describing what this file contains or shows",
-  "category": "One of: Image, Video, Audio, Document, Code, Prompt, Archive, Other",
-  "topic": "Main topic/subject in 2-5 words (e.g. 'Mobile App Design', 'Database Schema')",
+  "description": "Satu kalimat jelas dalam bahasa Indonesia yang menjelaskan isi atau tampilan file ini",
+  "category": "Salah satu dari: Image, Video, Audio, Document, Code, Archive, Other",
+  "topic": "Topik utama dalam 2-5 kata (contoh: 'Desain Aplikasi Mobile', 'Skema Database')",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
-  "project": "Most likely project name this belongs to (e.g. 'Instagram', 'Programming', 'Personal', 'Website')",
-  "suggestedFolder": "Best folder path suggestion (e.g. 'Projects/Instagram' or 'Programming')",
-  "suggestedName": "A clean, human-readable, descriptive filename preserving the original extension (e.g. 'Receipt-Starbucks-Sep2026.jpg' or 'Figma-Wireframe.png')"
+  "project": "Nama proyek yang paling mungkin (contoh: 'Instagram', 'Programming', 'Personal', 'Website')",
+  "suggestedFolder": "Saran path folder terbaik (contoh: 'Projects/Instagram' atau 'Programming')",
+  "suggestedName": "Nama file yang rapi, mudah dibaca, dan deskriptif dengan ekstensi asli dipertahankan (contoh: 'Receipt-Starbucks-Sep2026.jpg' atau 'Figma-Wireframe.png')"
 }`;
 
   const model = MODELS.gemini.flash;
@@ -217,7 +217,7 @@ export async function analyzeFile(filePath, mimeType, filename) {
     console.warn(`[ARKA AI] Primary provider (${preferred}) failed for "${filename}": ${describeAIError(err)}`);
 
     try {
-      const hint = `direct ${preferred} analysis was unavailable (${describeAIError(err)}), so only the file name and type are known.`;
+      const hint = `analisis langsung via ${preferred} tidak tersedia (${describeAIError(err)}), jadi hanya nama file dan tipe yang diketahui.`;
       const result = await analyzeWithGroq(filePath, mimeType, filename, hint);
       raw = result.raw;
       usedProvider = 'groq-fallback';
@@ -238,7 +238,7 @@ export async function analyzeFile(filePath, mimeType, filename) {
 
   if (!metadata.description && metadata.tags.length === 0) {
     console.warn(`[ARKA AI] "${filename}": provider ${usedProvider} returned no usable metadata.`);
-    return { ok: false, provider: usedProvider, error: 'AI response contained no usable metadata', ...metadata, analyzedAt };
+    return { ok: false, provider: usedProvider, error: 'Respons AI tidak memuat metadata yang bisa dipakai', ...metadata, analyzedAt };
   }
 
   console.log(`[ARKA AI] ✅ Analyzed "${filename}" via ${usedProvider}: [${metadata.tags.join(', ')}]`);
@@ -266,7 +266,7 @@ export async function analyzeFiles(fileList = []) {
         fileId: batch[idx].fileId,
         metadata: result.status === 'fulfilled'
           ? result.value
-          : { ok: false, provider: 'failed', error: result.reason?.message || 'Unknown analyzer error' }
+          : { ok: false, provider: 'failed', error: result.reason?.message || 'Kesalahan analisis tidak diketahui' }
       });
     });
   }

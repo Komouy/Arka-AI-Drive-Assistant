@@ -146,7 +146,7 @@ function physicalPathOf(file) {
   const storageRoot = STORAGE_DIR;
   const p = file.path || file.storage_path;
   const resolved = path.resolve(storageRoot, p);
-  if (!resolved.startsWith(storageRoot)) throw new Error('Invalid file path');
+  if (!resolved.startsWith(storageRoot)) throw new Error('Path file tidak valid');
   return resolved;
 }
 
@@ -393,7 +393,7 @@ export const fileController = {
 
         const { data: result, error } = await query.maybeSingle();
         if (error) return fail(res, error);
-        if (!result) return notFound(res, `File "${id}" not found`);
+        if (!result) return notFound(res, `File "${id}" tidak ditemukan`);
 
         const meta = Array.isArray(result.file_metadata) ? result.file_metadata[0] : result.file_metadata;
         const fileObj = {
@@ -427,7 +427,7 @@ export const fileController = {
         ? db.prepare(`${baseSelect} WHERE f.id = ?`).get(numericId)
         : db.prepare(`${baseSelect} WHERE f.original_name = ? OR f.stored_name = ? ORDER BY f.id DESC LIMIT 1`).get(id, id);
 
-      if (!file) return notFound(res, `File "${id}" not found`);
+      if (!file) return notFound(res, `File "${id}" tidak ditemukan`);
       return ok(res, { data: formatFileRecord(file) });
     } catch (err) {
       return fail(res, err);
@@ -439,7 +439,7 @@ export const fileController = {
     try {
       const uploadedFiles = req.files || (req.file ? [req.file] : []);
       if (!Array.isArray(uploadedFiles) || uploadedFiles.length === 0) {
-        return badRequest(res, 'No files were uploaded');
+        return badRequest(res, 'Tidak ada file yang diunggah');
       }
 
       const folderIdInput = req.body.folder_id || req.query.folder_id;
@@ -570,7 +570,7 @@ export const fileController = {
 
         res.status(201).json({
           success: true,
-          message: `Successfully uploaded ${savedRecords.length} file(s)${ useGDrive ? ' to Google Drive' : ' to cloud'}`,
+          message: `Berhasil mengunggah ${savedRecords.length} file${ useGDrive ? ' ke Google Drive' : ' ke cloud'}`,
           data: savedRecords.map(({ physicalPath, ...rest }) => rest)
         });
         return;
@@ -579,7 +579,7 @@ export const fileController = {
       // SQLite Fallback
       let targetFolderId = toInbox ? null : resolveTargetFolder(folderIdInput, project);
       if (!toInbox && project && !targetFolderId) {
-        return badRequest(res, `Destination folder "${project}" could not be resolved`);
+        return badRequest(res, `Folder tujuan "${project}" tidak dapat ditentukan`);
       }
       const isInbox = toInbox;
 
@@ -626,7 +626,7 @@ export const fileController = {
 
       res.status(201).json({
         success: true,
-        message: `Successfully uploaded ${savedRecords.length} file(s)`,
+        message: `Berhasil mengunggah ${savedRecords.length} file`,
         data: savedRecords.map(({ physicalPath, ...rest }) => rest)
       });
 
@@ -650,7 +650,7 @@ export const fileController = {
         }
         const { data: file, error: fErr } = await query.maybeSingle();
         if (fErr) return fail(res, fErr);
-        if (!file) return notFound(res, 'File not found');
+        if (!file) return notFound(res, 'File tidak ditemukan');
 
         // Google Drive files have no copy in Supabase Storage — the bytes live in
         // the user's own Drive and must be pulled with the OAuth provider token.
@@ -659,12 +659,12 @@ export const fileController = {
         let sourceBuffer = null;
         if (isGDrive) {
           if (!file.gdrive_file_id) {
-            return badRequest(res, 'File has no Google Drive ID — cannot fetch it for analysis');
+            return badRequest(res, 'File tidak memiliki ID Google Drive — tidak bisa diambil untuk analisis');
           }
           if (!req.providerToken) {
             return res.status(401).json({
               success: false,
-              error: 'Google Drive access token missing or expired — sign in with Google again, then retry.'
+              error: 'Token akses Google Drive hilang atau kedaluwarsa — masuk lagi dengan Google, lalu coba ulang.'
             });
           }
           try {
@@ -676,7 +676,7 @@ export const fileController = {
           // Download file content from Supabase storage for local analysis
           const { data: blob, error: dlErr } = await supabase.storage.from(BUCKET_NAME).download(file.storage_path);
           if (dlErr || !blob) {
-            return res.status(502).json({ success: false, error: 'Could not fetch file from storage for analysis' });
+            return res.status(502).json({ success: false, error: 'Gagal mengambil file dari penyimpanan untuk analisis' });
           }
           sourceBuffer = Buffer.from(await blob.arrayBuffer());
         }
@@ -685,7 +685,7 @@ export const fileController = {
         try {
           tempPath = spillBufferToTemp(sourceBuffer, file.stored_name);
           if (!tempPath) {
-            return res.status(500).json({ success: false, error: 'Could not stage file for analysis' });
+            return res.status(500).json({ success: false, error: 'Gagal menyiapkan file untuk analisis' });
           }
 
           const { analyzeFile } = await import('../ai/analyzer.js');
@@ -694,7 +694,7 @@ export const fileController = {
           if (!metadata.ok) {
             return res.status(502).json({
               success: false,
-              error: metadata.error || 'AI analysis failed',
+              error: metadata.error || 'Analisis AI gagal',
               metadata
             });
           }
@@ -731,10 +731,10 @@ export const fileController = {
 
       // SQLite Fallback
       const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(id));
-      if (!file) return notFound(res, 'File not found');
+      if (!file) return notFound(res, 'File tidak ditemukan');
 
       const physPath = physicalPathOf(file);
-      if (!fs.existsSync(physPath)) return notFound(res, 'Physical file not found on disk');
+      if (!fs.existsSync(physPath)) return notFound(res, 'File fisik tidak ditemukan di disk');
 
       const { analyzeFile } = await import('../ai/analyzer.js');
       const metadata = await analyzeFile(physPath, file.mime_type, file.original_name);
@@ -742,7 +742,7 @@ export const fileController = {
       if (!metadata.ok) {
         return res.status(502).json({
           success: false,
-          error: metadata.error || 'AI analysis failed',
+          error: metadata.error || 'Analisis AI gagal',
           metadata
         });
       }
@@ -777,13 +777,13 @@ export const fileController = {
         let checkQuery = supabase.from('files').select('id, user_id').eq('id', id);
         if (userId) checkQuery = checkQuery.or(`user_id.eq.${userId},user_id.is.null`);
         const { data: existing } = await checkQuery.maybeSingle();
-        if (!existing) return notFound(res, 'File not found');
+        if (!existing) return notFound(res, 'File tidak ditemukan');
 
         const updates = { updated_at: new Date().toISOString() };
 
         if (original_name !== undefined) {
           const newName = String(original_name).trim();
-          if (!newName) return badRequest(res, 'File name cannot be empty');
+          if (!newName) return badRequest(res, 'Nama file tidak boleh kosong');
           updates.original_name = newName;
         }
         if (folder_id !== undefined) updates.folder_id = folder_id || null;
@@ -799,17 +799,17 @@ export const fileController = {
           .maybeSingle();
 
         if (error) return fail(res, error);
-        if (!updated) return notFound(res, 'File not found');
+        if (!updated) return notFound(res, 'File tidak ditemukan');
 
         return ok(res, { data: formatFileRecord(updated) });
       }
 
       // SQLite Fallback
       const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(id));
-      if (!file) return notFound(res, 'File not found');
+      if (!file) return notFound(res, 'File tidak ditemukan');
 
       const newName = original_name !== undefined ? String(original_name).trim() : file.original_name;
-      if (!newName) return badRequest(res, 'File name cannot be empty');
+      if (!newName) return badRequest(res, 'Nama file tidak boleh kosong');
 
       let newFolderId = file.folder_id;
       if (folder_id !== undefined) {
@@ -864,7 +864,7 @@ export const fileController = {
         if (userId) checkQuery = checkQuery.or(`user_id.eq.${userId},user_id.is.null`);
         const { data: file, error: fErr } = await checkQuery.maybeSingle();
         if (fErr) return fail(res, fErr);
-        if (!file) return notFound(res, 'File not found');
+        if (!file) return notFound(res, 'File tidak ditemukan');
 
         if (permanent === 'true' || file.is_trash) {
           // If stored on user's Google Drive, delete from Drive via Drive API
@@ -882,26 +882,26 @@ export const fileController = {
             await supabase.storage.from(BUCKET_NAME).remove([file.storage_path]);
           }
           await supabase.from('files').delete().eq('id', id);
-          return ok(res, { message: `File "${file.original_name}" permanently deleted.` });
+          return ok(res, { message: `File "${file.original_name}" dihapus permanen.` });
         }
 
         // Soft delete
         await supabase.from('files').update({ is_trash: true, updated_at: new Date().toISOString() }).eq('id', id);
-        return ok(res, { message: `File "${file.original_name}" moved to trash.` });
+        return ok(res, { message: `File "${file.original_name}" dipindahkan ke sampah.` });
       }
 
       // SQLite Fallback
       const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(id));
-      if (!file) return notFound(res, 'File not found');
+      if (!file) return notFound(res, 'File tidak ditemukan');
 
       if (permanent === 'true' || file.is_trash === 1) {
         removePhysicalFile(file);
         db.prepare('DELETE FROM files WHERE id = ?').run(Number(id));
-        return ok(res, { message: `File "${file.original_name}" permanently deleted.` });
+        return ok(res, { message: `File "${file.original_name}" dihapus permanen.` });
       }
 
       db.prepare('UPDATE files SET is_trash = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(Number(id));
-      return ok(res, { message: `File "${file.original_name}" moved to trash.` });
+      return ok(res, { message: `File "${file.original_name}" dipindahkan ke sampah.` });
     } catch (err) {
       return fail(res, err);
     }
@@ -945,7 +945,7 @@ export const fileController = {
         }
 
         return ok(res, {
-          message: `Emptied ${files.length} file(s) from cloud trash.`,
+          message: `Mengosongkan ${files.length} file dari sampah cloud.`,
           count: files.length
         });
       }
@@ -961,7 +961,7 @@ export const fileController = {
       db.prepare('DELETE FROM files WHERE is_trash = 1').run();
 
       return ok(res, {
-        message: `Emptied ${trashFiles.length} file(s) from trash.`,
+        message: `Mengosongkan ${trashFiles.length} file dari sampah.`,
         count: trashFiles.length,
         removedFromDisk
       });
@@ -992,7 +992,7 @@ export const fileController = {
         }
 
         const { data: file, error } = await query.maybeSingle();
-        if (error || !file) return notFound(res, `File "${id}" not found`);
+        if (error || !file) return notFound(res, `File "${id}" tidak ditemukan`);
 
         if (file.gdrive_view_url || file.public_url) {
           return res.redirect(file.gdrive_view_url || file.public_url);
@@ -1000,7 +1000,7 @@ export const fileController = {
 
         // Fallback: download blob and stream
         const { data: blob, error: dlErr } = await supabase.storage.from(BUCKET_NAME).download(file.storage_path);
-        if (dlErr || !blob) return notFound(res, 'File content not found in storage');
+        if (dlErr || !blob) return notFound(res, 'Isi file tidak ditemukan di penyimpanan');
 
         const arrayBuffer = await blob.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
@@ -1015,10 +1015,10 @@ export const fileController = {
         ? db.prepare('SELECT * FROM files WHERE id = ?').get(numericId)
         : db.prepare('SELECT * FROM files WHERE original_name = ? OR stored_name = ? ORDER BY id DESC LIMIT 1').get(id, id);
 
-      if (!file) return notFound(res, `File "${id}" not found`);
+      if (!file) return notFound(res, `File "${id}" tidak ditemukan`);
 
       const physicalPath = physicalPathOf(file);
-      if (!fs.existsSync(physicalPath)) return notFound(res, 'Physical file not found on disk');
+      if (!fs.existsSync(physicalPath)) return notFound(res, 'File fisik tidak ditemukan di disk');
 
       return res.download(physicalPath, file.original_name);
     } catch (err) {

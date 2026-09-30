@@ -88,15 +88,15 @@ export const inboxController = {
 
         const { data: file, error: fErr } = await supabase.from('files').select('*').eq('id', id).maybeSingle();
         if (fErr) return fail(res, fErr);
-        if (!file) return notFound(res, 'File not found');
+        if (!file) return notFound(res, 'File tidak ditemukan');
 
         // Multi-tenant check
         if (file.user_id && userId && file.user_id !== userId) {
-          return notFound(res, 'File not found');
+          return notFound(res, 'File tidak ditemukan');
         }
 
         if (file.is_trash) {
-          return badRequest(res, `"${file.original_name}" is in the trash — restore it first.`);
+          return badRequest(res, `"${file.original_name}" ada di sampah — kembalikan dulu.`);
         }
 
         let targetFolderId = folder_id;
@@ -115,7 +115,7 @@ export const inboxController = {
         }
 
         if (!targetFolderId) {
-          return badRequest(res, 'Destination folder id or project name is required');
+          return badRequest(res, 'Id folder tujuan atau nama proyek wajib diisi');
         }
 
         const { data: updated, error: uErr } = await supabase.from('files').update({
@@ -129,7 +129,7 @@ export const inboxController = {
 
         const folderName = updated.folders?.name || `Folder #${targetFolderId}`;
         return ok(res, {
-          message: `File moved to "${folderName}"`,
+          message: `File dipindahkan ke "${folderName}"`,
           data: formatInboxRecord(updated),
           folder: { id: targetFolderId, path: folderName }
         });
@@ -137,14 +137,14 @@ export const inboxController = {
 
       // SQLite Fallback
       const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(id));
-      if (!file) return notFound(res, 'File not found');
+      if (!file) return notFound(res, 'File tidak ditemukan');
       if (file.is_trash === 1) {
-        return badRequest(res, `"${file.original_name}" is in the trash — restore it first (arka restore ${file.id}).`);
+        return badRequest(res, `"${file.original_name}" ada di sampah — kembalikan dulu (arka restore ${file.id}).`);
       }
 
       const targetFolderId = resolveTargetFolder(folder_id, project_name);
       if (!targetFolderId) {
-        return badRequest(res, 'Destination folder id or project name is required');
+        return badRequest(res, 'Id folder tujuan atau nama proyek wajib diisi');
       }
 
       const oldPath = path.resolve(UPLOADS_DIR, '..', file.path);
@@ -166,7 +166,7 @@ export const inboxController = {
       const folderPath = getFolderPath(targetFolderId) || `Folder #${targetFolderId}`;
 
       return ok(res, {
-        message: `File moved to "${folderPath}"`,
+        message: `File dipindahkan ke "${folderPath}"`,
         data: formatInboxRecord(updated),
         folder: { id: targetFolderId, path: folderPath }
       });

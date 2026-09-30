@@ -21,13 +21,16 @@ import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
 import { getGroq, MODELS, describeAIError } from './providers.js';
 import { getEnv } from '../config/env.js';
 import { getFileTypeCategory } from '../utils/fileTypes.js';
+import { likePattern } from '../utils/search.js';
 import { getGuideText, guideTopicsText } from './usageGuide.js';
 
-/** Escape SQL LIKE wildcards */
-function likePattern(query = '') {
-  const escaped = String(query).replace(/[\\%_]/g, ch => `\\${ch}`);
-  return `%${escaped}%`;
-}
+/**
+ * Berapa banyak baris terbaru yang diambil dari Supabase sebelum difilter di JS.
+ * Pencarian Supabase sengaja mengambil sejumlah baris terbaru lalu menyaring di
+ * memori (bukan `.or()` PostgREST) agar perilakunya persis sama dengan query
+ * SQLite dan aman terhadap karakter `%`, `_`, `,` pada input pengguna.
+ */
+const SEARCH_SCAN_LIMIT = 200;
 
 // ── Tool Definitions ───────────────────────────────────────────────────────────
 const TOOLS = [
@@ -35,12 +38,12 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'search_files',
-      description: 'Search for files by name, tags, or description. Use this when the user wants to find files.',
+      description: 'Cari file berdasarkan nama, tag, atau deskripsi. Gunakan saat pengguna ingin menemukan file.',
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'Search query keyword' },
-          type:  { type: 'string', description: 'File type filter: Image, Video, Audio, Document, Code, Prompt, Other' }
+          query: { type: 'string', description: 'Kata kunci pencarian' },
+          type:  { type: 'string', description: 'Filter tipe file: Image, Video, Audio, Document, Code, Archive, Other' }
         },
         required: ['query']
       }
@@ -50,11 +53,11 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'search_prompts',
-      description: 'Search for saved prompts by title, content or tags.',
+      description: 'Cari prompt tersimpan berdasarkan judul, isi, atau tag.',
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'Search query' }
+          query: { type: 'string', description: 'Kata kunci pencarian' }
         },
         required: ['query']
       }
@@ -64,7 +67,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'list_inbox',
-      description: 'List all files currently in the Inbox awaiting organization.',
+      description: 'Tampilkan semua file yang masih ada di Inbox dan belum dirapikan.',
       parameters: { type: 'object', properties: {} }
     }
   },
@@ -72,7 +75,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'get_workspace_stats',
-      description: 'Get workspace statistics: file count, storage usage, folder count.',
+      description: 'Ambil statistik workspace: jumlah file, pemakaian penyimpanan, jumlah folder.',
       parameters: { type: 'object', properties: {} }
     }
   },
@@ -80,7 +83,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'list_folders',
-      description: 'List all folders in the workspace.',
+      description: 'Tampilkan semua folder di workspace.',
       parameters: { type: 'object', properties: {} }
     }
   },
@@ -88,11 +91,11 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'get_usage_guide',
-      description: `Get the official ARKA usage documentation for one topic, so you can tell the user how to use the web app. Topics: ${guideTopicsText()} (leave empty for an overview).`,
+      description: `Ambil dokumentasi resmi penggunaan ARKA untuk satu topik, agar kamu bisa menjelaskan cara memakai aplikasi web. Topik: ${guideTopicsText()} (biarkan kosong untuk ringkasan).`,
       parameters: {
         type: 'object',
         properties: {
-          topic: { type: 'string', description: `One of: ${guideTopicsText()} — or empty for the overview` }
+          topic: { type: 'string', description: `Salah satu dari: ${guideTopicsText()} — atau kosong untuk ringkasan` }
         }
       }
     }
@@ -101,11 +104,11 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'answer',
-      description: 'Respond to the user with a text answer when no tool action is needed.',
+      description: 'Jawab pengguna dengan teks biasa saat tidak perlu aksi tool.',
       parameters: {
         type: 'object',
         properties: {
-          text: { type: 'string', description: 'The response text to the user' }
+          text: { type: 'string', description: 'Teks jawaban untuk pengguna' }
         },
         required: ['text']
       }
@@ -114,6 +117,15 @@ const TOOLS = [
 ];
 
 // ── Tool Implementations — Supabase + SQLite dual support ─────────────────────
+/**
+ * Terapkan pembatasan tenant yang sama seperti controller lain: baris milik user
+ * saat ini PLUS data owner lama (user_id IS NULL) tetap terlihat. Tanpa ini agent
+ * melaporkan workspace kosong untuk akun Google sementara UI web menampilkan datanya.
+ */
+function scopeToUser(query, userId) {
+  return userId ? query.or(`user_id.eq.${userId},user_id.is.null`) : query;
+}
+
 async function executeTool(name, args, userId = null) {
   const useSupabase = isSupabaseConfigured();
 
@@ -130,31 +142,44 @@ async function executeTool(name, args, userId = null) {
                    file_metadata(description, tags, category)`)
           .eq('is_trash', false);
 
-        if (userId) query = query.eq('user_id', userId);
+        query = scopeToUser(query, userId);
 
-        const s = q.replace(/[%_]/g, c => `\\${c}`);
-        query = query.or(`original_name.ilike.%${s}%`);
+        // Ambil baris terbaru dulu, lalu filter di JS supaya pencarian mencakup
+        // nama + deskripsi AI + tags + kategori (sama seperti query SQLite) dan
+        // tidak bergantung pada escaping `.or()` PostgREST yang rawan rusak.
+        const { data: rows = [] } = await query
+          .order('created_at', { ascending: false })
+          .limit(SEARCH_SCAN_LIMIT);
 
-        const { data: rows = [] } = await query.order('created_at', { ascending: false }).limit(20);
+        const filtered = rows
+          .map(r => {
+            const meta = Array.isArray(r.file_metadata) ? r.file_metadata[0] : r.file_metadata;
+            return { r, meta };
+          })
+          .filter(({ r, meta }) => {
+            const haystack = [r.original_name, meta?.description, meta?.category]
+              .concat(Array.isArray(meta?.tags) ? meta.tags : [meta?.tags])
+              .filter(Boolean)
+              .join(' ')
+              .toLowerCase();
+            const matchesText = !q || haystack.includes(q.toLowerCase());
+            const matchesType = !args.type ||
+              getFileTypeCategory(r.mime_type, r.original_name).toLowerCase() === String(args.type).toLowerCase();
+            return matchesText && matchesType;
+          })
+          .slice(0, 20);
 
-        const filtered = args.type
-          ? rows.filter(r => getFileTypeCategory(r.mime_type, r.original_name).toLowerCase() === String(args.type).toLowerCase())
-          : rows;
-
-        return { files: filtered.map(r => {
-          const meta = Array.isArray(r.file_metadata) ? r.file_metadata[0] : r.file_metadata;
-          return {
-            id: r.id,
-            original_name: r.original_name,
-            mime_type: r.mime_type,
-            size: r.size,
-            is_inbox: r.is_inbox,
-            folder_name: r.folders?.name || null,
-            description: meta?.description || null,
-            tags: meta?.tags || null,
-            category: meta?.category || null
-          };
-        }), count: filtered.length };
+        return { files: filtered.map(({ r, meta }) => ({
+          id: r.id,
+          original_name: r.original_name,
+          mime_type: r.mime_type,
+          size: r.size,
+          is_inbox: r.is_inbox,
+          folder_name: r.folders?.name || null,
+          description: meta?.description || null,
+          tags: meta?.tags || null,
+          category: meta?.category || null
+        })), count: filtered.length };
       }
 
       // SQLite fallback
@@ -187,12 +212,24 @@ async function executeTool(name, args, userId = null) {
 
       if (useSupabase) {
         const supabase = getSupabaseClient();
-        const s = q.replace(/[%_]/g, c => `\\${c}`);
         let query = supabase.from('prompts').select('id, title, category, tags, content');
-        if (userId) query = query.eq('user_id', userId);
-        query = query.or(`title.ilike.%${s}%,content.ilike.%${s}%,tags.cs.{${q}}`);
-        const { data: rows = [] } = await query.order('created_at', { ascending: false }).limit(10);
-        return { prompts: rows, count: rows.length };
+        query = scopeToUser(query, userId);
+        const { data: rows = [] } = await query.order('created_at', { ascending: false }).limit(SEARCH_SCAN_LIMIT);
+
+        // Saring di JS (judul + isi + kategori + tags) agar konsisten dengan SQLite
+        // dan tidak lagi memakai `tags.cs.{...}` yang rapuh terhadap spasi/koma.
+        const filtered = rows
+          .filter(p => {
+            const haystack = [p.title, p.content, p.category]
+              .concat(Array.isArray(p.tags) ? p.tags : [p.tags])
+              .filter(Boolean)
+              .join(' ')
+              .toLowerCase();
+            return !q || haystack.includes(q.toLowerCase());
+          })
+          .slice(0, 10);
+
+        return { prompts: filtered, count: filtered.length };
       }
 
       const pattern = likePattern(q);
@@ -217,7 +254,7 @@ async function executeTool(name, args, userId = null) {
                    file_metadata(description, tags, category)`)
           .eq('is_inbox', true)
           .eq('is_trash', false);
-        if (userId) query = query.eq('user_id', userId);
+        query = scopeToUser(query, userId);
         const { data: rows = [] } = await query.order('created_at', { ascending: false });
         return { files: rows.map(r => ({
           id: r.id,
@@ -248,12 +285,10 @@ async function executeTool(name, args, userId = null) {
         let inboxQ = supabase.from('files').select('id', { count: 'exact' }).eq('is_inbox', true).eq('is_trash', false);
         let folderQ = supabase.from('folders').select('id', { count: 'exact' });
         let promptQ = supabase.from('prompts').select('id', { count: 'exact' });
-        if (userId) {
-          fQuery = fQuery.eq('user_id', userId);
-          inboxQ = inboxQ.eq('user_id', userId);
-          folderQ = folderQ.eq('user_id', userId);
-          promptQ = promptQ.eq('user_id', userId);
-        }
+        fQuery = scopeToUser(fQuery, userId);
+        inboxQ = scopeToUser(inboxQ, userId);
+        folderQ = scopeToUser(folderQ, userId);
+        promptQ = scopeToUser(promptQ, userId);
         const [{ data: files = [], count: fileCount }, { count: inboxCount }, { count: folderCount }, { count: promptCount }]
           = await Promise.all([fQuery, inboxQ, folderQ, promptQ]);
         const totalBytes = (files || []).reduce((s, f) => s + (f.size || 0), 0);
@@ -271,14 +306,27 @@ async function executeTool(name, args, userId = null) {
       if (useSupabase) {
         const supabase = getSupabaseClient();
         let query = supabase.from('folders').select('id, name, parent_id');
-        if (userId) query = query.eq('user_id', userId);
-        const { data: rows = [] } = await query.order('name');
+        let filesQuery = supabase.from('files').select('folder_id').eq('is_trash', false);
+        query = scopeToUser(query, userId);
+        filesQuery = scopeToUser(filesQuery, userId);
+
+        const [{ data: rows = [] }, { data: files = [] }] = await Promise.all([
+          query.order('name'),
+          filesQuery
+        ]);
+
+        // Hitung jumlah file per folder (dulu di-hardcode 0 → info folder salah)
+        const countMap = {};
+        for (const f of (files || [])) {
+          if (f.folder_id) countMap[f.folder_id] = (countMap[f.folder_id] || 0) + 1;
+        }
+
         // Build parent name map
         const nameMap = Object.fromEntries((rows || []).map(r => [r.id, r.name]));
         return { folders: (rows || []).map(r => ({
           id: r.id, name: r.name, parent_id: r.parent_id,
           parent_name: r.parent_id ? nameMap[r.parent_id] || null : null,
-          file_count: 0
+          file_count: countMap[r.id] || 0
         })), count: rows.length };
       }
 
@@ -310,34 +358,35 @@ async function executeTool(name, args, userId = null) {
 // ── Format tool result for LLM context ───────────────────────────────────────
 function formatToolResult(name, result) {
   if (name === 'search_files') {
-    if (result.count === 0) return 'No matching files found.';
+    if (result.count === 0) return 'Tidak ada file yang cocok.';
     return result.files.map(f =>
       `[ID:${f.id}] ${f.original_name} (${f.folder_name || 'Inbox/Root'}) - ${f.description || f.tags || ''}`
     ).join('\n');
   }
   if (name === 'search_prompts') {
-    if (result.count === 0) return 'No matching prompts found.';
+    if (result.count === 0) return 'Tidak ada prompt yang cocok.';
     return result.prompts.map(p =>
       `[Prompt ${p.id}] "${p.title}" [${p.category}] - ${Array.isArray(p.tags) ? p.tags.join(',') : (p.tags || '')}`
     ).join('\n');
   }
   if (name === 'list_inbox') {
-    if (result.count === 0) return 'Inbox is empty.';
-    return `${result.count} files in inbox:\n` + result.files.map(f =>
-      `[ID:${f.id}] ${f.original_name} - ${f.category || 'Uncategorized'}`
+    if (result.count === 0) return 'Inbox kosong.';
+    return `${result.count} file di inbox:\n` + result.files.map(f =>
+      `[ID:${f.id}] ${f.original_name} - ${f.category || 'Tanpa kategori'}`
     ).join('\n');
   }
   if (name === 'get_workspace_stats') {
     const mb = ((result.totalBytes || 0) / 1024 / 1024).toFixed(1);
-    return `${result.totalFiles} files (${mb} MB), ${result.inboxFiles} in inbox, ${result.folders} folders, ${result.prompts} prompts.`;
+    return `${result.totalFiles} file (${mb} MB), ${result.inboxFiles} di inbox, ${result.folders} folder, ${result.prompts} prompt.`;
   }
   if (name === 'list_folders') {
+    if (result.count === 0) return 'Belum ada folder.';
     return result.folders.map(f =>
-      `${f.parent_name ? f.parent_name + '/' : ''}${f.name} (${f.file_count} files)`
+      `${f.parent_name ? f.parent_name + '/' : ''}${f.name} (${f.file_count} file)`
     ).join('\n');
   }
   if (name === 'get_usage_guide') {
-    return result.guide || 'No guide available for that topic.';
+    return result.guide || 'Panduan untuk topik itu belum tersedia.';
   }
   return JSON.stringify(result);
 }
@@ -383,7 +432,7 @@ async function askForFinalText(messages) {
       model: MODELS.groq.fast,
       messages: [
         ...messages,
-        { role: 'user', content: 'Jawab permintaan user tadi sekarang sebagai teks biasa (jangan panggil tool). Bahasa mengikuti user, maksimal 120 kata, kalimat penutup harus lengkap.' }
+        { role: 'user', content: 'Jawab permintaan pengguna tadi sekarang sebagai teks biasa (jangan panggil tool). Gunakan bahasa Indonesia, maksimal 120 kata, kalimat penutup harus lengkap.' }
       ],
       max_tokens:  900,
       temperature: 0.3
@@ -412,20 +461,20 @@ export async function runAgent(userQuery, { reset = false, userId = null } = {})
 }
 
 async function runOnce(userQuery, userId = null) {
-  const systemPrompt = `You are ARKA, a personal AI workspace assistant for the ARKA web app (arkaapp.vercel.app). You help users manage their files, prompts, links, and workspace via the web UI.
+  const systemPrompt = `Kamu adalah ARKA, asisten workspace pribadi berbasis AI untuk aplikasi web ARKA (arkaapp.vercel.app). Kamu membantu pengguna mengelola file, prompt, tautan, dan workspace lewat UI web.
 
-Available tools let you search files, search prompts, list the inbox, check workspace stats, list folders, and read the ARKA usage guide.
+Tool yang tersedia memungkinkanmu mencari file, mencari prompt, melihat daftar inbox, memeriksa statistik workspace, melihat daftar folder, dan membaca panduan penggunaan ARKA.
 
-Rules:
-- Always use a tool when the user asks about files, prompts, or workspace data.
-- After getting tool results, give a friendly, concise response.
-- If unsure what to do, use the 'answer' tool to respond directly.
-- Always respond in the same language the user used (Indonesian/English).
-- Keep answers SHORT and COMPLETE: max ~100 words / 6 bullet lines, always end with a finished sentence — never trail off.
-- Earlier turns of this chat are included. If the message is a follow-up ("yang lebih detail", "yg kedua"), continue that topic.
-- NEVER invent features, URLs, or options that don't exist. Only mention what's in the usage guide or tool results.
-- You are read-only: you cannot move, rename, delete, or upload files. Tell users to use the web UI for those actions.
-- For organize/triage requests, use list_inbox first then suggest what the user can do in the web dashboard.`;
+Aturan:
+- SELALU gunakan bahasa Indonesia dalam setiap jawaban, apa pun bahasa yang dipakai pengguna.
+- Selalu pakai tool saat pengguna bertanya tentang file, prompt, atau data workspace.
+- Setelah mendapat hasil tool, beri jawaban yang ramah dan ringkas.
+- Jika ragu, gunakan tool 'answer' untuk menjawab langsung.
+- Jawaban harus SINGKAT dan LENGKAP: maksimal ~100 kata / 6 baris poin, selalu akhiri dengan kalimat yang utuh — jangan terputus.
+- Percakapan sebelumnya disertakan. Jika pesan adalah lanjutan ("yang lebih detail", "yg kedua"), lanjutkan topik itu.
+- JANGAN pernah mengarang fitur, URL, atau opsi yang tidak ada. Sebutkan hanya yang ada di panduan atau hasil tool.
+- Kamu bersifat read-only: kamu tidak bisa memindah, mengganti nama, menghapus, atau mengunggah file. Sarankan pengguna memakai UI web untuk aksi tersebut.
+- Untuk permintaan perapian/triage, pakai list_inbox dulu lalu sarankan langkah di dashboard web.`;
 
   const messages = [
     { role: 'system',  content: systemPrompt },
@@ -501,15 +550,15 @@ Rules:
           content: name !== 'answer'
             ? formatToolResult(name, toolResult)
             : (toolResult?.text && !callBroken
-                ? 'Answer delivered to the user.'
-                : 'The answer text was empty or truncated — write the answer again as plain text, briefly.')
+                ? 'Jawaban sudah disampaikan ke pengguna.'
+                : 'Teks jawaban kosong atau terpotong — tulis ulang jawabannya sebagai teks biasa secara singkat.')
         });
 
         if (name === 'answer' && toolResult?.text && !callBroken) answers.push(toolResult.text);
       }
 
       for (const skipped of msg.tool_calls.slice(4)) {
-        messages.push({ role: 'tool', tool_call_id: skipped.id, content: 'Skipped: too many tool calls in one turn.' });
+        messages.push({ role: 'tool', tool_call_id: skipped.id, content: 'Dilewati: terlalu banyak pemanggilan tool dalam satu giliran.' });
       }
 
       if (answers.length) {

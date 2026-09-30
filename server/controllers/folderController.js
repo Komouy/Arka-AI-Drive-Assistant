@@ -94,7 +94,7 @@ export const folderController = {
         // Handle nested path segments if path_str is provided
         if (path_str && typeof path_str === 'string') {
           const segments = splitFolderPath(path_str);
-          if (segments.length === 0) return badRequest(res, 'Invalid folder path provided');
+          if (segments.length === 0) return badRequest(res, 'Path folder tidak valid');
 
           let currentParentId = parent_id || null;
           let lastFolder = null;
@@ -132,7 +132,7 @@ export const folderController = {
         }
 
         const folderName = String(name || '').trim();
-        if (!folderName) return badRequest(res, 'Folder name is required');
+        if (!folderName) return badRequest(res, 'Nama folder wajib diisi');
 
         // Check for duplicates with same name and same parent (per-user)
         let dupQuery = supabase.from('folders').select('*').ilike('name', folderName);
@@ -165,11 +165,11 @@ export const folderController = {
       // SQLite Fallback
       if (path_str && typeof path_str === 'string') {
         if (splitFolderPath(path_str).length === 0) {
-          return badRequest(res, 'Invalid folder path provided');
+          return badRequest(res, 'Path folder tidak valid');
         }
 
         const folderId = resolveTargetFolder(parent_id, path_str);
-        if (!folderId) return badRequest(res, 'Invalid folder path provided');
+        if (!folderId) return badRequest(res, 'Path folder tidak valid');
 
         if (color !== DEFAULT_COLOR || icon !== DEFAULT_ICON) {
           db.prepare('UPDATE folders SET color = ?, icon = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
@@ -179,7 +179,7 @@ export const folderController = {
       }
 
       const folderName = String(name || '').trim();
-      if (!folderName) return badRequest(res, 'Folder name is required');
+      if (!folderName) return badRequest(res, 'Nama folder wajib diisi');
 
       let parentId = null;
       if (parent_id) {
@@ -216,23 +216,23 @@ export const folderController = {
 
         const { data: folder, error: fetchErr } = await supabase.from('folders').select('*').eq('id', id).maybeSingle();
         if (fetchErr) return fail(res, fetchErr);
-        if (!folder) return notFound(res, 'Folder not found');
+        if (!folder) return notFound(res, 'Folder tidak ditemukan');
 
         // Multi-tenant check
         if (folder.user_id && userId && folder.user_id !== userId) {
-          return notFound(res, 'Folder not found');
+          return notFound(res, 'Folder tidak ditemukan');
         }
 
         const updates = { updated_at: new Date().toISOString() };
         if (name !== undefined) {
           const newName = String(name).trim();
-          if (!newName) return badRequest(res, 'Folder name cannot be empty');
+          if (!newName) return badRequest(res, 'Nama folder tidak boleh kosong');
           updates.name = newName;
         }
         if (color !== undefined) updates.color = color;
         if (icon !== undefined) updates.icon = icon;
         if (parent_id !== undefined) {
-          if (parent_id === id) return badRequest(res, 'A folder cannot be its own parent');
+          if (parent_id === id) return badRequest(res, 'Folder tidak boleh menjadi induk dirinya sendiri');
           updates.parent_id = parent_id || null;
         }
 
@@ -243,11 +243,11 @@ export const folderController = {
 
       // SQLite Fallback
       const folder = getFolderRow(id);
-      if (!folder) return notFound(res, 'Folder not found');
+      if (!folder) return notFound(res, 'Folder tidak ditemukan');
       const folderId = Number(id);
 
       const newName = name !== undefined ? String(name).trim() : folder.name;
-      if (!newName) return badRequest(res, 'Folder name cannot be empty');
+      if (!newName) return badRequest(res, 'Nama folder tidak boleh kosong');
 
       const newColor = color !== undefined ? color : folder.color;
       const newIcon = icon !== undefined ? icon : folder.icon;
@@ -257,14 +257,14 @@ export const folderController = {
         newParentId = parent_id ? Number(parent_id) : null;
 
         if (newParentId === folderId) {
-          return badRequest(res, 'A folder cannot be its own parent');
+          return badRequest(res, 'Folder tidak boleh menjadi induk dirinya sendiri');
         }
         if (newParentId !== null) {
           if (!getFolderRow(newParentId)) {
             return badRequest(res, `Parent folder ID ${newParentId} does not exist`);
           }
           if (getFolderSubtreeIds(folderId).includes(newParentId)) {
-            return badRequest(res, 'Cannot move a folder into one of its own subfolders');
+            return badRequest(res, 'Tidak bisa memindahkan folder ke dalam subfolder-nya sendiri');
           }
         }
       }
@@ -293,11 +293,11 @@ export const folderController = {
 
         const { data: folder, error: fetchErr } = await supabase.from('folders').select('*').eq('id', id).maybeSingle();
         if (fetchErr) return fail(res, fetchErr);
-        if (!folder) return notFound(res, 'Folder not found');
+        if (!folder) return notFound(res, 'Folder tidak ditemukan');
 
         // Multi-tenant check
         if (folder.user_id && userId && folder.user_id !== userId) {
-          return notFound(res, 'Folder not found');
+          return notFound(res, 'Folder tidak ditemukan');
         }
 
         // Move files in this folder to inbox (only for this user / shared)
@@ -311,12 +311,12 @@ export const folderController = {
         const { error: delErr } = await supabase.from('folders').delete().eq('id', id);
         if (delErr) return fail(res, delErr);
 
-        return ok(res, { message: `Folder "${folder.name}" deleted. Files moved to Inbox.` });
+        return ok(res, { message: `Folder "${folder.name}" dihapus. File dipindahkan ke Inbox.` });
       }
 
       // SQLite Fallback
       const folder = getFolderRow(id);
-      if (!folder) return notFound(res, 'Folder not found');
+      if (!folder) return notFound(res, 'Folder tidak ditemukan');
 
       const folderId = Number(id);
       const allFolderIds = getFolderSubtreeIds(folderId);
@@ -355,7 +355,7 @@ export const folderController = {
       }
 
       return ok(res, {
-        message: `Folder "${folder.name}" deleted. ${files.length} file(s) moved to Inbox.`,
+        message: `Folder "${folder.name}" dihapus. ${files.length} file dipindahkan ke Inbox.`,
         deletedFolderIds: allFolderIds,
         filesMovedToInbox: files.length
       });

@@ -35,14 +35,14 @@ export const authController = {
     const { username, password } = req.body || {};
 
     if (!username || !password) {
-      return res.status(400).json({ success: false, error: 'Username and password are required' });
+      return res.status(400).json({ success: false, error: 'Nama pengguna dan kata sandi wajib diisi' });
     }
 
     const expectedPassword = getEnv('ARKA_PASSWORD');
     if (!expectedPassword) {
       return res.status(503).json({
         success: false,
-        error: 'Server authentication not configured. Please set ARKA_PASSWORD in environment variables.'
+        error: 'Autentikasi server belum dikonfigurasi. Silakan atur ARKA_PASSWORD di environment variables.'
       });
     }
 
@@ -50,7 +50,7 @@ export const authController = {
     const passwordMatch = safeEquals(String(password), expectedPassword);
 
     if (!usernameMatch || !passwordMatch) {
-      return res.status(401).json({ success: false, error: 'Invalid username or password' });
+      return res.status(401).json({ success: false, error: 'Nama pengguna atau kata sandi salah' });
     }
 
     const token = jwt.sign(
@@ -73,7 +73,7 @@ export const authController = {
    */
   verify: (req, res) => {
     if (!req.user) {
-      return res.status(401).json({ success: false, error: 'Not authenticated' });
+      return res.status(401).json({ success: false, error: 'Belum terautentikasi' });
     }
     return res.json({
       success: true,

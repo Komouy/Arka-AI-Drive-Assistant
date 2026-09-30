@@ -134,12 +134,12 @@ export const linkController = {
         }
         const { data: link, error } = await query.maybeSingle();
         if (error) return fail(res, error);
-        if (!link) return notFound(res, 'Link not found');
+        if (!link) return notFound(res, 'Link tidak ditemukan');
         return ok(res, { data: link });
       }
 
       const link = db.prepare('SELECT * FROM links WHERE id = ?').get(Number(id));
-      if (!link) return notFound(res, 'Link not found');
+      if (!link) return notFound(res, 'Link tidak ditemukan');
       return ok(res, { data: link });
     } catch (err) {
       return fail(res, err);
@@ -152,7 +152,7 @@ export const linkController = {
       let { url, title, description = '', category = 'General', tags = '' } = req.body;
 
       let cleanUrl = String(url || '').trim();
-      if (!cleanUrl) return badRequest(res, 'URL is required');
+      if (!cleanUrl) return badRequest(res, 'URL wajib diisi');
 
       // Add https:// if protocol is missing
       if (!/^https?:\/\//i.test(cleanUrl)) {
@@ -163,10 +163,10 @@ export const linkController = {
       try {
         const parsed = new URL(cleanUrl);
         if (!['http:', 'https:'].includes(parsed.protocol)) {
-          return badRequest(res, 'Invalid URL scheme. Only http and https are supported.');
+          return badRequest(res, 'Skema URL tidak valid. Hanya http dan https yang didukung.');
         }
       } catch {
-        return badRequest(res, 'Invalid URL format');
+        return badRequest(res, 'Format URL tidak valid');
       }
 
       const domain = extractDomain(cleanUrl);
@@ -194,7 +194,7 @@ export const linkController = {
         }).select().single();
 
         if (error) return fail(res, error);
-        return ok(res, { data: created, message: 'Link successfully saved & categorized' }, 201);
+        return ok(res, { data: created, message: 'Link berhasil disimpan & dikategorikan' }, 201);
       }
 
       const info = db.prepare(`
@@ -210,7 +210,7 @@ export const linkController = {
       );
 
       const created = db.prepare('SELECT * FROM links WHERE id = ?').get(Number(info.lastInsertRowid));
-      return ok(res, { data: created, message: 'Link successfully saved & categorized' }, 201);
+      return ok(res, { data: created, message: 'Link berhasil disimpan & dikategorikan' }, 201);
     } catch (err) {
       return fail(res, err);
     }
@@ -230,7 +230,7 @@ export const linkController = {
         let checkQuery = supabase.from('links').select('id, user_id').eq('id', id);
         if (userId) checkQuery = checkQuery.or(`user_id.eq.${userId},user_id.is.null`);
         const { data: existing } = await checkQuery.maybeSingle();
-        if (!existing) return notFound(res, 'Link not found');
+        if (!existing) return notFound(res, 'Link tidak ditemukan');
 
         const updates = { updated_at: new Date().toISOString() };
 
@@ -250,12 +250,12 @@ export const linkController = {
 
         const { data: updated, error } = await supabase.from('links').update(updates).eq('id', id).select().maybeSingle();
         if (error) return fail(res, error);
-        if (!updated) return notFound(res, 'Link not found');
+        if (!updated) return notFound(res, 'Link tidak ditemukan');
         return ok(res, { data: updated });
       }
 
       const link = db.prepare('SELECT * FROM links WHERE id = ?').get(Number(id));
-      if (!link) return notFound(res, 'Link not found');
+      if (!link) return notFound(res, 'Link tidak ditemukan');
 
       let newUrl = url !== undefined ? String(url).trim() : link.url;
       if (url !== undefined && !/^https?:\/\//i.test(newUrl)) {
@@ -294,13 +294,13 @@ export const linkController = {
         if (userId) delQuery = delQuery.or(`user_id.eq.${userId},user_id.is.null`);
         const { error, count } = await delQuery;
         if (error) return fail(res, error);
-        if (count === 0) return notFound(res, 'Link not found');
-        return ok(res, { message: 'Link deleted successfully' });
+        if (count === 0) return notFound(res, 'Link tidak ditemukan');
+        return ok(res, { message: 'Link berhasil dihapus' });
       }
 
       const info = db.prepare('DELETE FROM links WHERE id = ?').run(Number(id));
-      if (info.changes === 0) return notFound(res, 'Link not found');
-      return ok(res, { message: 'Link deleted successfully' });
+      if (info.changes === 0) return notFound(res, 'Link tidak ditemukan');
+      return ok(res, { message: 'Link berhasil dihapus' });
     } catch (err) {
       return fail(res, err);
     }
@@ -321,7 +321,7 @@ export const linkController = {
         link = db.prepare('SELECT * FROM links WHERE id = ?').get(Number(id));
       }
 
-      if (!link) return notFound(res, 'Link not found');
+      if (!link) return notFound(res, 'Link tidak ditemukan');
 
       // Fetch brief web snippet if possible
       let webSnippet = '';
@@ -350,17 +350,17 @@ export const linkController = {
         }
       } catch {}
 
-      const prompt = `Analyze this web bookmark and respond ONLY with a valid JSON object.
+      const prompt = `Analisis bookmark web ini dan balas HANYA dengan objek JSON yang valid.
 URL: ${link.url}
-Title: ${link.title}
+Judul: ${link.title}
 Domain: ${link.domain}
-Web Snippet: ${webSnippet || link.description || 'N/A'}
+Cuplikan web: ${webSnippet || link.description || 'N/A'}
 
-Respond with ONLY this JSON:
+Balas HANYA dengan JSON berikut:
 {
-  "title": "Clear and clean title for this bookmark",
-  "description": "One concise sentence summarizing the site purpose or content",
-  "category": "One category from: Technology, Design, AI, News, Education, Tools, Documentation, Business, Personal",
+  "title": "Judul yang jelas dan rapi untuk bookmark ini",
+  "description": "Satu kalimat ringkas dalam bahasa Indonesia yang merangkum tujuan atau isi situs",
+  "category": "Satu kategori dari: Technology, Design, AI, News, Education, Tools, Documentation, Business, Personal",
   "tags": ["tag1", "tag2", "tag3", "tag4"]
 }`;
 
@@ -368,15 +368,15 @@ Respond with ONLY this JSON:
       let rawText = '';
       try {
         rawText = await groqChat([
-          { role: 'system', content: 'You are ARKA, an intelligent bookmark and link classifier. Always return strictly valid JSON without markdown fences.' },
+          { role: 'system', content: 'Kamu adalah ARKA, pengklasifikasi bookmark dan tautan yang cerdas. Selalu kembalikan JSON yang valid tanpa blok markdown.' },
           { role: 'user', content: prompt }
         ], { json: true });
       } catch (aiErr) {
-        return res.status(502).json({ success: false, error: aiErr.message || 'AI analysis failed' });
+        return res.status(502).json({ success: false, error: aiErr.message || 'Analisis AI gagal' });
       }
 
       if (!rawText) {
-        return res.status(502).json({ success: false, error: 'AI analysis returned an empty response' });
+        return res.status(502).json({ success: false, error: 'Analisis AI mengembalikan respons kosong' });
       }
 
       let parsed = {};
@@ -387,7 +387,7 @@ Respond with ONLY this JSON:
         const candidate = start !== -1 && end > start ? cleaned.slice(start, end + 1) : cleaned;
         parsed = JSON.parse(candidate);
       } catch {
-        return res.status(502).json({ success: false, error: 'AI returned invalid JSON' });
+        return res.status(502).json({ success: false, error: 'AI mengembalikan JSON yang tidak valid' });
       }
 
       const newTitle = parsed.title || link.title;
@@ -406,7 +406,7 @@ Respond with ONLY this JSON:
         }).eq('id', id).select().single();
 
         if (uErr) return fail(res, uErr);
-        return ok(res, { data: updated, message: 'Link analyzed and enriched successfully' });
+        return ok(res, { data: updated, message: 'Link berhasil dianalisis dan diperkaya' });
       }
 
       const tagsStr = Array.isArray(newTags) ? newTags.join(',') : String(newTags || '');
@@ -417,7 +417,7 @@ Respond with ONLY this JSON:
       `).run(newTitle, newDesc, newCategory, tagsStr, Number(id));
 
       const updated = db.prepare('SELECT * FROM links WHERE id = ?').get(Number(id));
-      return ok(res, { data: updated, message: 'Link analyzed and enriched successfully' });
+      return ok(res, { data: updated, message: 'Link berhasil dianalisis dan diperkaya' });
     } catch (err) {
       return fail(res, err);
     }

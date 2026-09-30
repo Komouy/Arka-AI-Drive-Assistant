@@ -8,7 +8,7 @@
 
 /** 500 (or custom status) JSON error response. */
 export function fail(res, error, status = 500) {
-  const message = error instanceof Error ? error.message : String(error || 'Internal Server Error');
+  const message = error instanceof Error ? error.message : String(error || 'Kesalahan server internal');
   return res.status(status).json({ success: false, error: message });
 }
 
@@ -18,7 +18,7 @@ export function badRequest(res, message) {
 }
 
 /** 404 not-found error. */
-export function notFound(res, message = 'Not found') {
+export function notFound(res, message = 'Tidak ditemukan') {
   return res.status(404).json({ success: false, error: message });
 }
 

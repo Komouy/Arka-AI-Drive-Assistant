@@ -24,7 +24,7 @@ export async function requireAuth(req, res, next) {
   }
 
   if (!token) {
-    return res.status(401).json({ success: false, error: 'Authentication required' });
+    return res.status(401).json({ success: false, error: 'Autentikasi diperlukan' });
   }
 
   // Extract Google Drive provider token from header (sent as X-Provider-Token)
@@ -60,7 +60,7 @@ export async function requireAuth(req, res, next) {
     req.providerToken = providerToken; // may be null for password login
     return next();
   } catch (err) {
-    const message = err.name === 'TokenExpiredError' ? 'Session expired — please log in again' : 'Invalid token';
+    const message = err.name === 'TokenExpiredError' ? 'Sesi kedaluwarsa — silakan login lagi' : 'Token tidak valid';
     return res.status(401).json({ success: false, error: message });
   }
 }

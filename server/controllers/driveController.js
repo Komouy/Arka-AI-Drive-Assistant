@@ -141,11 +141,11 @@ export const driveController = {
   status: async (req, res) => {
     const providerToken = req.headers['x-provider-token'] || '';
     if (!providerToken) {
-      return res.status(400).json({ success: false, error: 'Google Drive access token (X-Provider-Token) is required' });
+      return res.status(400).json({ success: false, error: 'Token akses Google Drive (X-Provider-Token) wajib diisi' });
     }
     try {
       const folderId = await ensureArkaFolder(providerToken);
-      return res.json({ success: true, message: 'Google Drive connected', arkaFolderId: folderId, folderName: ARKA_FOLDER_NAME });
+      return res.json({ success: true, message: 'Google Drive terhubung', arkaFolderId: folderId, folderName: ARKA_FOLDER_NAME });
     } catch (err) {
       return res.status(502).json({ success: false, error: err.message });
     }

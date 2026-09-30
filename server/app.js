@@ -84,18 +84,18 @@ app.get('/', (req, res) => {
 // ── Centralised error handling ───────────────────────────────────────────────
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   if (err instanceof SyntaxError && 'body' in err) {
-    return res.status(400).json({ success: false, error: 'Invalid JSON body' });
+    return res.status(400).json({ success: false, error: 'Body JSON tidak valid' });
   }
   if (err.name === 'MulterError') {
     const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
-    return res.status(status).json({ success: false, error: `Upload rejected: ${err.message}` });
+    return res.status(status).json({ success: false, error: `Upload ditolak: ${err.message}` });
   }
   if (err.type === 'entity.too.large') {
-    return res.status(413).json({ success: false, error: 'Payload too large' });
+    return res.status(413).json({ success: false, error: 'Ukuran payload terlalu besar' });
   }
 
   console.error('[ARKA Error]', err.stack || err.message);
-  return res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });
+  return res.status(500).json({ success: false, error: err.message || 'Kesalahan server internal' });
 });
 
 export default app;

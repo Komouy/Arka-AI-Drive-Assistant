@@ -91,8 +91,8 @@ export const promptController = {
 
       const cleanTitle = String(title || '').trim();
       const cleanContent = String(content || '').trim();
-      if (!cleanTitle) return badRequest(res, 'Title is required');
-      if (!cleanContent) return badRequest(res, 'Content is required');
+      if (!cleanTitle) return badRequest(res, 'Judul wajib diisi');
+      if (!cleanContent) return badRequest(res, 'Konten wajib diisi');
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
@@ -135,18 +135,18 @@ export const promptController = {
         let checkQuery = supabase.from('prompts').select('id, user_id').eq('id', id);
         if (userId) checkQuery = checkQuery.or(`user_id.eq.${userId},user_id.is.null`);
         const { data: existing } = await checkQuery.maybeSingle();
-        if (!existing) return notFound(res, 'Prompt not found');
+        if (!existing) return notFound(res, 'Prompt tidak ditemukan');
 
         const updates = { updated_at: new Date().toISOString() };
 
         if (title !== undefined) {
           const cleanTitle = String(title).trim();
-          if (!cleanTitle) return badRequest(res, 'Title cannot be empty');
+          if (!cleanTitle) return badRequest(res, 'Judul tidak boleh kosong');
           updates.title = cleanTitle;
         }
         if (content !== undefined) {
           const cleanContent = String(content).trim();
-          if (!cleanContent) return badRequest(res, 'Content cannot be empty');
+          if (!cleanContent) return badRequest(res, 'Konten tidak boleh kosong');
           updates.content = cleanContent;
         }
         if (category !== undefined) updates.category = String(category).trim();
@@ -157,17 +157,17 @@ export const promptController = {
 
         const { data: updated, error } = await supabase.from('prompts').update(updates).eq('id', id).select().maybeSingle();
         if (error) return fail(res, error);
-        if (!updated) return notFound(res, 'Prompt not found');
+        if (!updated) return notFound(res, 'Prompt tidak ditemukan');
         return ok(res, { data: updated });
       }
 
       const prompt = db.prepare('SELECT * FROM prompts WHERE id = ?').get(Number(id));
-      if (!prompt) return notFound(res, 'Prompt not found');
+      if (!prompt) return notFound(res, 'Prompt tidak ditemukan');
 
       const newTitle = title !== undefined ? String(title).trim() : prompt.title;
       const newContent = content !== undefined ? String(content).trim() : prompt.content;
-      if (!newTitle) return badRequest(res, 'Title cannot be empty');
-      if (!newContent) return badRequest(res, 'Content cannot be empty');
+      if (!newTitle) return badRequest(res, 'Judul tidak boleh kosong');
+      if (!newContent) return badRequest(res, 'Konten tidak boleh kosong');
 
       const newCategory = category !== undefined ? String(category).trim() : prompt.category;
       const newTags = tags !== undefined ? String(tags).trim() : prompt.tags;
@@ -199,14 +199,14 @@ export const promptController = {
         if (userId) delQuery = delQuery.or(`user_id.eq.${userId},user_id.is.null`);
         const { error, count } = await delQuery;
         if (error) return fail(res, error);
-        if (count === 0) return notFound(res, `Prompt ID ${id} not found`);
-        return ok(res, { message: 'Prompt deleted', id });
+        if (count === 0) return notFound(res, `Prompt ID ${id} tidak ditemukan`);
+        return ok(res, { message: 'Prompt berhasil dihapus', id });
       }
 
       const info = db.prepare('DELETE FROM prompts WHERE id = ?').run(Number(id));
-      if (!info.changes) return notFound(res, `Prompt ID ${id} not found`);
+      if (!info.changes) return notFound(res, `Prompt ID ${id} tidak ditemukan`);
 
-      return ok(res, { message: 'Prompt deleted', id: Number(id) });
+      return ok(res, { message: 'Prompt berhasil dihapus', id: Number(id) });
     } catch (err) {
       return fail(res, err);
     }

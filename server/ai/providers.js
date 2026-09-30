@@ -4,15 +4,15 @@
  * Groq  = Primary (text, agent, search, fast inference)
  * Gemini = Multimodal (image/video/audio analysis)
  * 
- * Model strategy (IDs verified working with ARKA's keys — Sep 2026):
- *   - Text/Agent tasks  → Groq qwen/qwen3.8-27b (fast) / openai/gpt-oss-120b (smart)
- *   - Image/Video       → Gemini gemini-3.8-flash (multimodal)
- *   - Fallback          → If primary fails, other provider is tried
+ * Model strategy (IDs diverifikasi berfungsi dengan key ARKA — Sep 2026):
+ *   - Text/Agent tasks  → Groq qwen/qwen3.8-27b (cepat) / openai/gpt-oss-120b (lebih pintar)
+ *   - Image/Video       → Gemini gemini-3.5-flash (multimodal)
+ *   - Fallback          → Jika provider utama gagal, provider lain dicoba
  *
- * ⚠️  Provider model IDs get retired regularly. If `arka ai-status` shows ❌
- *     while the API key is valid, the model name is the usual culprit — see
- *     https://console.groq.com/docs/models and
- *     https://ai.google.dev/gemini-api/docs/models, then update MODELS below.
+ * ⚠️  ID model provider sering dihentikan/diganti. Jika `arka ai-status` menampilkan ❌
+ *     padahal API key valid, biasanya nama modelnya yang salah — lihat
+ *     https://console.groq.com/docs/models dan
+ *     https://ai.google.dev/gemini-api/docs/models, lalu perbarui MODELS di bawah.
  */
 
 import Groq from 'groq-sdk';
@@ -27,7 +27,7 @@ let groqClient = null;
 export function getGroq() {
   if (!groqClient) {
     const key = getApiKey('groq');
-    if (!key) throw new Error('GROQ_API_KEY not set. Add it to your .env file.');
+    if (!key) throw new Error('GROQ_API_KEY belum diatur. Tambahkan ke file .env kamu.');
     groqClient = new Groq({ apiKey: key });
   }
   return groqClient;
@@ -38,27 +38,27 @@ let geminiClient = null;
 export function getGemini() {
   if (!geminiClient) {
     const key = getApiKey('gemini');
-    if (!key) throw new Error('GEMINI_API_KEY not set. Add it to your .env file.');
+    if (!key) throw new Error('GEMINI_API_KEY belum diatur. Tambahkan ke file .env kamu.');
     geminiClient = new GoogleGenAI({ apiKey: key });
   }
   return geminiClient;
 }
 
 export const MODELS = {
-  // Groq — text, agent tool-calling & JSON metadata (IDs verified Sep 2026)
+  // Groq — teks, tool-calling agent & metadata JSON (ID diverifikasi Sep 2026)
   groq: {
-    fast:       'qwen/qwen3.8-27b',      // best tool-calling (agent) + clean JSON
-    smart:      'openai/gpt-oss-120b',   // stronger general reasoning
+    fast:       'qwen/qwen3.8-27b',      // paling baik untuk tool-calling (agent) + JSON rapi
+    smart:      'openai/gpt-oss-120b',   // penalaran umum yang lebih kuat
   },
-  // Gemini — multimodal (check https://ai.google.dev/gemini-api/docs/models for latest)
+  // Gemini — multimodal (cek https://ai.google.dev/gemini-api/docs/models untuk yang terbaru)
   gemini: {
-    flash:      'gemini-3.5-flash',      // Fast + multimodal (Google's current recommendation)
-    pro:        'gemini-3.8-flash',      // Pro tier needs paid quota → reuse flash
+    flash:      'gemini-3.5-flash',      // Cepat + multimodal (rekomendasi Google saat ini)
+    pro:        'gemini-3.5-flash',      // Tier Pro butuh kuota berbayar → pakai flash yang sama
   }
 };
 
 export function describeAIError(err) {
-  const raw = String(err?.message || err || 'Unknown AI error');
+  const raw = String(err?.message || err || 'Kesalahan AI tidak diketahui');
   const status = err?.status || err?.code || '';
   const jsonStart = raw.indexOf('{');
 
@@ -106,7 +106,7 @@ export async function checkAIProviders() {
       contents: 'ping'
     });
     result.gemini.available = !!(response?.text || response?.candidates?.length);
-    if (!result.gemini.available) result.gemini.error = 'Model replied with an empty response';
+    if (!result.gemini.available) result.gemini.error = 'Model membalas dengan respons kosong';
   } catch (err) {
     result.gemini.error = describeAIError(err);
   }

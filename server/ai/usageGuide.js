@@ -13,85 +13,88 @@ const GUIDE = {
   overview: {
     title: 'Ringkasan cara pakai ARKA Web App',
     text: `ARKA = penyimpanan file pribadi + AI, 100% lewat web browser di arkaapp.vercel.app.
-Alur harian: Login → Upload file → AI otomatis analisis → Cari/kelola di dashboard.
-Fitur utama: Upload file (max 500 MB), Notes/Prompts, Web Bookmarks, AI Smart Triage, AI Assistant (chat ini).
+Alur harian: Masuk → Unggah file → AI otomatis menganalisis → Cari/kelola di dashboard.
+Fitur utama: unggah file (maks 500 MB), Catatan/Prompt, Bookmark Web, Perapian AI Otomatis, AI Assistant (chat ini).
 Topik tersedia: ${['mulai', 'upload', 'inbox', 'file', 'trash', 'prompt', 'link', 'search', 'ai'].join(', ')}`
   },
 
   mulai: {
     title: 'Memulai ARKA Web App',
     text: `Buka arkaapp.vercel.app di browser.
-Login: Klik "Continue with Google" atau masukkan password di form login.
-Setelah login, kamu langsung masuk ke dashboard utama.
-Dashboard menampilkan: Stats (jumlah file, prompts, links, storage), panel upload, dan daftar semua item.
-Untuk logout: klik tombol "Sign out" di header kanan atas.`
+Masuk: klik "Lanjutkan dengan Google" atau pilih "Masuk dengan Kata Sandi" lalu isi Nama Pengguna dan Kata Sandi.
+Setelah masuk, kamu langsung berada di dashboard utama.
+Dashboard menampilkan: statistik (jumlah file, prompt, tautan, penyimpanan terpakai), panel "Unggah File" / "Catatan / Prompt Baru" / "Tambah Tautan", dan daftar semua item.
+Untuk keluar: klik tombol "Keluar" di kanan atas.`
   },
 
   upload: {
-    title: 'Meng-upload file',
-    text: `Di panel atas dashboard, tab "Upload File" sudah aktif.
-Cara upload:
-  1. Drag & drop file ke area upload ATAU klik area abu-abu untuk pilih file
+    title: 'Mengunggah file',
+    text: `Di panel atas dashboard, tab "Unggah File" sudah aktif.
+Cara mengunggah:
+  1. Letakkan file di area "Letakkan file di sini atau klik untuk memilih" ATAU klik area itu untuk memilih file
   2. Bisa pilih beberapa file sekaligus (multi-select)
-  3. Isi "Folder / Project" (opsional) untuk langsung menempatkan file ke folder tertentu
-  4. Klik tombol "Upload File"
-Setelah upload: AI otomatis menganalisis file → mengisi deskripsi, tags, kategori, dan saran folder.
-Batas ukuran: 500 MB per file. Format yang didukung: semua format umum (image, video, audio, dokumen, kode).`
+  3. Isi "Folder / Proyek (Opsional)" agar file langsung masuk ke folder tertentu
+  4. Klik tombol "Unggah File"
+Setelah diunggah: AI otomatis menganalisis file → mengisi deskripsi, tag, kategori, dan saran folder.
+Batas ukuran: 500 MB per file. Format yang didukung: semua format umum (gambar, video, audio, dokumen, kode).`
   },
 
   inbox: {
     title: 'Inbox & perapian file',
     text: `Inbox = file yang belum punya folder/organisasi.
-Filter ke "All Items" di dashboard → file yang masih di inbox muncul dengan label.
-AI Smart Triage: Klik tombol "AI Smart Triage" (ikon sparkles) di toolbar — AI otomatis memindahkan file inbox ke folder yang disarankan.
-Untuk organize manual: Klik file → Edit → pilih folder tujuan.
-Tips: Upload file ke inbox dulu, lalu jalankan AI Smart Triage untuk rapikan semuanya sekaligus.`
+Pada filter "Semua Item", file yang masih di inbox ditandai dengan label inbox.
+Perapian AI Otomatis: klik tombol "Perapian AI Otomatis" (ikon sparkles) di toolbar — AI menganalisis file inbox lalu memindahkannya ke folder saran AI.
+Cara per item: klik tombol "→ NamaFolder" pada baris file untuk menerima saran folder AI.
+Tips: unggah file apa adanya dulu, lalu jalankan "Perapian AI Otomatis" sekali untuk merapikan semuanya sekaligus.`
   },
 
   file: {
     title: 'Mengelola file',
     text: `Di daftar file, setiap item punya tombol aksi:
-  - "Analyze" (ikon sparkles): analisis ulang file dengan AI → update deskripsi, tags, kategori
-  - "Download": unduh file ke komputer
-  - "Edit" (ikon pensil): ubah nama, folder, tags, deskripsi
-  - "Delete" (ikon tong sampah): pindah ke trash (masih bisa restore)
-Filter tampilan: gunakan tombol tab "All Items", "Files", "Prompts", "Links".
-Cari file: ketik di kotak pencarian "Search keywords..." — mencari di nama, deskripsi, tags.`
+  - "pratinjau": buka detail file (deskripsi AI, tag, tipe, ukuran, tanggal)
+  - "Analisis AI" / "analisis ulang": analisis ulang dengan AI → perbarui deskripsi, tag, kategori
+  - "Ganti Nama AI": terima nama file usulan AI
+  - "→ NamaFolder": pindahkan file ke folder usulan AI
+  - "unduh": unduh file ke perangkat
+  - "hapus": pindahkan ke sampah (belum terhapus permanen)
+Filter tampilan: gunakan tombol "Semua Item", "File", "Prompt", "Tautan".
+Cari file: ketik di kotak "Cari kata kunci..." — mencari di nama, deskripsi AI, dan tag.`
   },
 
   trash: {
-    title: 'Trash / Sampah',
-    text: `Menghapus file dari daftar → file masuk ke trash (belum dihapus permanen).
-Untuk restore: Tampilkan trash → klik "Restore" pada file yang ingin dikembalikan.
-Untuk hapus permanen: Klik "Delete permanently" atau kosongkan trash.
-Catatan: File yang sudah dihapus permanen tidak bisa dipulihkan.`
+    title: 'Sampah (Trash)',
+    text: `Menghapus item dari daftar → item masuk ke sampah (belum terhapus permanen).
+Item di sampah disembunyikan dari daftar dan tidak dihitung dalam kuota penyimpanan.
+Pulihkan file: jalankan CLI "arka restore <nama file>".
+Lihat isi sampah: "arka trash". Kosongkan permanen: "arka trash empty" atau hapus dengan "arka rm --permanent".
+Catatan: file yang sudah dihapus permanen tidak bisa dikembalikan.`
   },
 
   prompt: {
     title: 'Prompt & Knowledge Hub',
-    text: `Tab "New Note / Prompt" di panel atas untuk menyimpan catatan atau prompt AI.
-Isi: Judul, Kategori, Konten (teks bebas), Tags (opsional).
-Gunakan untuk menyimpan: prompt ChatGPT/Gemini, catatan riset, snippet teks penting.
-Filter "Prompts" di toolbar untuk lihat hanya prompts.
-Edit/hapus: klik ikon di setiap item prompt.
-Pencarian: prompt ikut dicari di kotak search utama.`
+    text: `Tab "Catatan / Prompt Baru" di panel atas untuk menyimpan catatan atau prompt AI.
+Isi: Judul, Kategori, Konten (teks bebas), Tag (Opsional), lalu klik "Simpan Catatan".
+Cocok untuk menyimpan: prompt ChatGPT/Gemini, catatan riset, snippet teks penting.
+Filter "Prompt" di toolbar untuk menampilkan hanya prompt.
+Tombol "salin prompt" menyalin isinya ke clipboard; "pratinjau" membuka detail lengkap.
+Prompt ikut dicari lewat kotak pencarian utama.`
   },
 
   link: {
-    title: 'Web Bookmarks / Links',
-    text: `Tab "Add Link" di panel atas untuk menyimpan bookmark/URL.
-Isi: URL (wajib), Judul (opsional — diisi otomatis dari halaman), Kategori, Deskripsi.
-Fitur AI Link Analyzer: Klik ikon "Analyze" pada link → AI otomatis mengisi judul, deskripsi, kategori, tags dari konten halaman web.
-Filter "Links" di toolbar untuk lihat hanya links.
-Domain halaman dideteksi otomatis.`
+    title: 'Bookmark Web / Tautan',
+    text: `Tab "Tambah Tautan" di panel atas untuk menyimpan bookmark/URL.
+Isi: URL (wajib), Judul (Opsional — terisi otomatis dari halaman), Kategori, Deskripsi (Opsional), lalu klik "Simpan Tautan".
+Analisis AI untuk tautan: klik "Analisis AI" pada baris tautan → AI mengisi judul, deskripsi, kategori, dan tag dari isi halaman web.
+Filter "Tautan" di toolbar untuk menampilkan hanya tautan.
+Domain halaman terdeteksi otomatis; "buka tautan" membuka halaman aslinya di tab baru.`
   },
 
   search: {
     title: 'Pencarian',
-    text: `Kotak "Search keywords..." di toolbar — mencari di seluruh workspace.
-Pencarian meliputi: nama file, deskripsi AI, tags, kategori, judul prompt, konten prompt, URL link.
-Filter bersamaan: klik tab "Files", "Prompts", atau "Links" sambil cari untuk mempersempit hasil.
-Tips: Hasil "Analyze AI" (deskripsi & tag) membuat file jauh lebih mudah ditemukan lewat pencarian.`
+    text: `Kotak "Cari kata kunci..." di toolbar — mencari di seluruh workspace.
+Pencarian meliputi: nama file, deskripsi AI, tag, kategori, judul prompt, konten prompt, URL tautan.
+Gabungkan filter: klik "File", "Prompt", atau "Tautan" sambil mengetik untuk mempersempit hasil.
+Tips: hasil "Analisis AI" (deskripsi & tag) membuat file jauh lebih mudah ditemukan lewat pencarian.`
   },
 
   ai: {
@@ -100,11 +103,11 @@ Tips: Hasil "Analyze AI" (deskripsi & tag) membuat file jauh lebih mudah ditemuk
   - Groq (teks/agent/search): analisis dokumen, kode, prompt, dan AI chat assistant ini
   - Gemini (multimodal): analisis gambar, video, audio
 
-AI Smart Analyze (per file): Klik "Analyze" di file → AI buat deskripsi, topic, tags, kategori, saran folder, saran nama file.
-AI Smart Triage: Klik tombol "AI Smart Triage" → batch analyze + auto-organize semua file inbox.
-AI Link Analyzer: Klik "Analyze" di link → AI summarize halaman web dan isi metadata.
-AI Assistant (chat ini): Tanya apa saja tentang workspace kamu — search file, lihat statistik, cek inbox, dll.
-AI bersifat read-only: tidak bisa memindah/upload/hapus file — gunakan UI dashboard untuk aksi tersebut.`
+Analisis AI (per file): klik "Analisis AI" pada file → AI membuat deskripsi, topik, tag, kategori, saran folder, dan saran nama file.
+Perapian AI Otomatis: klik tombolnya di toolbar → analisis massal + rapikan semua file inbox sekaligus.
+Analisis AI untuk tautan: klik "Analisis AI" pada tautan → AI meringkas halaman web dan mengisi metadata.
+AI Assistant (chat ini): tanya apa saja tentang workspace kamu — cari file, lihat statistik, cek inbox, dll.
+AI bersifat read-only: tidak bisa memindah/upload/hapus file — gunakan tombol di dashboard untuk aksi tersebut.`
   }
 };
 
