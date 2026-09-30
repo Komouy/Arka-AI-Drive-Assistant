@@ -1,0 +1,23 @@
+# Environment & Secrets
+.env
+
+# Dependencies
+node_modules/
+server/node_modules/
+cli/node_modules/
+
+# Database (local only)
+database/arka.db
+database/arka.db-shm
+database/arka.db-wal
+
+# Storage files (local only)
+storage/uploads/*
+storage/inbox/*
+storage/logs/
+!storage/uploads/.gitkeep
+!storage/inbox/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db

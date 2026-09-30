@@ -1,0 +1,13 @@
+{
+  "name": "arka-cli",
+  "version": "1.0.0",
+  "description": "Command line interface for ARKA Personal AI Workspace",
+  "main": "bin/arka.js",
+  "type": "module",
+  "bin": {
+    "arka": "./bin/arka.js"
+  },
+  "scripts": {
+    "arka": "node ./bin/arka.js"
+  }
+}

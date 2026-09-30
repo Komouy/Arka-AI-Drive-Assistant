@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/api", "destination": "/api/index.js" },
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/upload", "destination": "/server/public/index.html" },
+    { "source": "/viewer", "destination": "/server/public/index.html" },
+    { "source": "/data", "destination": "/server/public/index.html" },
+    { "source": "/", "destination": "/server/public/index.html" },
+    { "source": "/(.*)", "destination": "/server/public/$1" }
+  ]
+}
