@@ -695,11 +695,20 @@
       try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
     }
 
-    /** Adds Authorization header to every fetch call */
-    function authFetch(url, options = {}) {
+    /** Adds Authorization header to every fetch call and detects expired sessions */
+    async function authFetch(url, options = {}) {
       const headers = { ...(options.headers || {}) };
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-      return fetch(url, { ...options, headers });
+      const res = await fetch(url, { ...options, headers });
+      if (res.status === 401 && !url.includes('/auth/login')) {
+        handleLogout();
+        const errEl = document.getElementById('loginError');
+        if (errEl) {
+          errEl.textContent = 'Session expired or unauthorized. Please sign in again.';
+          errEl.classList.add('visible');
+        }
+      }
+      return res;
     }
 
     // ── Login flow ─────────────────────────────────────────────────────────────
@@ -955,7 +964,8 @@
 
         let actionBtn = '';
         if (item.type === 'FILE') {
-          actionBtn = `<a href="/api/files/${safeId}/download" class="btn-action" target="_blank">download</a>`;
+          const downloadUrl = `/api/files/${safeId}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
+          actionBtn = `<a href="${downloadUrl}" class="btn-action" target="_blank" rel="noopener noreferrer">download</a>`;
         } else if (item.type === 'LINK' && item.url) {
           const safeUrl = escapeHtml(item.url);
           actionBtn = `<a href="${safeUrl}" class="btn-action" target="_blank" rel="noopener noreferrer">open link</a>`;
@@ -1195,6 +1205,18 @@
       const submitBtn = document.getElementById('btnLinkSubmit');
 
       if (!url) { setFormStatus('linkStatus', 'error', 'URL is required.'); return; }
+      let testUrl = url;
+      if (!/^https?:\/\//i.test(testUrl)) testUrl = 'https://' + testUrl;
+      try {
+        const parsed = new URL(testUrl);
+        if (!parsed.hostname.includes('.')) {
+          setFormStatus('linkStatus', 'error', 'Please enter a valid URL (e.g. https://github.com).');
+          return;
+        }
+      } catch {
+        setFormStatus('linkStatus', 'error', 'Invalid URL format.');
+        return;
+      }
 
       setFormStatus('linkStatus', '', 'Saving link...');
       submitBtn.disabled = true;

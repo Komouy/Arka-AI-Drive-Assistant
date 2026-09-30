@@ -11,7 +11,12 @@ function getJwtSecret() {
  */
 export function requireAuth(req, res, next) {
   const authHeader = req.headers['authorization'] || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  let token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+
+  // Support query parameter token for browser download links & media access
+  if (!token && req.query?.token) {
+    token = String(req.query.token).trim();
+  }
 
   if (!token) {
     return res.status(401).json({ success: false, error: 'Authentication required' });

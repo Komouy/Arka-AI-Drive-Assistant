@@ -1,6 +1,7 @@
 import { db } from '../database/db.js';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { UPLOADS_DIR, INBOX_DIR, STORAGE_DIR } from '../config/env.js';
 import { isSupabaseConfigured, getSupabaseClient, BUCKET_NAME } from '../config/supabase.js';
 import { getFileTypeCategory, resolveMimeType } from '../utils/fileTypes.js';
@@ -481,9 +482,9 @@ export const fileController = {
 
           const arrayBuffer = await blob.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
-          const tmpDir = path.join(STORAGE_DIR, 'tmp');
+          const tmpDir = path.join(os.tmpdir(), 'arka-tmp');
           if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-          tempPath = path.join(tmpDir, file.stored_name);
+          tempPath = path.join(tmpDir, `${Date.now()}-${file.stored_name}`);
           fs.writeFileSync(tempPath, buffer);
 
           const { analyzeFile } = await import('../ai/analyzer.js');

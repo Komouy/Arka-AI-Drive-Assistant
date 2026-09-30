@@ -145,6 +145,16 @@ export const linkController = {
         cleanUrl = 'https://' + cleanUrl;
       }
 
+      // Validate URL syntax
+      try {
+        const parsed = new URL(cleanUrl);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return badRequest(res, 'Invalid URL scheme. Only http and https are supported.');
+        }
+      } catch {
+        return badRequest(res, 'Invalid URL format');
+      }
+
       const domain = extractDomain(cleanUrl);
       let cleanTitle = String(title || '').trim();
 
