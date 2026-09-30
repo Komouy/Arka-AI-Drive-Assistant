@@ -4,39 +4,37 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ARKA — Data Viewer</title>
-  <meta name="description" content="Workspace data viewer untuk ARKA Assistant: files, prompts, and links.">
+  <meta name="description" content="ARKA personal workspace: manage files, prompts, and links.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    /* ── Design Tokens ────────────────────────────────────────────────────── */
     :root {
-      --bg: #09090b;
-      --bg-surface: #121215;
-      --bg-surface-hover: #18181b;
-      --bg-elevated: #1f1f23;
-      --border: #27272a;
-      --border-focus: #52525b;
-      
-      --text-main: #f4f4f5;
+      --bg:              #09090b;
+      --bg-surface:      #121215;
+      --bg-surface-hover:#18181b;
+      --bg-elevated:     #1f1f23;
+      --border:          #27272a;
+      --border-focus:    #52525b;
+
+      --text-main:  #f4f4f5;
       --text-muted: #a1a1aa;
-      --text-dim: #71717a;
-      
-      --badge-bg: #27272a;
+      --text-dim:   #71717a;
+
+      --badge-bg:   #27272a;
       --badge-text: #d4d4d8;
-      
+
       --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       --font-mono: 'JetBrains Mono', monospace;
-      
+
       --radius-sm: 4px;
       --radius-md: 6px;
       --radius-lg: 8px;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    /* ── Base Reset ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       background-color: var(--bg);
@@ -44,16 +42,153 @@
       font-family: var(--font-sans);
       min-height: 100vh;
       line-height: 1.5;
-      padding: 2.5rem 1.5rem;
       -webkit-font-smoothing: antialiased;
     }
 
-    .container {
-      max-width: 1080px;
-      margin: 0 auto;
+    /* ── Login Screen ─────────────────────────────────────────────────────── */
+    #loginScreen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1.5rem;
     }
 
-    /* Top Navigation / Header */
+    .login-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .login-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .login-logo-badge {
+      width: 32px;
+      height: 32px;
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #fafafa;
+      flex-shrink: 0;
+    }
+
+    .login-logo-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .login-logo-sub {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .login-heading {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 0.35rem;
+    }
+
+    .login-desc {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-bottom: 1.75rem;
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .login-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .login-label {
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+
+    .login-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.85rem;
+      font-size: 0.88rem;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .login-input:focus { border-color: var(--border-focus); }
+    .login-input::placeholder { color: var(--text-dim); }
+    .login-input[readonly] { color: var(--text-muted); cursor: default; }
+
+    .login-btn {
+      width: 100%;
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      color: #fafafa;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 0.65rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-top: 0.25rem;
+    }
+
+    .login-btn:hover:not(:disabled) { background: #3f3f46; border-color: #52525b; }
+    .login-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .login-error {
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+      color: #f87171;
+      background: rgba(127, 29, 29, 0.15);
+      border: 1px solid #7f1d1d;
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.75rem;
+      display: none;
+    }
+
+    .login-error.visible { display: block; }
+
+    /* ── Dashboard ────────────────────────────────────────────────────────── */
+    #dashboard {
+      display: none;
+      padding: 2.5rem 1.5rem;
+    }
+
+    #dashboard.visible { display: block; }
+
+    .container { max-width: 1080px; margin: 0 auto; }
+
+    /* Header */
     header {
       display: flex;
       justify-content: space-between;
@@ -65,64 +200,50 @@
       gap: 1rem;
     }
 
-    .header-brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
+    .header-brand { display: flex; align-items: center; gap: 0.75rem; }
 
     .header-logo {
-      width: 28px;
-      height: 28px;
-      background: #27272a;
-      border: 1px solid #3f3f46;
+      width: 28px; height: 28px;
+      background: #27272a; border: 1px solid #3f3f46;
       border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 0.85rem;
-      color: #fafafa;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.85rem; color: #fafafa;
     }
 
-    .header-title {
-      font-size: 1.05rem;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      color: var(--text-main);
-    }
+    .header-title { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; }
+    .header-meta { font-size: 0.8rem; color: var(--text-dim); font-family: var(--font-mono); }
 
-    .header-meta {
-      font-size: 0.8rem;
-      color: var(--text-dim);
-      font-family: var(--font-mono);
-    }
+    .header-right { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 
     .server-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.75rem;
-      font-family: var(--font-mono);
-      color: var(--text-muted);
-      border: 1px solid var(--border);
-      padding: 0.25rem 0.65rem;
-      border-radius: var(--radius-sm);
-      background: var(--bg-surface);
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted);
+      border: 1px solid var(--border); padding: 0.25rem 0.65rem;
+      border-radius: var(--radius-sm); background: var(--bg-surface);
     }
 
     .status-indicator {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #71717a;
+      width: 6px; height: 6px;
+      border-radius: 50%; background: #71717a;
     }
 
-    .status-indicator.online {
-      background: #e4e4e7;
+    .status-indicator.online { background: #e4e4e7; }
+
+    .btn-logout {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
     }
 
-    /* Stats Overview Strip */
+    .btn-logout:hover { color: #f87171; border-color: #7f1d1d; background: rgba(127,29,29,0.12); }
+
+    /* Stats Strip */
     .stats-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -137,296 +258,10 @@
       padding: 0.85rem 1rem;
     }
 
-    .stat-label {
-      font-size: 0.75rem;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 0.25rem;
-    }
+    .stat-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.25rem; }
+    .stat-value { font-size: 1.35rem; font-weight: 600; font-family: var(--font-mono); color: var(--text-main); }
 
-    .stat-value {
-      font-size: 1.35rem;
-      font-weight: 600;
-      font-family: var(--font-mono);
-      color: var(--text-main);
-    }
-
-    /* Controls Bar: Search & Filter Tabs */
-    .controls-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-      flex-wrap: wrap;
-    }
-
-    .filter-tabs {
-      display: flex;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 2px;
-      gap: 2px;
-    }
-
-    .tab-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-family: var(--font-sans);
-      font-size: 0.82rem;
-      font-weight: 500;
-      padding: 0.4rem 0.85rem;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      transition: all 0.15s ease;
-    }
-
-    .tab-btn:hover {
-      color: var(--text-main);
-    }
-
-    .tab-btn.active {
-      background: var(--bg-elevated);
-      color: var(--text-main);
-      border: 1px solid #3f3f46;
-    }
-
-    .tab-count {
-      font-family: var(--font-mono);
-      font-size: 0.7rem;
-      color: var(--text-dim);
-      background: #18181b;
-      padding: 1px 5px;
-      border-radius: 3px;
-    }
-
-    .search-box {
-      flex: 1;
-      max-width: 320px;
-      position: relative;
-    }
-
-    .search-input {
-      width: 100%;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 0.45rem 0.75rem;
-      font-size: 0.85rem;
-      color: var(--text-main);
-      font-family: inherit;
-      outline: none;
-      transition: border-color 0.15s ease;
-    }
-
-    .search-input:focus {
-      border-color: var(--border-focus);
-    }
-
-    .search-input::placeholder {
-      color: var(--text-dim);
-    }
-
-    /* Content Data List */
-    .data-table-container {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      overflow: hidden;
-    }
-
-    .data-list {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .data-row {
-      display: flex;
-      flex-direction: column;
-      padding: 1rem 1.25rem;
-      border-bottom: 1px solid var(--border);
-      transition: background 0.15s ease;
-    }
-
-    .data-row:last-child {
-      border-bottom: none;
-    }
-
-    .data-row:hover {
-      background: var(--bg-surface-hover);
-    }
-
-    .row-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 0.35rem;
-      gap: 1rem;
-    }
-
-    .row-title-area {
-      display: flex;
-      align-items: baseline;
-      gap: 0.6rem;
-      flex-wrap: wrap;
-    }
-
-    .row-id {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      color: var(--text-dim);
-      flex-shrink: 0;
-    }
-
-    .row-title {
-      font-size: 0.92rem;
-      font-weight: 600;
-      color: var(--text-main);
-      text-decoration: none;
-      word-break: break-all;
-    }
-
-    .row-title a {
-      color: var(--text-main);
-      text-decoration: none;
-    }
-
-    .row-title a:hover {
-      text-decoration: underline;
-    }
-
-    .row-type-badge {
-      font-size: 0.7rem;
-      font-family: var(--font-mono);
-      background: var(--badge-bg);
-      color: var(--badge-text);
-      padding: 2px 6px;
-      border-radius: 3px;
-      border: 1px solid #3f3f46;
-    }
-
-    .row-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-shrink: 0;
-    }
-
-    .btn-action {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 0.75rem;
-      padding: 0.25rem 0.55rem;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      text-decoration: none;
-      font-family: var(--font-mono);
-      transition: all 0.15s ease;
-    }
-
-    .btn-action:hover {
-      color: var(--text-main);
-      border-color: var(--border-focus);
-      background: var(--bg-elevated);
-    }
-
-    .btn-delete {
-      background: transparent;
-      border: 1px solid #3f3f46;
-      color: #71717a;
-      font-size: 0.75rem;
-      padding: 0.25rem 0.55rem;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      font-family: var(--font-mono);
-      transition: all 0.15s ease;
-    }
-
-    .btn-delete:hover {
-      color: #f87171;
-      border-color: #7f1d1d;
-      background: rgba(127, 29, 29, 0.15);
-    }
-
-    .btn-delete.confirming {
-      color: #f87171;
-      border-color: #991b1b;
-      background: rgba(127, 29, 29, 0.2);
-    }
-
-    .row-body {
-      font-size: 0.83rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-      margin-bottom: 0.5rem;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .row-body.code-preview {
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      background: #09090b;
-      padding: 0.5rem 0.75rem;
-      border-radius: var(--radius-sm);
-      border: 1px solid #27272a;
-      max-height: 180px;
-      overflow-y: auto;
-    }
-
-    .row-meta {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      font-size: 0.75rem;
-      color: var(--text-dim);
-      font-family: var(--font-mono);
-      flex-wrap: wrap;
-    }
-
-    .meta-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-    }
-
-    .empty-state {
-      padding: 3.5rem 1.5rem;
-      text-align: center;
-      color: var(--text-dim);
-      font-size: 0.85rem;
-    }
-
-    /* Loading placeholder */
-    .loading-state {
-      padding: 2rem;
-      text-align: center;
-      color: var(--text-dim);
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-    }
-
-    @media (max-width: 768px) {
-      .stats-row {
-        grid-template-columns: repeat(2, 1fr);
-      }
-      .controls-bar {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .search-box {
-        max-width: 100%;
-      }
-    }
-
-    /* Quick Action / Creation Panel */
+    /* Quick Action Panel */
     .creation-panel {
       background: var(--bg-surface);
       border: 1px solid var(--border);
@@ -436,393 +271,513 @@
     }
 
     .panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      display: flex; justify-content: space-between; align-items: center;
       padding: 0.5rem 0.85rem;
       border-bottom: 1px solid var(--border);
       background: #0f0f12;
-      flex-wrap: wrap;
-      gap: 0.5rem;
+      flex-wrap: wrap; gap: 0.5rem;
     }
 
-    .panel-tabs {
-      display: flex;
-      gap: 4px;
-    }
+    .panel-tabs { display: flex; gap: 4px; }
 
     .create-tab-btn {
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--text-muted);
-      font-family: var(--font-sans);
-      font-size: 0.8rem;
-      font-weight: 500;
-      padding: 0.35rem 0.75rem;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: all 0.15s ease;
+      background: transparent; border: 1px solid transparent;
+      color: var(--text-muted); font-family: var(--font-sans);
+      font-size: 0.8rem; font-weight: 500;
+      padding: 0.35rem 0.75rem; border-radius: var(--radius-sm);
+      cursor: pointer; transition: all 0.15s ease;
     }
 
-    .create-tab-btn:hover {
-      color: var(--text-main);
-    }
-
-    .create-tab-btn.active {
-      background: var(--bg-elevated);
-      color: var(--text-main);
-      border-color: #3f3f46;
-    }
+    .create-tab-btn:hover { color: var(--text-main); }
+    .create-tab-btn.active { background: var(--bg-elevated); color: var(--text-main); border-color: #3f3f46; }
 
     .panel-toggle-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-dim);
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      cursor: pointer;
-      padding: 0.2rem 0.5rem;
-      border-radius: var(--radius-sm);
-      transition: color 0.15s ease;
+      background: transparent; border: none; color: var(--text-dim);
+      font-family: var(--font-mono); font-size: 0.75rem;
+      cursor: pointer; padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm); transition: color 0.15s ease;
     }
 
-    .panel-toggle-btn:hover {
-      color: var(--text-main);
-    }
+    .panel-toggle-btn:hover { color: var(--text-main); }
 
-    .panel-body {
-      padding: 1.25rem;
-    }
+    .panel-body { padding: 1.25rem; }
+    .panel-body.collapsed { display: none; }
 
-    .panel-body.collapsed {
-      display: none;
-    }
-
-    .create-form {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
+    .create-form { display: flex; flex-direction: column; gap: 1rem; }
 
     .drop-zone {
-      border: 1px dashed var(--border-focus);
-      background: var(--bg);
-      border-radius: var(--radius-sm);
-      padding: 1.5rem 1rem;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.15s ease;
+      border: 1px dashed var(--border-focus); background: var(--bg);
+      border-radius: var(--radius-sm); padding: 1.5rem 1rem;
+      text-align: center; cursor: pointer; transition: all 0.15s ease;
     }
 
-    .drop-zone:hover, .drop-zone.dragover {
-      border-color: #71717a;
-      background: #121216;
-    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #71717a; background: #121216; }
+    .drop-title { font-size: 0.88rem; font-weight: 500; color: var(--text-main); }
+    .drop-subtitle { font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono); margin-top: 0.3rem; }
+    .selected-files-list { margin-top: 0.75rem; font-size: 0.78rem; font-family: var(--font-mono); color: #e4e4e7; word-break: break-all; }
 
-    .drop-title {
-      font-size: 0.88rem;
-      font-weight: 500;
-      color: var(--text-main);
-    }
+    .form-row { display: flex; gap: 0.85rem; flex-wrap: wrap; }
 
-    .drop-subtitle {
-      font-size: 0.75rem;
-      color: var(--text-dim);
-      font-family: var(--font-mono);
-      margin-top: 0.3rem;
-    }
+    .form-group { flex: 1; min-width: 180px; display: flex; flex-direction: column; }
+    .form-group.flex-2 { flex: 2; min-width: 260px; }
 
-    .selected-files-list {
-      margin-top: 0.75rem;
-      font-size: 0.78rem;
-      font-family: var(--font-mono);
-      color: #e4e4e7;
-      word-break: break-all;
-    }
-
-    .form-row {
-      display: flex;
-      gap: 0.85rem;
-      flex-wrap: wrap;
-    }
-
-    .form-group {
-      flex: 1;
-      min-width: 180px;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .form-group.flex-2 {
-      flex: 2;
-      min-width: 260px;
-    }
-
-    .form-label {
-      font-size: 0.72rem;
-      font-family: var(--font-mono);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-dim);
-      margin-bottom: 0.35rem;
-    }
+    .form-label { font-size: 0.72rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 0.35rem; }
 
     .form-input, .form-select, .form-textarea {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 0.5rem 0.75rem;
-      font-size: 0.85rem;
-      color: var(--text-main);
-      font-family: var(--font-sans);
-      outline: none;
-      transition: border-color 0.15s ease;
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 0.5rem 0.75rem;
+      font-size: 0.85rem; color: var(--text-main); font-family: var(--font-sans);
+      outline: none; transition: border-color 0.15s ease;
     }
 
-    .form-textarea {
-      resize: vertical;
-      min-height: 85px;
-      font-family: var(--font-mono);
-      font-size: 0.82rem;
-      line-height: 1.45;
-    }
+    .form-textarea { resize: vertical; min-height: 85px; font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.45; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--border-focus); }
+    .form-input::placeholder, .form-textarea::placeholder { color: var(--text-dim); }
 
-    .form-input:focus, .form-select:focus, .form-textarea:focus {
-      border-color: var(--border-focus);
-    }
+    .form-footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 0.25rem; flex-wrap: wrap; }
 
-    .form-input::placeholder, .form-textarea::placeholder {
-      color: var(--text-dim);
-    }
-
-    .form-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-      margin-top: 0.25rem;
-      flex-wrap: wrap;
-    }
-
-    .form-status {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      color: var(--text-dim);
-    }
-
-    .form-status.success {
-      color: #86efac;
-    }
-
-    .form-status.error {
-      color: #f87171;
-    }
+    .form-status { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim); }
+    .form-status.success { color: #86efac; }
+    .form-status.error { color: #f87171; }
 
     .btn-primary {
-      background: #27272a;
-      border: 1px solid #3f3f46;
-      color: #fafafa;
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      font-weight: 500;
-      padding: 0.45rem 1.1rem;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
+      background: #27272a; border: 1px solid #3f3f46; color: #fafafa;
+      font-family: var(--font-mono); font-size: 0.8rem; font-weight: 500;
+      padding: 0.45rem 1.1rem; border-radius: var(--radius-sm);
+      cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
+    }
+
+    .btn-primary:hover:not(:disabled) { background: #3f3f46; border-color: #52525b; }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+    }
+
+    .filter-tabs {
+      display: flex; background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 2px; gap: 2px;
+    }
+
+    .tab-btn {
+      background: transparent; border: none; color: var(--text-muted);
+      font-family: var(--font-sans); font-size: 0.82rem; font-weight: 500;
+      padding: 0.4rem 0.85rem; border-radius: var(--radius-sm);
+      cursor: pointer; display: flex; align-items: center; gap: 0.4rem;
       transition: all 0.15s ease;
-      white-space: nowrap;
     }
 
-    .btn-primary:hover:not(:disabled) {
-      background: #3f3f46;
-      border-color: #52525b;
+    .tab-btn:hover { color: var(--text-main); }
+    .tab-btn.active { background: var(--bg-elevated); color: var(--text-main); border: 1px solid #3f3f46; }
+
+    .tab-count {
+      font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim);
+      background: #18181b; padding: 1px 5px; border-radius: 3px;
     }
 
-    .btn-primary:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
+    .search-box { flex: 1; max-width: 320px; position: relative; }
+
+    .search-input {
+      width: 100%; background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 0.45rem 0.75rem;
+      font-size: 0.85rem; color: var(--text-main); font-family: inherit;
+      outline: none; transition: border-color 0.15s ease;
+    }
+
+    .search-input:focus { border-color: var(--border-focus); }
+    .search-input::placeholder { color: var(--text-dim); }
+
+    /* Data List */
+    .data-table-container {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); overflow: hidden;
+    }
+
+    .data-list { display: flex; flex-direction: column; }
+
+    .data-row {
+      display: flex; flex-direction: column;
+      padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+      transition: background 0.15s ease;
+    }
+
+    .data-row:last-child { border-bottom: none; }
+    .data-row:hover { background: var(--bg-surface-hover); }
+
+    .row-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.35rem; gap: 1rem; }
+    .row-title-area { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+
+    .row-id { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0; }
+    .row-title { font-size: 0.92rem; font-weight: 600; color: var(--text-main); text-decoration: none; word-break: break-all; }
+    .row-title a { color: var(--text-main); text-decoration: none; }
+    .row-title a:hover { text-decoration: underline; }
+
+    .row-type-badge {
+      font-size: 0.7rem; font-family: var(--font-mono);
+      background: var(--badge-bg); color: var(--badge-text);
+      padding: 2px 6px; border-radius: 3px; border: 1px solid #3f3f46;
+    }
+
+    .row-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+
+    .btn-action {
+      background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+      font-size: 0.75rem; padding: 0.25rem 0.55rem; border-radius: var(--radius-sm);
+      cursor: pointer; text-decoration: none; font-family: var(--font-mono);
+      transition: all 0.15s ease;
+    }
+
+    .btn-action:hover { color: var(--text-main); border-color: var(--border-focus); background: var(--bg-elevated); }
+
+    .btn-delete {
+      background: transparent; border: 1px solid #3f3f46; color: #71717a;
+      font-size: 0.75rem; padding: 0.25rem 0.55rem; border-radius: var(--radius-sm);
+      cursor: pointer; font-family: var(--font-mono); transition: all 0.15s ease;
+    }
+
+    .btn-delete:hover { color: #f87171; border-color: #7f1d1d; background: rgba(127, 29, 29, 0.15); }
+    .btn-delete.confirming { color: #f87171; border-color: #991b1b; background: rgba(127, 29, 29, 0.2); }
+
+    .row-body { font-size: 0.83rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.5rem; white-space: pre-wrap; word-break: break-word; }
+    .row-body.code-preview { font-family: var(--font-mono); font-size: 0.8rem; background: #09090b; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid #27272a; max-height: 180px; overflow-y: auto; }
+
+    .row-meta { display: flex; align-items: center; gap: 1rem; font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono); flex-wrap: wrap; }
+    .meta-item { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+    .empty-state { padding: 3.5rem 1.5rem; text-align: center; color: var(--text-dim); font-size: 0.85rem; }
+    .loading-state { padding: 2rem; text-align: center; color: var(--text-dim); font-family: var(--font-mono); font-size: 0.8rem; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .controls-bar { flex-direction: column; align-items: stretch; }
+      .search-box { max-width: 100%; }
     }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <!-- Top Header -->
-    <header>
-      <div class="header-brand">
-        <div class="header-logo">A</div>
+  <!-- ────────────────────────────────────────────────────────────────────────
+       LOGIN SCREEN
+  ──────────────────────────────────────────────────────────────────────────── -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="login-logo-badge">A</div>
         <div>
-          <div class="header-title">ARKA Storage Viewer</div>
-          <div class="header-meta">Local repository data explorer</div>
+          <div class="login-logo-title">ARKA Storage Viewer</div>
+          <div class="login-logo-sub">Personal workspace</div>
         </div>
       </div>
-      <div id="statusPill" class="server-status">
-        <div id="statusIndicator" class="status-indicator"></div>
-        <span id="statusText">checking server...</span>
-      </div>
-    </header>
 
-    <!-- Stats Overview Strip -->
-    <section class="stats-row">
-      <div class="stat-card">
-        <div class="stat-label">Files</div>
-        <div id="statFiles" class="stat-value">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Prompts & Notes</div>
-        <div id="statPrompts" class="stat-value">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Links</div>
-        <div id="statLinks" class="stat-value">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Storage Used</div>
-        <div id="statStorage" class="stat-value">0 B</div>
-      </div>
-    </section>
+      <div class="login-heading">Sign in</div>
+      <div class="login-desc">Access is restricted to authorized users.</div>
 
-    <!-- Quick Action / Creation Panel -->
-    <section class="creation-panel">
-      <div class="panel-header">
-        <div class="panel-tabs">
-          <button type="button" class="create-tab-btn active" id="tabUploadBtn" onclick="switchCreateTab('upload')">Upload File</button>
-          <button type="button" class="create-tab-btn" id="tabNoteBtn" onclick="switchCreateTab('note')">New Note / Prompt</button>
-          <button type="button" class="create-tab-btn" id="tabLinkBtn" onclick="switchCreateTab('link')">Add Link</button>
+      <form class="login-form" id="loginForm" onsubmit="handleLogin(event)">
+        <div class="login-field">
+          <label class="login-label" for="loginUsername">Username</label>
+          <input type="text" id="loginUsername" class="login-input" value="Dhaifan" readonly autocomplete="username">
         </div>
-        <button type="button" class="panel-toggle-btn" id="panelToggleBtn" onclick="toggleCreatePanel()">collapse [-]</button>
-      </div>
-
-      <div class="panel-body" id="createPanelBody">
-        <!-- Upload File Form -->
-        <form id="uploadForm" class="create-form" onsubmit="handleUploadSubmit(event)">
-          <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-            <input type="file" id="fileInput" name="files" multiple style="display:none" onchange="handleFileSelected(this)">
-            <div class="drop-title" id="dropZoneTitle">Drop files here or click to browse</div>
-            <div class="drop-subtitle" id="dropZoneSubtitle">Supports single or multiple files (up to 500 MB)</div>
-            <div class="selected-files-list" id="selectedFilesList" style="display:none"></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="uploadDestination">Destination</label>
-              <select id="uploadDestination" class="form-select">
-                <option value="root">Storage (Root)</option>
-                <option value="inbox">Inbox</option>
-              </select>
-            </div>
-            <div class="form-group flex-2">
-              <label class="form-label" for="uploadProject">Folder / Project (Optional)</label>
-              <input type="text" id="uploadProject" class="form-input" placeholder="e.g. Documentation, Assets, Work">
-            </div>
-          </div>
-          <div class="form-footer">
-            <span class="form-status" id="uploadStatus"></span>
-            <button type="submit" class="btn-primary" id="btnUploadSubmit">Upload File</button>
-          </div>
-        </form>
-
-        <!-- New Note / Prompt Form -->
-        <form id="noteForm" class="create-form" onsubmit="handleNoteSubmit(event)" style="display:none">
-          <div class="form-row">
-            <div class="form-group flex-2">
-              <label class="form-label" for="noteTitle">Title *</label>
-              <input type="text" id="noteTitle" class="form-input" placeholder="e.g. System Architecture Notes, SQL Query..." required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="noteCategory">Category</label>
-              <input type="text" id="noteCategory" class="form-input" placeholder="e.g. General, Prompt, Code" value="General">
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="noteContent">Content *</label>
-            <textarea id="noteContent" class="form-textarea" rows="4" placeholder="Write text content, prompt instructions, or notes here..." required></textarea>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="noteTags">Tags (Optional)</label>
-              <input type="text" id="noteTags" class="form-input" placeholder="e.g. backend, draft, reference">
-            </div>
-          </div>
-          <div class="form-footer">
-            <span class="form-status" id="noteStatus"></span>
-            <button type="submit" class="btn-primary" id="btnNoteSubmit">Save Note</button>
-          </div>
-        </form>
-
-        <!-- Add Link Form -->
-        <form id="linkForm" class="create-form" onsubmit="handleLinkSubmit(event)" style="display:none">
-          <div class="form-row">
-            <div class="form-group flex-2">
-              <label class="form-label" for="linkUrl">URL *</label>
-              <input type="url" id="linkUrl" class="form-input" placeholder="https://example.com/docs" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="linkTitle">Title (Optional)</label>
-              <input type="text" id="linkTitle" class="form-input" placeholder="Auto-detected if blank">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="linkCategory">Category</label>
-              <input type="text" id="linkCategory" class="form-input" placeholder="e.g. Docs, Tool, General" value="General">
-            </div>
-            <div class="form-group flex-2">
-              <label class="form-label" for="linkDesc">Description (Optional)</label>
-              <input type="text" id="linkDesc" class="form-input" placeholder="Brief context about this bookmark">
-            </div>
-          </div>
-          <div class="form-footer">
-            <span class="form-status" id="linkStatus"></span>
-            <button type="submit" class="btn-primary" id="btnLinkSubmit">Save Link</button>
-          </div>
-        </form>
-      </div>
-    </section>
-
-    <!-- Filter & Search Bar -->
-    <div class="controls-bar">
-      <div class="filter-tabs">
-        <button class="tab-btn active" onclick="setFilter('all')">
-          <span>All Items</span>
-          <span id="countAll" class="tab-count">0</span>
-        </button>
-        <button class="tab-btn" onclick="setFilter('files')">
-          <span>Files</span>
-          <span id="countFiles" class="tab-count">0</span>
-        </button>
-        <button class="tab-btn" onclick="setFilter('prompts')">
-          <span>Prompts</span>
-          <span id="countPrompts" class="tab-count">0</span>
-        </button>
-        <button class="tab-btn" onclick="setFilter('links')">
-          <span>Links</span>
-          <span id="countLinks" class="tab-count">0</span>
-        </button>
-      </div>
-
-      <div class="search-box">
-        <input type="text" id="searchInput" class="search-input" placeholder="Search keywords..." oninput="handleSearch(this.value)">
-      </div>
+        <div class="login-field">
+          <label class="login-label" for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" class="login-input" placeholder="Enter your password" autocomplete="current-password" required autofocus>
+        </div>
+        <div class="login-error" id="loginError"></div>
+        <button type="submit" class="login-btn" id="loginBtn">Sign in</button>
+      </form>
     </div>
-
-    <!-- Data List Table Container -->
-    <main class="data-table-container">
-      <div id="dataList" class="data-list">
-        <div class="loading-state">Loading records...</div>
-      </div>
-    </main>
   </div>
 
-  <script>
-    const API_BASE = '/api';
-    let allData = {
-      files: [],
-      prompts: [],
-      links: []
-    };
-    let currentFilter = 'all';
-    let searchQuery = '';
+  <!-- ────────────────────────────────────────────────────────────────────────
+       DASHBOARD
+  ──────────────────────────────────────────────────────────────────────────── -->
+  <div id="dashboard">
+    <div class="container">
 
+      <!-- Header -->
+      <header>
+        <div class="header-brand">
+          <div class="header-logo">A</div>
+          <div>
+            <div class="header-title">ARKA Storage Viewer</div>
+            <div class="header-meta">Personal workspace data explorer</div>
+          </div>
+        </div>
+        <div class="header-right">
+          <div id="statusPill" class="server-status">
+            <div id="statusIndicator" class="status-indicator"></div>
+            <span id="statusText">checking...</span>
+          </div>
+          <button class="btn-logout" onclick="handleLogout()">Sign out</button>
+        </div>
+      </header>
+
+      <!-- Stats Strip -->
+      <section class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Files</div>
+          <div id="statFiles" class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Prompts &amp; Notes</div>
+          <div id="statPrompts" class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Links</div>
+          <div id="statLinks" class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Storage Used</div>
+          <div id="statStorage" class="stat-value">0 B</div>
+        </div>
+      </section>
+
+      <!-- Quick Action / Creation Panel -->
+      <section class="creation-panel">
+        <div class="panel-header">
+          <div class="panel-tabs">
+            <button type="button" class="create-tab-btn active" id="tabUploadBtn" onclick="switchCreateTab('upload')">Upload File</button>
+            <button type="button" class="create-tab-btn" id="tabNoteBtn" onclick="switchCreateTab('note')">New Note / Prompt</button>
+            <button type="button" class="create-tab-btn" id="tabLinkBtn" onclick="switchCreateTab('link')">Add Link</button>
+          </div>
+          <button type="button" class="panel-toggle-btn" id="panelToggleBtn" onclick="toggleCreatePanel()">collapse [-]</button>
+        </div>
+
+        <div class="panel-body" id="createPanelBody">
+          <!-- Upload File Form -->
+          <form id="uploadForm" class="create-form" onsubmit="handleUploadSubmit(event)">
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+              <input type="file" id="fileInput" name="files" multiple style="display:none" onchange="handleFileSelected(this)">
+              <div class="drop-title" id="dropZoneTitle">Drop files here or click to browse</div>
+              <div class="drop-subtitle">Supports single or multiple files (up to 500 MB)</div>
+              <div class="selected-files-list" id="selectedFilesList" style="display:none"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="uploadDestination">Destination</label>
+                <select id="uploadDestination" class="form-select">
+                  <option value="root">Storage (Root)</option>
+                  <option value="inbox">Inbox</option>
+                </select>
+              </div>
+              <div class="form-group flex-2">
+                <label class="form-label" for="uploadProject">Folder / Project (Optional)</label>
+                <input type="text" id="uploadProject" class="form-input" placeholder="e.g. Documentation, Assets, Work">
+              </div>
+            </div>
+            <div class="form-footer">
+              <span class="form-status" id="uploadStatus"></span>
+              <button type="submit" class="btn-primary" id="btnUploadSubmit">Upload File</button>
+            </div>
+          </form>
+
+          <!-- New Note / Prompt Form -->
+          <form id="noteForm" class="create-form" onsubmit="handleNoteSubmit(event)" style="display:none">
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label class="form-label" for="noteTitle">Title</label>
+                <input type="text" id="noteTitle" class="form-input" placeholder="e.g. System Architecture Notes, SQL Query..." required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="noteCategory">Category</label>
+                <input type="text" id="noteCategory" class="form-input" placeholder="e.g. General, Prompt, Code" value="General">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="noteContent">Content</label>
+              <textarea id="noteContent" class="form-textarea" rows="4" placeholder="Write text content, prompt instructions, or notes here..." required></textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="noteTags">Tags (Optional)</label>
+                <input type="text" id="noteTags" class="form-input" placeholder="e.g. backend, draft, reference">
+              </div>
+            </div>
+            <div class="form-footer">
+              <span class="form-status" id="noteStatus"></span>
+              <button type="submit" class="btn-primary" id="btnNoteSubmit">Save Note</button>
+            </div>
+          </form>
+
+          <!-- Add Link Form -->
+          <form id="linkForm" class="create-form" onsubmit="handleLinkSubmit(event)" style="display:none">
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label class="form-label" for="linkUrl">URL</label>
+                <input type="url" id="linkUrl" class="form-input" placeholder="https://example.com/docs" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="linkTitle">Title (Optional)</label>
+                <input type="text" id="linkTitle" class="form-input" placeholder="Auto-detected if blank">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="linkCategory">Category</label>
+                <input type="text" id="linkCategory" class="form-input" placeholder="e.g. Docs, Tool, General" value="General">
+              </div>
+              <div class="form-group flex-2">
+                <label class="form-label" for="linkDesc">Description (Optional)</label>
+                <input type="text" id="linkDesc" class="form-input" placeholder="Brief context about this bookmark">
+              </div>
+            </div>
+            <div class="form-footer">
+              <span class="form-status" id="linkStatus"></span>
+              <button type="submit" class="btn-primary" id="btnLinkSubmit">Save Link</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Filter & Search Bar -->
+      <div class="controls-bar">
+        <div class="filter-tabs">
+          <button class="tab-btn active" id="filterAll" onclick="setFilter('all')">
+            <span>All Items</span>
+            <span id="countAll" class="tab-count">0</span>
+          </button>
+          <button class="tab-btn" id="filterFiles" onclick="setFilter('files')">
+            <span>Files</span>
+            <span id="countFiles" class="tab-count">0</span>
+          </button>
+          <button class="tab-btn" id="filterPrompts" onclick="setFilter('prompts')">
+            <span>Prompts</span>
+            <span id="countPrompts" class="tab-count">0</span>
+          </button>
+          <button class="tab-btn" id="filterLinks" onclick="setFilter('links')">
+            <span>Links</span>
+            <span id="countLinks" class="tab-count">0</span>
+          </button>
+        </div>
+
+        <div class="search-box">
+          <input type="text" id="searchInput" class="search-input" placeholder="Search keywords..." oninput="handleSearch(this.value)">
+        </div>
+      </div>
+
+      <!-- Data List -->
+      <main class="data-table-container">
+        <div id="dataList" class="data-list">
+          <div class="loading-state">Loading records...</div>
+        </div>
+      </main>
+
+    </div><!-- /.container -->
+  </div><!-- /#dashboard -->
+
+  <script>
+    // ── Constants ─────────────────────────────────────────────────────────────
+    const API_BASE    = '/api';
+    const TOKEN_KEY   = 'arka_token';
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    let authToken = null;
+
+    let allData = { files: [], prompts: [], links: [] };
+    let currentFilter = 'all';
+    let searchQuery   = '';
+
+    // ── Auth Helpers ───────────────────────────────────────────────────────────
+    function saveToken(token) {
+      authToken = token;
+      try { sessionStorage.setItem(TOKEN_KEY, token); } catch {}
+    }
+
+    function loadToken() {
+      try { authToken = sessionStorage.getItem(TOKEN_KEY) || null; } catch {}
+      return authToken;
+    }
+
+    function clearToken() {
+      authToken = null;
+      try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
+    }
+
+    /** Adds Authorization header to every fetch call */
+    function authFetch(url, options = {}) {
+      const headers = { ...(options.headers || {}) };
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+      return fetch(url, { ...options, headers });
+    }
+
+    // ── Login flow ─────────────────────────────────────────────────────────────
+    async function handleLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const errorEl  = document.getElementById('loginError');
+      const btn      = document.getElementById('loginBtn');
+
+      errorEl.classList.remove('visible');
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+
+      try {
+        const res  = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const json = await res.json();
+
+        if (res.ok && json.success && json.token) {
+          saveToken(json.token);
+          showDashboard();
+        } else {
+          errorEl.textContent = json.error || 'Login failed.';
+          errorEl.classList.add('visible');
+          document.getElementById('loginPassword').value = '';
+          document.getElementById('loginPassword').focus();
+        }
+      } catch (err) {
+        errorEl.textContent = 'Network error — server may be unavailable.';
+        errorEl.classList.add('visible');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign in';
+      }
+    }
+
+    function handleLogout() {
+      clearToken();
+      allData = { files: [], prompts: [], links: [] };
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('loginError').classList.remove('visible');
+      document.getElementById('dashboard').classList.remove('visible');
+      document.getElementById('loginScreen').style.display = 'flex';
+    }
+
+    function showDashboard() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashboard').classList.add('visible');
+      loadStatus();
+      fetchAllData();
+    }
+
+    // ── Verify token on page load ──────────────────────────────────────────────
+    async function checkAuthOnLoad() {
+      const token = loadToken();
+      if (!token) return; // no token → stay on login
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/verify`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          showDashboard();
+        } else {
+          clearToken(); // expired or invalid
+        }
+      } catch {
+        // If verify fails due to network, keep token and try showing dashboard
+        // This avoids forcing re-login on temporary network issues
+        if (token) showDashboard();
+      }
+    }
+
+    // ── Utility Helpers ────────────────────────────────────────────────────────
     function formatBytes(bytes) {
       if (!bytes || bytes === 0) return '0 B';
       const k = 1024;
@@ -834,71 +789,88 @@
     function formatDate(dateStr) {
       if (!dateStr) return '-';
       try {
-        const d = new Date(dateStr);
-        return d.toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      } catch {
-        return dateStr;
-      }
+        return new Date(dateStr).toLocaleDateString('id-ID', {
+          year: 'numeric', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        });
+      } catch { return dateStr; }
     }
 
     function escapeHtml(str) {
-      if (!str) return '';
+      if (str == null) return '';
       return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
+    function setFormStatus(elementId, type, message) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      el.className = `form-status${type ? ' ' + type : ''}`;
+      el.textContent = message;
+      if (type === 'success') {
+        setTimeout(() => { el.textContent = ''; el.className = 'form-status'; }, 4000);
+      }
+    }
+
+    // ── Data Loading ───────────────────────────────────────────────────────────
     async function loadStatus() {
       try {
-        const res = await fetch(`${API_BASE}/status`);
+        const res  = await authFetch(`${API_BASE}/status`);
+        if (res.status === 401) { handleLogout(); return; }
         const json = await res.json();
         if (json.success && json.data) {
           const stats = json.data.stats || {};
-          document.getElementById('statFiles').textContent = stats.totalFiles || 0;
-          document.getElementById('statPrompts').textContent = stats.prompts || 0;
-          document.getElementById('statLinks').textContent = stats.links || 0;
+          document.getElementById('statFiles').textContent   = stats.totalFiles || 0;
+          document.getElementById('statPrompts').textContent = stats.prompts    || 0;
+          document.getElementById('statLinks').textContent   = stats.links      || 0;
           document.getElementById('statStorage').textContent = formatBytes(stats.totalBytes);
-
           document.getElementById('statusIndicator').classList.add('online');
-          document.getElementById('statusText').textContent = 'core online';
+          document.getElementById('statusText').textContent  = 'core online';
         }
-      } catch (err) {
+      } catch {
         document.getElementById('statusText').textContent = 'disconnected';
       }
     }
 
     async function fetchAllData() {
+      document.getElementById('dataList').innerHTML = '<div class="loading-state">Loading records...</div>';
       try {
         const [filesRes, promptsRes, linksRes] = await Promise.all([
-          fetch(`${API_BASE}/files`).then(r => r.json()),
-          fetch(`${API_BASE}/prompts`).then(r => r.json()),
-          fetch(`${API_BASE}/links`).then(r => r.json())
+          authFetch(`${API_BASE}/files`).then(r => r.json()),
+          authFetch(`${API_BASE}/prompts`).then(r => r.json()),
+          authFetch(`${API_BASE}/links`).then(r => r.json())
         ]);
 
-        allData.files = Array.isArray(filesRes.data) ? filesRes.data : [];
+        allData.files   = Array.isArray(filesRes.data)   ? filesRes.data   : [];
         allData.prompts = Array.isArray(promptsRes.data) ? promptsRes.data : [];
-        allData.links = Array.isArray(linksRes.data) ? linksRes.data : [];
+        allData.links   = Array.isArray(linksRes.data)   ? linksRes.data   : [];
 
-        // Update counts
-        document.getElementById('countFiles').textContent = allData.files.length;
-        document.getElementById('countPrompts').textContent = allData.prompts.length;
-        document.getElementById('countLinks').textContent = allData.links.length;
-        document.getElementById('countAll').textContent = allData.files.length + allData.prompts.length + allData.links.length;
-
+        updateCounts();
         render();
       } catch (err) {
-        document.getElementById('dataList').innerHTML = `
-          <div class="empty-state">Failed to load data: ${escapeHtml(err.message)}</div>
-        `;
+        document.getElementById('dataList').innerHTML =
+          `<div class="empty-state">Failed to load data: ${escapeHtml(err.message)}</div>`;
       }
     }
 
+    function updateCounts() {
+      const total = allData.files.length + allData.prompts.length + allData.links.length;
+      document.getElementById('countAll').textContent     = total;
+      document.getElementById('countFiles').textContent   = allData.files.length;
+      document.getElementById('countPrompts').textContent = allData.prompts.length;
+      document.getElementById('countLinks').textContent   = allData.links.length;
+    }
+
+    // ── Filtering & Search ─────────────────────────────────────────────────────
     function setFilter(type) {
       currentFilter = type;
-      document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
-        btn.classList.toggle('active', ['all', 'files', 'prompts', 'links'][idx] === type);
+      ['all', 'files', 'prompts', 'links'].forEach(t => {
+        const btn = document.getElementById(`filter${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (btn) btn.classList.toggle('active', t === type);
       });
       render();
     }
@@ -908,97 +880,99 @@
       render();
     }
 
+    // ── Render ─────────────────────────────────────────────────────────────────
     function render() {
       const container = document.getElementById('dataList');
       let combined = [];
 
       if (currentFilter === 'all' || currentFilter === 'files') {
         allData.files.forEach(f => combined.push({
-          type: 'FILE',
-          id: f.id,
-          title: f.original_name,
-          category: f.folder_name || (f.is_inbox ? 'inbox' : 'root'),
-          desc: f.description || '',
+          type:      'FILE',
+          id:        f.id,
+          title:     f.original_name || 'Untitled',
+          category:  f.folder_name || (f.is_inbox ? 'inbox' : 'root'),
+          desc:      f.description  || '',
           metaRight: formatBytes(f.size),
-          date: f.created_at,
-          subInfo: f.tags ? `tags: ${f.tags}` : '',
-          raw: f
+          date:      f.created_at,
+          subInfo:   f.tags ? `tags: ${f.tags}` : '',
+          raw:       f
         }));
       }
 
       if (currentFilter === 'all' || currentFilter === 'prompts') {
         allData.prompts.forEach(p => combined.push({
-          type: 'PROMPT',
-          id: p.id,
-          title: p.title,
-          category: p.category || 'General',
-          desc: p.content,
-          metaRight: p.tags ? `tags: ${p.tags}` : '',
-          date: p.created_at,
-          subInfo: '',
-          raw: p
+          type:      'PROMPT',
+          id:        p.id,
+          title:     p.title || 'Untitled',
+          category:  p.category || 'General',
+          desc:      p.content  || '',
+          metaRight: p.tags ? (Array.isArray(p.tags) ? `tags: ${p.tags.join(', ')}` : `tags: ${p.tags}`) : '',
+          date:      p.created_at,
+          subInfo:   '',
+          raw:       p
         }));
       }
 
       if (currentFilter === 'all' || currentFilter === 'links') {
         allData.links.forEach(l => combined.push({
-          type: 'LINK',
-          id: l.id,
-          title: l.title || l.domain || l.url,
-          category: l.category || 'General',
-          desc: l.description || l.url,
+          type:      'LINK',
+          id:        l.id,
+          title:     l.title || l.domain || l.url || 'Untitled',
+          category:  l.category || 'General',
+          desc:      l.description || l.url || '',
           metaRight: l.domain || '',
-          date: l.created_at,
-          url: l.url,
-          subInfo: l.tags ? `tags: ${l.tags}` : '',
-          raw: l
+          date:      l.created_at,
+          url:       l.url,
+          subInfo:   l.tags ? (Array.isArray(l.tags) ? `tags: ${l.tags.join(', ')}` : `tags: ${l.tags}`) : '',
+          raw:       l
         }));
       }
 
-      // Filter by search query
+      // Search filter
       if (searchQuery) {
         combined = combined.filter(item => {
-          const matchTitle = item.title.toLowerCase().includes(searchQuery);
-          const matchDesc = item.desc.toLowerCase().includes(searchQuery);
-          const matchCategory = item.category.toLowerCase().includes(searchQuery);
-          const matchSub = (item.subInfo || '').toLowerCase().includes(searchQuery);
-          const matchUrl = (item.url || '').toLowerCase().includes(searchQuery);
-          return matchTitle || matchDesc || matchCategory || matchSub || matchUrl;
+          const q = searchQuery;
+          return (item.title    || '').toLowerCase().includes(q)
+              || (item.desc     || '').toLowerCase().includes(q)
+              || (item.category || '').toLowerCase().includes(q)
+              || (item.subInfo  || '').toLowerCase().includes(q)
+              || (item.url      || '').toLowerCase().includes(q);
         });
       }
 
-      // Sort by date newest first
+      // Sort newest first
       combined.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
       if (combined.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            No records found.
-          </div>
-        `;
+        container.innerHTML = `<div class="empty-state">No records found.</div>`;
         return;
       }
 
       container.innerHTML = combined.map(item => {
+        const safeId    = escapeHtml(String(item.id));
+        const safeTitle = escapeHtml(item.title);
+        const deleteId  = `del-${item.type}-${safeId}`;
+
         let actionBtn = '';
         if (item.type === 'FILE') {
-          actionBtn = `<a href="/api/files/${item.id}/download" class="btn-action" target="_blank">download</a>`;
-        } else if (item.type === 'LINK') {
-          actionBtn = `<a href="${item.url}" class="btn-action" target="_blank" rel="noopener noreferrer">open link</a>`;
+          actionBtn = `<a href="/api/files/${safeId}/download" class="btn-action" target="_blank">download</a>`;
+        } else if (item.type === 'LINK' && item.url) {
+          const safeUrl = escapeHtml(item.url);
+          actionBtn = `<a href="${safeUrl}" class="btn-action" target="_blank" rel="noopener noreferrer">open link</a>`;
         }
 
-        const isPrompt = item.type === 'PROMPT';
-        const bodyClass = isPrompt ? 'row-body code-preview' : 'row-body';
-        const deleteId = `del-${item.type}-${item.id}`;
+        const bodyClass = item.type === 'PROMPT' ? 'row-body code-preview' : 'row-body';
+        const titleHtml = item.url
+          ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${safeTitle}</a>`
+          : safeTitle;
 
+        // Safe inline event — store id as dataset, read back in handler
         return `
-          <div class="data-row" id="row-${item.type}-${item.id}">
+          <div class="data-row" id="row-${item.type}-${safeId}">
             <div class="row-header">
               <div class="row-title-area">
-                <span class="row-id">#${item.id}</span>
-                <span class="row-title">
-                  ${item.url ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>` : escapeHtml(item.title)}
-                </span>
+                <span class="row-id">#${safeId.length > 8 ? safeId.slice(0, 8) + '...' : safeId}</span>
+                <span class="row-title">${titleHtml}</span>
                 <span class="row-type-badge">${item.type}</span>
                 <span class="row-type-badge">${escapeHtml(item.category)}</span>
               </div>
@@ -1007,116 +981,91 @@
                 <button
                   id="${deleteId}"
                   class="btn-delete"
-                  onclick="handleDelete('${item.type}', '${item.id}', '${deleteId}')"
+                  data-type="${item.type}"
+                  data-id="${safeId}"
+                  data-btnid="${deleteId}"
+                  onclick="handleDelete(this)"
                 >delete</button>
               </div>
             </div>
-
             ${item.desc ? `<div class="${bodyClass}">${escapeHtml(item.desc)}</div>` : ''}
-
             <div class="row-meta">
               <span class="meta-item">${formatDate(item.date)}</span>
               ${item.metaRight ? `<span class="meta-item">${escapeHtml(item.metaRight)}</span>` : ''}
-              ${item.subInfo ? `<span class="meta-item">${escapeHtml(item.subInfo)}</span>` : ''}
+              ${item.subInfo   ? `<span class="meta-item">${escapeHtml(item.subInfo)}</span>`   : ''}
             </div>
           </div>
         `;
       }).join('');
     }
 
-    // Delete with two-click confirmation (first click: confirm label, second click: execute)
+    // ── Delete ─────────────────────────────────────────────────────────────────
     const deleteConfirmState = {};
 
-    async function handleDelete(type, id, btnId) {
-      const btn = document.getElementById(btnId);
-      if (!btn) return;
+    function handleDelete(btn) {
+      const type  = btn.dataset.type;
+      const id    = btn.dataset.id;
+      const btnId = btn.dataset.btnid;
 
       if (!deleteConfirmState[btnId]) {
-        // First click — show confirm state
         deleteConfirmState[btnId] = true;
         btn.textContent = 'confirm?';
         btn.classList.add('confirming');
-
-        // Auto-reset after 3 seconds if no second click
         setTimeout(() => {
           if (deleteConfirmState[btnId]) {
             delete deleteConfirmState[btnId];
-            if (btn) {
-              btn.textContent = 'delete';
-              btn.classList.remove('confirming');
-            }
+            if (btn) { btn.textContent = 'delete'; btn.classList.remove('confirming'); }
           }
         }, 3000);
         return;
       }
 
-      // Second click — execute delete
       delete deleteConfirmState[btnId];
       btn.textContent = 'deleting...';
-      btn.disabled = true;
+      btn.disabled    = true;
 
       let endpoint = '';
-      // Files use ?permanent=true — without it the server only soft-deletes to trash
-      if (type === 'FILE') endpoint = `/api/files/${id}?permanent=true`;
+      if      (type === 'FILE')   endpoint = `/api/files/${id}?permanent=true`;
       else if (type === 'PROMPT') endpoint = `/api/prompts/${id}`;
-      else if (type === 'LINK') endpoint = `/api/links/${id}`;
+      else if (type === 'LINK')   endpoint = `/api/links/${id}`;
 
-      try {
-        const res = await fetch(endpoint, { method: 'DELETE' });
-        const json = await res.json();
-
-        if (json.success || res.ok) {
-          // Remove row from DOM immediately
-          const row = document.getElementById(`row-${type}-${id}`);
-          if (row) {
-            row.style.opacity = '0';
-            row.style.transition = 'opacity 0.2s ease';
-            setTimeout(() => row.remove(), 200);
+      authFetch(endpoint, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(json => {
+          if (json.success) {
+            const row = document.getElementById(`row-${type}-${id}`);
+            if (row) {
+              row.style.opacity    = '0';
+              row.style.transition = 'opacity 0.2s ease';
+              setTimeout(() => row.remove(), 200);
+            }
+            const strId = String(id);
+            if      (type === 'FILE')   allData.files   = allData.files.filter(x => String(x.id) !== strId);
+            else if (type === 'PROMPT') allData.prompts = allData.prompts.filter(x => String(x.id) !== strId);
+            else if (type === 'LINK')   allData.links   = allData.links.filter(x => String(x.id) !== strId);
+            updateCounts();
+            loadStatus();
+          } else {
+            btn.textContent = 'error';
+            btn.style.color = '#f87171';
+            setTimeout(() => { btn.textContent = 'delete'; btn.style.color = ''; btn.disabled = false; }, 2000);
           }
-
-          // Remove from local data cache (handle both UUID and numeric IDs)
-          const strId = String(id);
-          if (type === 'FILE') allData.files = allData.files.filter(x => String(x.id) !== strId);
-          else if (type === 'PROMPT') allData.prompts = allData.prompts.filter(x => String(x.id) !== strId);
-          else if (type === 'LINK') allData.links = allData.links.filter(x => String(x.id) !== strId);
-
-          // Update tab counts
-          document.getElementById('countFiles').textContent = allData.files.length;
-          document.getElementById('countPrompts').textContent = allData.prompts.length;
-          document.getElementById('countLinks').textContent = allData.links.length;
-          document.getElementById('countAll').textContent = allData.files.length + allData.prompts.length + allData.links.length;
-
-          // Refresh stats strip
-          loadStatus();
-        } else {
+        })
+        .catch(() => {
           btn.textContent = 'error';
-          btn.style.color = '#f87171';
-          setTimeout(() => {
-            btn.textContent = 'delete';
-            btn.style.color = '';
-            btn.disabled = false;
-          }, 2000);
-        }
-      } catch (err) {
-        btn.textContent = 'error';
-        setTimeout(() => {
-          btn.textContent = 'delete';
-          btn.disabled = false;
-        }, 2000);
-      }
+          setTimeout(() => { btn.textContent = 'delete'; btn.disabled = false; }, 2000);
+        });
     }
 
-    // Switch Quick Create Tabs
+    // ── Creation Panel ─────────────────────────────────────────────────────────
     function switchCreateTab(tab) {
-      const tabs = ['upload', 'note', 'link'];
-      tabs.forEach(t => {
+      ['upload', 'note', 'link'].forEach(t => {
         const form = document.getElementById(`${t}Form`);
-        const btn = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}Btn`);
+        const btn  = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}Btn`);
         if (form) form.style.display = t === tab ? 'flex' : 'none';
-        if (btn) btn.classList.toggle('active', t === tab);
+        if (btn)  btn.classList.toggle('active', t === tab);
       });
-      // Ensure panel body is expanded when clicking a tab
-      const body = document.getElementById('createPanelBody');
+      const body      = document.getElementById('createPanelBody');
       const toggleBtn = document.getElementById('panelToggleBtn');
       if (body && body.classList.contains('collapsed')) {
         body.classList.remove('collapsed');
@@ -1124,254 +1073,160 @@
       }
     }
 
-    // Toggle Creation Panel Collapse/Expand
     function toggleCreatePanel() {
-      const body = document.getElementById('createPanelBody');
+      const body      = document.getElementById('createPanelBody');
       const toggleBtn = document.getElementById('panelToggleBtn');
       if (!body) return;
       const isCollapsed = body.classList.toggle('collapsed');
-      if (toggleBtn) {
-        toggleBtn.textContent = isCollapsed ? 'expand [+]' : 'collapse [-]';
-      }
+      if (toggleBtn) toggleBtn.textContent = isCollapsed ? 'expand [+]' : 'collapse [-]';
     }
 
-    // Selected file display
+    // ── File Upload ────────────────────────────────────────────────────────────
     function handleFileSelected(input) {
-      const listEl = document.getElementById('selectedFilesList');
+      const listEl  = document.getElementById('selectedFilesList');
       const titleEl = document.getElementById('dropZoneTitle');
       if (!input.files || input.files.length === 0) {
-        listEl.style.display = 'none';
-        listEl.textContent = '';
+        listEl.style.display = 'none'; listEl.textContent = '';
         titleEl.textContent = 'Drop files here or click to browse';
         return;
       }
       const count = input.files.length;
       let totalSize = 0;
-      const names = [];
-      for (let i = 0; i < count; i++) {
-        totalSize += input.files[i].size;
-        names.push(input.files[i].name);
-      }
+      const names  = [];
+      for (let i = 0; i < count; i++) { totalSize += input.files[i].size; names.push(input.files[i].name); }
       titleEl.textContent = `${count} file(s) selected`;
-      listEl.textContent = `${names.slice(0, 3).join(', ')}${count > 3 ? ` and ${count - 3} more` : ''} (${formatBytes(totalSize)})`;
+      listEl.textContent  = `${names.slice(0, 3).join(', ')}${count > 3 ? ` and ${count - 3} more` : ''} (${formatBytes(totalSize)})`;
       listEl.style.display = 'block';
     }
 
-    // Drag and Drop Setup
     function setupDragAndDrop() {
-      const zone = document.getElementById('dropZone');
+      const zone  = document.getElementById('dropZone');
       const input = document.getElementById('fileInput');
       if (!zone || !input) return;
-
-      ['dragenter', 'dragover'].forEach(eventName => {
-        zone.addEventListener(eventName, e => {
-          e.preventDefault();
-          e.stopPropagation();
-          zone.classList.add('dragover');
-        });
-      });
-
-      ['dragleave', 'drop'].forEach(eventName => {
-        zone.addEventListener(eventName, e => {
-          e.preventDefault();
-          e.stopPropagation();
-          zone.classList.remove('dragover');
-        });
-      });
-
+      ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover'); }));
+      ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover'); }));
       zone.addEventListener('drop', e => {
-        const dt = e.dataTransfer;
-        if (dt && dt.files && dt.files.length > 0) {
-          input.files = dt.files;
-          handleFileSelected(input);
-        }
+        if (e.dataTransfer?.files?.length) { input.files = e.dataTransfer.files; handleFileSelected(input); }
       });
     }
 
-    // Submit File Upload
     async function handleUploadSubmit(e) {
       e.preventDefault();
-      const input = document.getElementById('fileInput');
-      const statusEl = document.getElementById('uploadStatus');
+      const input     = document.getElementById('fileInput');
+      const dest      = document.getElementById('uploadDestination').value;
+      const project   = document.getElementById('uploadProject').value.trim();
       const submitBtn = document.getElementById('btnUploadSubmit');
-      const dest = document.getElementById('uploadDestination').value;
-      const project = document.getElementById('uploadProject').value.trim();
 
       if (!input.files || input.files.length === 0) {
-        statusEl.className = 'form-status error';
-        statusEl.textContent = 'Please choose at least one file.';
-        return;
+        setFormStatus('uploadStatus', 'error', 'Please choose at least one file.'); return;
       }
 
-      statusEl.className = 'form-status';
-      statusEl.textContent = 'Uploading file(s)...';
+      setFormStatus('uploadStatus', '', 'Uploading file(s)...');
       submitBtn.disabled = true;
 
       try {
         const formData = new FormData();
-        for (let i = 0; i < input.files.length; i++) {
-          formData.append('files', input.files[i]);
-        }
+        for (let i = 0; i < input.files.length; i++) formData.append('files', input.files[i]);
         if (dest === 'inbox') formData.append('inbox', 'true');
         if (project) formData.append('project', project);
 
-        const res = await fetch(`${API_BASE}/files/upload`, {
-          method: 'POST',
-          body: formData
-        });
-
+        const res  = await authFetch(`${API_BASE}/files/upload`, { method: 'POST', body: formData });
         const json = await res.json();
+
         if (res.ok && json.success) {
-          statusEl.className = 'form-status success';
-          const savedCount = Array.isArray(json.data) ? json.data.length : 1;
-          statusEl.textContent = `Upload complete. (${savedCount} file(s) saved)`;
-
-          // Reset inputs
-          input.value = '';
-          handleFileSelected(input);
+          const count = Array.isArray(json.data) ? json.data.length : 1;
+          setFormStatus('uploadStatus', 'success', `Upload complete. (${count} file(s) saved)`);
+          input.value = ''; handleFileSelected(input);
           document.getElementById('uploadProject').value = '';
-
-          // Refresh data & stats
-          await fetchAllData();
-          await loadStatus();
-          setFilter('files');
+          await fetchAllData(); await loadStatus(); setFilter('files');
         } else {
-          statusEl.className = 'form-status error';
-          statusEl.textContent = json.error || 'Upload failed.';
+          setFormStatus('uploadStatus', 'error', json.error || 'Upload failed.');
         }
       } catch (err) {
-        statusEl.className = 'form-status error';
-        statusEl.textContent = 'Error: ' + err.message;
+        setFormStatus('uploadStatus', 'error', 'Error: ' + err.message);
       } finally {
         submitBtn.disabled = false;
-        setTimeout(() => {
-          if (statusEl.classList.contains('success')) {
-            statusEl.textContent = '';
-          }
-        }, 4000);
       }
     }
 
-    // Submit Note / Prompt
     async function handleNoteSubmit(e) {
       e.preventDefault();
-      const title = document.getElementById('noteTitle').value.trim();
-      const content = document.getElementById('noteContent').value.trim();
-      const category = document.getElementById('noteCategory').value.trim() || 'General';
-      const tags = document.getElementById('noteTags').value.trim();
-      const statusEl = document.getElementById('noteStatus');
+      const title     = document.getElementById('noteTitle').value.trim();
+      const content   = document.getElementById('noteContent').value.trim();
+      const category  = document.getElementById('noteCategory').value.trim() || 'General';
+      const tags      = document.getElementById('noteTags').value.trim();
       const submitBtn = document.getElementById('btnNoteSubmit');
 
-      if (!title || !content) {
-        statusEl.className = 'form-status error';
-        statusEl.textContent = 'Title and Content are required.';
-        return;
-      }
+      if (!title || !content) { setFormStatus('noteStatus', 'error', 'Title and Content are required.'); return; }
 
-      statusEl.className = 'form-status';
-      statusEl.textContent = 'Saving note...';
+      setFormStatus('noteStatus', '', 'Saving note...');
       submitBtn.disabled = true;
 
       try {
-        const res = await fetch(`${API_BASE}/prompts`, {
+        const res  = await authFetch(`${API_BASE}/prompts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, content, category, tags })
         });
-
         const json = await res.json();
+
         if (res.ok && json.success) {
-          statusEl.className = 'form-status success';
-          statusEl.textContent = 'Note saved successfully.';
-
-          // Reset inputs
-          document.getElementById('noteTitle').value = '';
+          setFormStatus('noteStatus', 'success', 'Note saved successfully.');
+          document.getElementById('noteTitle').value   = '';
           document.getElementById('noteContent').value = '';
-          document.getElementById('noteTags').value = '';
-
-          // Refresh data & stats
-          await fetchAllData();
-          await loadStatus();
-          setFilter('prompts');
+          document.getElementById('noteTags').value    = '';
+          await fetchAllData(); await loadStatus(); setFilter('prompts');
         } else {
-          statusEl.className = 'form-status error';
-          statusEl.textContent = json.error || 'Failed to save note.';
+          setFormStatus('noteStatus', 'error', json.error || 'Failed to save note.');
         }
       } catch (err) {
-        statusEl.className = 'form-status error';
-        statusEl.textContent = 'Error: ' + err.message;
+        setFormStatus('noteStatus', 'error', 'Error: ' + err.message);
       } finally {
         submitBtn.disabled = false;
-        setTimeout(() => {
-          if (statusEl.classList.contains('success')) {
-            statusEl.textContent = '';
-          }
-        }, 4000);
       }
     }
 
-    // Submit Link
     async function handleLinkSubmit(e) {
       e.preventDefault();
-      const url = document.getElementById('linkUrl').value.trim();
-      const title = document.getElementById('linkTitle').value.trim();
-      const category = document.getElementById('linkCategory').value.trim() || 'General';
+      const url       = document.getElementById('linkUrl').value.trim();
+      const title     = document.getElementById('linkTitle').value.trim();
+      const category  = document.getElementById('linkCategory').value.trim() || 'General';
       const description = document.getElementById('linkDesc').value.trim();
-      const statusEl = document.getElementById('linkStatus');
       const submitBtn = document.getElementById('btnLinkSubmit');
 
-      if (!url) {
-        statusEl.className = 'form-status error';
-        statusEl.textContent = 'URL is required.';
-        return;
-      }
+      if (!url) { setFormStatus('linkStatus', 'error', 'URL is required.'); return; }
 
-      statusEl.className = 'form-status';
-      statusEl.textContent = 'Saving link...';
+      setFormStatus('linkStatus', '', 'Saving link...');
       submitBtn.disabled = true;
 
       try {
-        const res = await fetch(`${API_BASE}/links`, {
+        const res  = await authFetch(`${API_BASE}/links`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url, title, category, description })
         });
-
         const json = await res.json();
+
         if (res.ok && json.success) {
-          statusEl.className = 'form-status success';
-          statusEl.textContent = 'Link saved successfully.';
-
-          // Reset inputs
-          document.getElementById('linkUrl').value = '';
+          setFormStatus('linkStatus', 'success', 'Link saved successfully.');
+          document.getElementById('linkUrl').value   = '';
           document.getElementById('linkTitle').value = '';
-          document.getElementById('linkDesc').value = '';
-
-          // Refresh data & stats
-          await fetchAllData();
-          await loadStatus();
-          setFilter('links');
+          document.getElementById('linkDesc').value  = '';
+          await fetchAllData(); await loadStatus(); setFilter('links');
         } else {
-          statusEl.className = 'form-status error';
-          statusEl.textContent = json.error || 'Failed to save link.';
+          setFormStatus('linkStatus', 'error', json.error || 'Failed to save link.');
         }
       } catch (err) {
-        statusEl.className = 'form-status error';
-        statusEl.textContent = 'Error: ' + err.message;
+        setFormStatus('linkStatus', 'error', 'Error: ' + err.message);
       } finally {
         submitBtn.disabled = false;
-        setTimeout(() => {
-          if (statusEl.classList.contains('success')) {
-            statusEl.textContent = '';
-          }
-        }, 4000);
       }
     }
 
+    // ── Init ───────────────────────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
-      loadStatus();
-      fetchAllData();
       setupDragAndDrop();
+      checkAuthOnLoad();
     });
   </script>
 </body>
