@@ -276,5 +276,113 @@ export const linkController = {
     } catch (err) {
       return fail(res, err);
     }
+  },
+
+  // Analyze and auto-tag link with AI
+  analyze: async (req, res) => {
+    try {
+      const { id } = req.params;
+      let link = null;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase.from('links').select('*').eq('id', id).maybeSingle();
+        if (error) return fail(res, error);
+        link = data;
+      } else {
+        link = db.prepare('SELECT * FROM links WHERE id = ?').get(Number(id));
+      }
+
+      if (!link) return notFound(res, 'Link not found');
+
+      // Fetch brief web snippet if possible
+      let webSnippet = '';
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3500);
+        const pageRes = await fetch(link.url, {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'Mozilla/5.0 (ARKA-AI-Assistant/1.0)' }
+        });
+        clearTimeout(timer);
+        if (pageRes.ok && (pageRes.headers.get('content-type') || '').includes('text/html')) {
+          const html = await pageRes.text();
+          const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)
+            || html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
+          if (metaMatch && metaMatch[1]) {
+            webSnippet = metaMatch[1].trim();
+          } else {
+            const text = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                             .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+                             .replace(/<[^>]+>/g, ' ')
+                             .replace(/\s+/g, ' ')
+                             .trim();
+            webSnippet = text.slice(0, 400);
+          }
+        }
+      } catch {}
+
+      const prompt = `Analyze this web bookmark and respond ONLY with a valid JSON object.
+URL: ${link.url}
+Title: ${link.title}
+Domain: ${link.domain}
+Web Snippet: ${webSnippet || link.description || 'N/A'}
+
+Respond with ONLY this JSON:
+{
+  "title": "Clear and clean title for this bookmark",
+  "description": "One concise sentence summarizing the site purpose or content",
+  "category": "One category from: Technology, Design, AI, News, Education, Tools, Documentation, Business, Personal",
+  "tags": ["tag1", "tag2", "tag3", "tag4"]
+}`;
+
+      const { groqChat } = await import('../ai/providers.js');
+      const aiRes = await groqChat([
+        { role: 'system', content: 'You are ARKA, an intelligent bookmark and link classifier. Always return strictly valid JSON without markdown fences.' },
+        { role: 'user', content: prompt }
+      ], { json: true });
+
+      if (!aiRes.ok) {
+        return res.status(502).json({ success: false, error: aiRes.error || 'AI analysis failed' });
+      }
+
+      let parsed = {};
+      try {
+        parsed = JSON.parse(aiRes.content);
+      } catch {
+        return res.status(502).json({ success: false, error: 'AI returned invalid JSON' });
+      }
+
+      const newTitle = parsed.title || link.title;
+      const newDesc = parsed.description || link.description;
+      const newCategory = parsed.category || link.category;
+      const newTags = Array.isArray(parsed.tags) ? parsed.tags : (link.tags || []);
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const { data: updated, error: uErr } = await supabase.from('links').update({
+          title: newTitle,
+          description: newDesc,
+          category: newCategory,
+          tags: newTags,
+          updated_at: new Date().toISOString()
+        }).eq('id', id).select().single();
+
+        if (uErr) return fail(res, uErr);
+        return ok(res, { data: updated, message: 'Link analyzed and enriched successfully' });
+      }
+
+      const tagsStr = Array.isArray(newTags) ? newTags.join(',') : String(newTags || '');
+      db.prepare(`
+        UPDATE links
+        SET title = ?, description = ?, category = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(newTitle, newDesc, newCategory, tagsStr, Number(id));
+
+      const updated = db.prepare('SELECT * FROM links WHERE id = ?').get(Number(id));
+      return ok(res, { data: updated, message: 'Link analyzed and enriched successfully' });
+    } catch (err) {
+      return fail(res, err);
+    }
   }
 };

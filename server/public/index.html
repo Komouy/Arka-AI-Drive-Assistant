@@ -430,6 +430,13 @@
     }
 
     .btn-action:hover { color: var(--text-main); border-color: var(--border-focus); background: var(--bg-elevated); }
+    .btn-action.btn-copy { color: #a1a1aa; }
+    .btn-action.btn-copy:hover { color: #f4f4f5; }
+    .btn-action.btn-copy.copied { color: #34d399; border-color: #059669; background: rgba(5, 150, 105, 0.15); }
+
+    .btn-action.btn-ai { color: #a5b4fc; border-color: #4f46e5; }
+    .btn-action.btn-ai:hover { color: #e0e7ff; background: rgba(79, 70, 229, 0.18); border-color: #6366f1; }
+    .btn-action.btn-ai.analyzing { opacity: 0.65; cursor: wait; pointer-events: none; }
 
     .btn-delete {
       background: transparent; border: 1px solid #3f3f46; color: #71717a;
@@ -439,6 +446,104 @@
 
     .btn-delete:hover { color: #f87171; border-color: #7f1d1d; background: rgba(127, 29, 29, 0.15); }
     .btn-delete.confirming { color: #f87171; border-color: #991b1b; background: rgba(127, 29, 29, 0.2); }
+
+    .ai-badge {
+      font-size: 0.68rem; font-family: var(--font-mono);
+      background: rgba(79, 70, 229, 0.15); color: #c7d2fe;
+      border: 1px solid rgba(99, 102, 241, 0.4); padding: 1px 5px; border-radius: 3px;
+    }
+
+    /* ── Preview Modal ──────────────────────────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(5px); z-index: 1000;
+      display: none; align-items: center; justify-content: center;
+      padding: 1.25rem; opacity: 0; transition: opacity 0.2s ease;
+    }
+    .modal-backdrop.open { display: flex; opacity: 1; }
+
+    .modal-window {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); width: 100%; max-width: 820px;
+      max-height: 90vh; display: flex; flex-direction: column;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.7); overflow: hidden;
+      transform: scale(0.96); transition: transform 0.2s ease;
+    }
+    .modal-backdrop.open .modal-window { transform: scale(1); }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+      background: var(--bg); gap: 1rem;
+    }
+    .modal-title-area {
+      display: flex; align-items: baseline; gap: 0.6rem; min-width: 0; flex-wrap: wrap;
+    }
+    .modal-title {
+      font-size: 0.95rem; font-weight: 600; color: var(--text-main);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 500px;
+    }
+    .modal-close-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-muted); border-radius: var(--radius-sm);
+      padding: 0.3rem 0.65rem; font-family: var(--font-mono); font-size: 0.75rem;
+      cursor: pointer; transition: all 0.15s ease; flex-shrink: 0;
+    }
+    .modal-close-btn:hover { color: var(--text-main); border-color: var(--border-focus); background: var(--bg-elevated); }
+
+    .modal-body {
+      padding: 1.25rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem;
+    }
+
+    .preview-viewer-box {
+      background: #09090b; border-radius: var(--radius-md); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      min-height: 220px; max-height: 440px; overflow: hidden; position: relative;
+    }
+    .preview-img { max-width: 100%; max-height: 440px; object-fit: contain; }
+    .preview-player { width: 100%; max-height: 440px; outline: none; }
+    .preview-code-block {
+      font-family: var(--font-mono); font-size: 0.82rem; background: #09090b;
+      padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border);
+      white-space: pre-wrap; word-break: break-all; max-height: 350px; overflow-y: auto;
+      color: #e4e4e7; line-height: 1.6; width: 100%;
+    }
+    .preview-iframe-box {
+      width: 100%; height: 380px; border: none; border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+    .iframe-fallback-note {
+      font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono);
+      text-align: center; padding: 0.5rem; border-top: 1px solid var(--border);
+    }
+
+    .modal-card {
+      background: var(--bg-surface-hover); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .modal-card-title {
+      font-size: 0.72rem; color: var(--text-dim); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .modal-card-content { font-size: 0.84rem; color: var(--text-main); line-height: 1.5; }
+
+    .modal-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem;
+    }
+    .grid-cell-label { font-size: 0.7rem; color: var(--text-dim); font-family: var(--font-mono); }
+    .grid-cell-val { font-size: 0.82rem; color: var(--text-main); font-weight: 500; word-break: break-word; }
+
+    .tag-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .tag-chip {
+      font-family: var(--font-mono); font-size: 0.7rem; padding: 2px 7px;
+      border-radius: 3px; background: #27272a; border: 1px solid #3f3f46; color: #d4d4d8;
+    }
+
+    .modal-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.85rem 1.25rem; border-top: 1px solid var(--border);
+      background: var(--bg); gap: 0.75rem; flex-wrap: wrap;
+    }
+    .modal-footer-actions { display: flex; gap: 0.5rem; align-items: center; }
 
     .row-body { font-size: 0.83rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.5rem; white-space: pre-wrap; word-break: break-word; }
     .row-body.code-preview { font-family: var(--font-mono); font-size: 0.8rem; background: #09090b; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid #27272a; max-height: 180px; overflow-y: auto; }
@@ -963,12 +1068,32 @@
         const deleteId  = `del-${item.type}-${safeId}`;
 
         let actionBtn = '';
-        if (item.type === 'FILE') {
+        let aiBadge = '';
+
+        if (item.type === 'PROMPT') {
+          actionBtn = `
+            <button class="btn-action btn-copy" onclick="handleCopyPrompt('${safeId}', this)">copy prompt</button>
+            <button class="btn-action" onclick="openPreview('PROMPT', '${safeId}')">preview</button>
+          `;
+        } else if (item.type === 'FILE') {
           const downloadUrl = `/api/files/${safeId}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
-          actionBtn = `<a href="${downloadUrl}" class="btn-action" target="_blank" rel="noopener noreferrer">download</a>`;
-        } else if (item.type === 'LINK' && item.url) {
-          const safeUrl = escapeHtml(item.url);
-          actionBtn = `<a href="${safeUrl}" class="btn-action" target="_blank" rel="noopener noreferrer">open link</a>`;
+          const isAnalyzed = !!(item.raw?.ai_analyzed);
+          if (isAnalyzed) {
+            aiBadge = '<span class="ai-badge">AI Analyzed</span>';
+          }
+          actionBtn = `
+            <button class="btn-action" onclick="openPreview('FILE', '${safeId}')">preview</button>
+            <button class="btn-action btn-ai" id="ai-btn-FILE-${safeId}" onclick="handleAnalyzeItem('FILE', '${safeId}', this)">${isAnalyzed ? 're-analyze' : 'ai analyze'}</button>
+            <a href="${downloadUrl}" class="btn-action" target="_blank" rel="noopener noreferrer">download</a>
+          `;
+        } else if (item.type === 'LINK') {
+          const safeUrl = escapeHtml(item.url || '');
+          actionBtn = `
+            <button class="btn-action" onclick="openPreview('LINK', '${safeId}')">preview</button>
+            <button class="btn-action btn-ai" id="ai-btn-LINK-${safeId}" onclick="handleAnalyzeItem('LINK', '${safeId}', this)">ai analyze</button>
+            <button class="btn-action btn-copy" onclick="handleCopyLink('${safeId}', this)">copy url</button>
+            <a href="${safeUrl}" class="btn-action" target="_blank" rel="noopener noreferrer">open link</a>
+          `;
         }
 
         const bodyClass = item.type === 'PROMPT' ? 'row-body code-preview' : 'row-body';
@@ -985,6 +1110,7 @@
                 <span class="row-title">${titleHtml}</span>
                 <span class="row-type-badge">${item.type}</span>
                 <span class="row-type-badge">${escapeHtml(item.category)}</span>
+                ${aiBadge}
               </div>
               <div class="row-actions">
                 ${actionBtn}
@@ -1245,11 +1371,320 @@
       }
     }
 
+    // ── Copy Utilities ─────────────────────────────────────────────────────────
+    async function copyToClipboard(text, btn, successLabel = 'copied!', originalLabel = 'copy') {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+        btn.textContent = successLabel;
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = originalLabel;
+          btn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        console.error('Copy failed:', err);
+        btn.textContent = 'error';
+        setTimeout(() => { btn.textContent = originalLabel; }, 2000);
+      }
+    }
+
+    function handleCopyPrompt(id, btn) {
+      const prompt = allData.prompts.find(p => String(p.id) === String(id));
+      if (!prompt) return;
+      copyToClipboard(prompt.content || '', btn, 'copied!', 'copy prompt');
+    }
+
+    function handleCopyLink(id, btn) {
+      const link = allData.links.find(l => String(l.id) === String(id));
+      if (!link) return;
+      copyToClipboard(link.url || '', btn, 'copied!', 'copy url');
+    }
+
+    // ── AI Analysis ────────────────────────────────────────────────────────────
+    async function handleAnalyzeItem(type, id, btn) {
+      const originalText = btn.textContent;
+      btn.textContent = 'analyzing...';
+      btn.classList.add('analyzing');
+
+      try {
+        const endpoint = type === 'FILE' ? `${API_BASE}/files/${id}/analyze` : `${API_BASE}/links/${id}/analyze`;
+        const res = await authFetch(endpoint, { method: 'POST' });
+        const json = await res.json();
+
+        if (res.ok && json.success) {
+          btn.textContent = 'analyzed!';
+          btn.classList.remove('analyzing');
+          btn.style.color = '#34d399';
+
+          // Update local data cache
+          if (type === 'FILE' && json.data) {
+            const idx = allData.files.findIndex(f => String(f.id) === String(id));
+            if (idx !== -1) {
+              allData.files[idx] = { ...allData.files[idx], ...json.data, ai_analyzed: 1 };
+            }
+          } else if (type === 'LINK' && json.data) {
+            const idx = allData.links.findIndex(l => String(l.id) === String(id));
+            if (idx !== -1) {
+              allData.links[idx] = { ...allData.links[idx], ...json.data };
+            }
+          }
+
+          setTimeout(() => {
+            render();
+          }, 600);
+        } else {
+          btn.textContent = 'failed';
+          btn.style.color = '#f87171';
+          btn.classList.remove('analyzing');
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.color = '';
+          }, 2500);
+          alert('Analysis notice: ' + (json.error || 'Server error occurred during analysis.'));
+        }
+      } catch (err) {
+        btn.textContent = 'error';
+        btn.classList.remove('analyzing');
+        setTimeout(() => { btn.textContent = originalText; }, 2000);
+        alert('Network error: ' + err.message);
+      }
+    }
+
+    // ── Preview Modal ──────────────────────────────────────────────────────────
+    function closePreview() {
+      const backdrop = document.getElementById('previewModalBackdrop');
+      if (backdrop) backdrop.classList.remove('open');
+      const container = document.getElementById('previewViewerContainer');
+      if (container) container.innerHTML = '';
+    }
+
+    function openPreview(type, id) {
+      const backdrop = document.getElementById('previewModalBackdrop');
+      const titleEl = document.getElementById('previewModalTitle');
+      const typeBadge = document.getElementById('previewModalTypeBadge');
+      const categoryBadge = document.getElementById('previewModalCategoryBadge');
+      const viewerContainer = document.getElementById('previewViewerContainer');
+      const metaContainer = document.getElementById('previewMetaContainer');
+      const footerActions = document.getElementById('previewFooterActions');
+
+      if (!backdrop) return;
+
+      viewerContainer.innerHTML = '';
+      metaContainer.innerHTML = '';
+      footerActions.innerHTML = '';
+
+      if (type === 'PROMPT') {
+        const item = allData.prompts.find(p => String(p.id) === String(id));
+        if (!item) return;
+
+        titleEl.textContent = item.title || 'Prompt Preview';
+        typeBadge.textContent = 'PROMPT';
+        categoryBadge.textContent = item.category || 'General';
+
+        viewerContainer.innerHTML = `<pre class="preview-code-block">${escapeHtml(item.content)}</pre>`;
+
+        metaContainer.innerHTML = `
+          <div class="modal-card">
+            <div class="modal-card-title">Prompt Details</div>
+            <div class="modal-grid">
+              <div>
+                <div class="grid-cell-label">Created At</div>
+                <div class="grid-cell-val">${formatDate(item.created_at)}</div>
+              </div>
+              <div>
+                <div class="grid-cell-label">Character Count</div>
+                <div class="grid-cell-val">${(item.content || '').length} characters</div>
+              </div>
+            </div>
+            ${item.tags ? `
+              <div style="margin-top:0.5rem">
+                <div class="grid-cell-label" style="margin-bottom:0.25rem">Tags</div>
+                <div class="tag-chips">${(Array.isArray(item.tags) ? item.tags : String(item.tags).split(',')).filter(Boolean).map(t => `<span class="tag-chip">${escapeHtml(t.trim())}</span>`).join('')}</div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+
+        footerActions.innerHTML = `
+          <button class="btn-primary" onclick="handleCopyPrompt('${escapeHtml(String(item.id))}', this)">Copy Prompt</button>
+        `;
+      } else if (type === 'LINK') {
+        const item = allData.links.find(l => String(l.id) === String(id));
+        if (!item) return;
+
+        titleEl.textContent = item.title || item.domain || 'Link Preview';
+        typeBadge.textContent = 'LINK';
+        categoryBadge.textContent = item.category || 'General';
+
+        const safeUrl = escapeHtml(item.url || '');
+
+        viewerContainer.innerHTML = `
+          <div style="width:100%; display:flex; flex-direction:column;">
+            <iframe class="preview-iframe-box" src="${safeUrl}" sandbox="allow-scripts allow-same-origin" loading="lazy"></iframe>
+            <div class="iframe-fallback-note">If external preview is restricted by the destination site, use "Open Original Link" below.</div>
+          </div>
+        `;
+
+        metaContainer.innerHTML = `
+          <div class="modal-card">
+            <div class="modal-card-title">Bookmark Details</div>
+            <div class="modal-grid">
+              <div>
+                <div class="grid-cell-label">Domain</div>
+                <div class="grid-cell-val">${escapeHtml(item.domain || '-')}</div>
+              </div>
+              <div>
+                <div class="grid-cell-label">Created At</div>
+                <div class="grid-cell-val">${formatDate(item.created_at)}</div>
+              </div>
+            </div>
+            ${item.description ? `
+              <div style="margin-top:0.5rem">
+                <div class="grid-cell-label" style="margin-bottom:0.25rem">Description</div>
+                <div class="modal-card-content">${escapeHtml(item.description)}</div>
+              </div>
+            ` : ''}
+            ${item.tags ? `
+              <div style="margin-top:0.5rem">
+                <div class="grid-cell-label" style="margin-bottom:0.25rem">Tags</div>
+                <div class="tag-chips">${(Array.isArray(item.tags) ? item.tags : String(item.tags).split(',')).filter(Boolean).map(t => `<span class="tag-chip">${escapeHtml(t.trim())}</span>`).join('')}</div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+
+        footerActions.innerHTML = `
+          <button class="btn-action btn-copy" onclick="handleCopyLink('${escapeHtml(String(item.id))}', this)">Copy URL</button>
+          <button class="btn-action btn-ai" id="modal-ai-btn-LINK-${escapeHtml(String(item.id))}" onclick="handleAnalyzeItem('LINK', '${escapeHtml(String(item.id))}', this)">AI Analyze</button>
+          <a href="${safeUrl}" class="btn-primary" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Open Original Link</a>
+        `;
+      } else if (type === 'FILE') {
+        const item = allData.files.find(f => String(f.id) === String(id));
+        if (!item) return;
+
+        titleEl.textContent = item.original_name || 'File Preview';
+        typeBadge.textContent = 'FILE';
+        categoryBadge.textContent = item.typeCategory || 'Other';
+
+        const downloadUrl = `/api/files/${item.id}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
+        const viewUrl = item.publicUrl || downloadUrl;
+        const mime = (item.mime_type || '').toLowerCase();
+        const ext = (item.original_name || '').split('.').pop().toLowerCase();
+
+        if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
+          viewerContainer.innerHTML = `<img src="${viewUrl}" class="preview-img" alt="${escapeHtml(item.original_name)}">`;
+        } else if (mime.startsWith('video/') || ['mp4', 'webm', 'mov'].includes(ext)) {
+          viewerContainer.innerHTML = `<video controls class="preview-player" src="${viewUrl}"></video>`;
+        } else if (mime.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) {
+          viewerContainer.innerHTML = `<div style="padding:2rem; width:100%"><audio controls class="preview-player" src="${viewUrl}"></audio></div>`;
+        } else if (mime === 'application/pdf' || ext === 'pdf') {
+          viewerContainer.innerHTML = `<iframe class="preview-iframe-box" src="${viewUrl}" style="height:440px"></iframe>`;
+        } else {
+          viewerContainer.innerHTML = `
+            <div style="padding:2.5rem 1.5rem; text-align:center; color:var(--text-dim); font-family:var(--font-mono); font-size:0.82rem">
+              <div>Preview not available for binary file format: ${escapeHtml(mime || ext)}</div>
+              <div style="margin-top:0.75rem; color:var(--text-muted)">Download the file to view its full content.</div>
+            </div>
+          `;
+        }
+
+        const isAnalyzed = !!(item.ai_analyzed || item.file_metadata?.ai_analyzed);
+        const metaDesc = item.description || item.file_metadata?.description || '';
+        const metaTags = item.tags || item.file_metadata?.tags || '';
+
+        metaContainer.innerHTML = `
+          <div class="modal-card">
+            <div class="modal-card-title">File Details</div>
+            <div class="modal-grid">
+              <div>
+                <div class="grid-cell-label">Size</div>
+                <div class="grid-cell-val">${formatBytes(item.size)}</div>
+              </div>
+              <div>
+                <div class="grid-cell-label">MIME Type</div>
+                <div class="grid-cell-val">${escapeHtml(item.mime_type || 'Unknown')}</div>
+              </div>
+              <div>
+                <div class="grid-cell-label">Folder</div>
+                <div class="grid-cell-val">${escapeHtml(item.folder_name || (item.is_inbox ? 'Inbox' : 'Root'))}</div>
+              </div>
+              <div>
+                <div class="grid-cell-label">Uploaded</div>
+                <div class="grid-cell-val">${formatDate(item.created_at)}</div>
+              </div>
+            </div>
+          </div>
+          ${isAnalyzed || metaDesc ? `
+            <div class="modal-card" style="border-color: rgba(99, 102, 241, 0.35);">
+              <div class="modal-card-title" style="color: #a5b4fc">AI Analysis Insights</div>
+              ${metaDesc ? `<div class="modal-card-content">${escapeHtml(metaDesc)}</div>` : ''}
+              ${metaTags ? `
+                <div style="margin-top:0.5rem">
+                  <div class="grid-cell-label" style="margin-bottom:0.25rem">Tags</div>
+                  <div class="tag-chips">${(Array.isArray(metaTags) ? metaTags : String(metaTags).split(',')).filter(Boolean).map(t => `<span class="tag-chip">${escapeHtml(t.trim())}</span>`).join('')}</div>
+                </div>
+              ` : ''}
+            </div>
+          ` : `
+            <div class="modal-card" style="border-style: dashed;">
+              <div class="modal-card-title">AI Analysis</div>
+              <div style="font-size:0.8rem; color:var(--text-dim)">This file has not been analyzed by AI yet. Click "AI Analyze" below to extract topic, description, and tags.</div>
+            </div>
+          `}
+        `;
+
+        footerActions.innerHTML = `
+          <button class="btn-action btn-ai" id="modal-ai-btn-FILE-${escapeHtml(String(item.id))}" onclick="handleAnalyzeItem('FILE', '${escapeHtml(String(item.id))}', this)">${isAnalyzed ? 'Re-analyze with AI' : 'AI Analyze'}</button>
+          <a href="${downloadUrl}" class="btn-primary" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Download File</a>
+        `;
+      }
+
+      backdrop.classList.add('open');
+    }
+
     // ── Init ───────────────────────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
       setupDragAndDrop();
       checkAuthOnLoad();
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closePreview();
+      });
     });
   </script>
+
+  <!-- ────────────────────────────────────────────────────────────────────────
+       PREVIEW MODAL
+  ──────────────────────────────────────────────────────────────────────────── -->
+  <div class="modal-backdrop" id="previewModalBackdrop" onclick="if(event.target === this) closePreview()">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-title-area">
+          <span class="modal-title" id="previewModalTitle">Preview</span>
+          <span class="row-type-badge" id="previewModalTypeBadge">TYPE</span>
+          <span class="row-type-badge" id="previewModalCategoryBadge">Category</span>
+        </div>
+        <button class="modal-close-btn" type="button" onclick="closePreview()">Close [esc]</button>
+      </div>
+      <div class="modal-body">
+        <div class="preview-viewer-box" id="previewViewerContainer"></div>
+        <div id="previewMetaContainer"></div>
+      </div>
+      <div class="modal-footer">
+        <div style="font-size:0.75rem; color:var(--text-dim); font-family:var(--font-mono);">ARKA Workspace</div>
+        <div class="modal-footer-actions" id="previewFooterActions"></div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

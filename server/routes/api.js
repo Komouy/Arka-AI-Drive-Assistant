@@ -52,6 +52,7 @@ router.delete('/prompts/:id', promptController.delete);
 router.get('/links', linkController.getAll);
 router.get('/links/:id', linkController.getById);
 router.post('/links', linkController.create);
+router.post('/links/:id/analyze', linkController.analyze);
 router.patch('/links/:id', linkController.update);
 router.delete('/links/:id', linkController.delete);
 
