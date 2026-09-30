@@ -126,3 +126,16 @@ dan **hanya** mematikan proses `node.exe` (proses lain yang menyerobot port dibi
 
 > **Phase 12 — Computer Agent tetap dipertahankan**, wajib memakai permission system:
 > 🟢 allowed (buka app, baca file, buat folder) · 🟡 confirmation (hapus file, jalankan command) · 🔴 blocked (operasi sistem berbahaya).
+
+---
+
+## 👥 Multi-User & BYOD Storage Roadmap (Opsi 2)
+
+Roadmap perluasan ARKA agar dapat dipakai publik dengan autentikasi Google dan storage mandiri (Bring Your Own Drive):
+
+| Tahap | Fitur | Status | Keterangan |
+|---|---|---|---|
+| **Fase 1** | **Google OAuth + Persistent Session** | ✅ Selesai | Autentikasi Google via Supabase Auth, sesi permanen di `localStorage`, auto-login, header user avatar/nama, fallback password login tetap aktif. |
+| **Fase 2** | **Opsi 2: BYOD Personal Google Drive** | ⏳ Selanjutnya | Pengguna menghubungkan Google Drive pribadi mereka; file diunggah & disimpan langsung di Google Drive pengguna, ARKA mengelola index metadata & AI Assistant. |
+| **Fase 3** | **Multi-Tenant Data Isolation** | 📋 Terjadwal | Isolasi data file, prompt, dan link per `user_id` di database Supabase Postgres (Row Level Security). |
+
