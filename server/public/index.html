@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     /* ── Design Tokens ────────────────────────────────────────────────────── */
     :root {
@@ -422,7 +423,42 @@
 
     .row-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 
+    /* ── Lucide Icon Utilities ────────────────────────────────────────────── */
+    .icon {
+      width: 14px;
+      height: 14px;
+      stroke-width: 2;
+      vertical-align: middle;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .icon-sm {
+      width: 12px;
+      height: 12px;
+      stroke-width: 2;
+      vertical-align: middle;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .icon-md {
+      width: 16px;
+      height: 16px;
+      stroke-width: 2;
+      vertical-align: middle;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .icon-lg {
+      width: 22px;
+      height: 22px;
+      stroke-width: 1.75;
+      vertical-align: middle;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
     .btn-action {
+      display: inline-flex; align-items: center; gap: 0.35rem;
       background: transparent; border: 1px solid var(--border); color: var(--text-muted);
       font-size: 0.75rem; padding: 0.25rem 0.55rem; border-radius: var(--radius-sm);
       cursor: pointer; text-decoration: none; font-family: var(--font-mono);
@@ -439,6 +475,7 @@
     .btn-action.btn-ai.analyzing { opacity: 0.65; cursor: wait; pointer-events: none; }
 
     .btn-delete {
+      display: inline-flex; align-items: center; gap: 0.35rem;
       background: transparent; border: 1px solid #3f3f46; color: #71717a;
       font-size: 0.75rem; padding: 0.25rem 0.55rem; border-radius: var(--radius-sm);
       cursor: pointer; font-family: var(--font-mono); transition: all 0.15s ease;
@@ -448,9 +485,10 @@
     .btn-delete.confirming { color: #f87171; border-color: #991b1b; background: rgba(127, 29, 29, 0.2); }
 
     .ai-badge {
+      display: inline-flex; align-items: center; gap: 0.25rem;
       font-size: 0.68rem; font-family: var(--font-mono);
       background: rgba(79, 70, 229, 0.15); color: #c7d2fe;
-      border: 1px solid rgba(99, 102, 241, 0.4); padding: 1px 5px; border-radius: 3px;
+      border: 1px solid rgba(99, 102, 241, 0.4); padding: 1px 6px; border-radius: 3px;
     }
 
     /* ── Preview Modal ──────────────────────────────────────────────────────── */
@@ -604,7 +642,7 @@
       <!-- Header -->
       <header>
         <div class="header-brand">
-          <div class="header-logo">A</div>
+          <div class="header-logo"><i data-lucide="layers" class="icon-md"></i></div>
           <div>
             <div class="header-title">ARKA Storage Viewer</div>
             <div class="header-meta">Personal workspace data explorer</div>
@@ -615,26 +653,26 @@
             <div id="statusIndicator" class="status-indicator"></div>
             <span id="statusText">checking...</span>
           </div>
-          <button class="btn-logout" onclick="handleLogout()">Sign out</button>
+          <button class="btn-logout" onclick="handleLogout()"><i data-lucide="log-out" class="icon"></i> <span>Sign out</span></button>
         </div>
       </header>
 
       <!-- Stats Strip -->
       <section class="stats-row">
         <div class="stat-card">
-          <div class="stat-label">Files</div>
+          <div class="stat-label"><i data-lucide="file" class="icon"></i> <span>Files</span></div>
           <div id="statFiles" class="stat-value">0</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Prompts &amp; Notes</div>
+          <div class="stat-label"><i data-lucide="terminal" class="icon"></i> <span>Prompts &amp; Notes</span></div>
           <div id="statPrompts" class="stat-value">0</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Links</div>
+          <div class="stat-label"><i data-lucide="globe" class="icon"></i> <span>Links</span></div>
           <div id="statLinks" class="stat-value">0</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Storage Used</div>
+          <div class="stat-label"><i data-lucide="hard-drive" class="icon"></i> <span>Storage Used</span></div>
           <div id="statStorage" class="stat-value">0 B</div>
         </div>
       </section>
@@ -643,9 +681,9 @@
       <section class="creation-panel">
         <div class="panel-header">
           <div class="panel-tabs">
-            <button type="button" class="create-tab-btn active" id="tabUploadBtn" onclick="switchCreateTab('upload')">Upload File</button>
-            <button type="button" class="create-tab-btn" id="tabNoteBtn" onclick="switchCreateTab('note')">New Note / Prompt</button>
-            <button type="button" class="create-tab-btn" id="tabLinkBtn" onclick="switchCreateTab('link')">Add Link</button>
+            <button type="button" class="create-tab-btn active" id="tabUploadBtn" onclick="switchCreateTab('upload')"><i data-lucide="upload" class="icon"></i> <span>Upload File</span></button>
+            <button type="button" class="create-tab-btn" id="tabNoteBtn" onclick="switchCreateTab('note')"><i data-lucide="file-text" class="icon"></i> <span>New Note / Prompt</span></button>
+            <button type="button" class="create-tab-btn" id="tabLinkBtn" onclick="switchCreateTab('link')"><i data-lucide="link" class="icon"></i> <span>Add Link</span></button>
           </div>
           <button type="button" class="panel-toggle-btn" id="panelToggleBtn" onclick="toggleCreatePanel()">collapse [-]</button>
         </div>
@@ -655,6 +693,7 @@
           <form id="uploadForm" class="create-form" onsubmit="handleUploadSubmit(event)">
             <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
               <input type="file" id="fileInput" name="files" multiple style="display:none" onchange="handleFileSelected(this)">
+              <div style="margin-bottom:0.5rem; color:var(--text-muted)"><i data-lucide="upload-cloud" class="icon-lg"></i></div>
               <div class="drop-title" id="dropZoneTitle">Drop files here or click to browse</div>
               <div class="drop-subtitle">Supports single or multiple files (up to 500 MB)</div>
               <div class="selected-files-list" id="selectedFilesList" style="display:none"></div>
@@ -740,18 +779,22 @@
       <div class="controls-bar">
         <div class="filter-tabs">
           <button class="tab-btn active" id="filterAll" onclick="setFilter('all')">
+            <i data-lucide="layout-grid" class="icon"></i>
             <span>All Items</span>
             <span id="countAll" class="tab-count">0</span>
           </button>
           <button class="tab-btn" id="filterFiles" onclick="setFilter('files')">
+            <i data-lucide="file" class="icon"></i>
             <span>Files</span>
             <span id="countFiles" class="tab-count">0</span>
           </button>
           <button class="tab-btn" id="filterPrompts" onclick="setFilter('prompts')">
+            <i data-lucide="terminal" class="icon"></i>
             <span>Prompts</span>
             <span id="countPrompts" class="tab-count">0</span>
           </button>
           <button class="tab-btn" id="filterLinks" onclick="setFilter('links')">
+            <i data-lucide="bookmark" class="icon"></i>
             <span>Links</span>
             <span id="countLinks" class="tab-count">0</span>
           </button>
@@ -1072,27 +1115,27 @@
 
         if (item.type === 'PROMPT') {
           actionBtn = `
-            <button class="btn-action btn-copy" onclick="handleCopyPrompt('${safeId}', this)">copy prompt</button>
-            <button class="btn-action" onclick="openPreview('PROMPT', '${safeId}')">preview</button>
+            <button class="btn-action btn-copy" onclick="handleCopyPrompt('${safeId}', this)"><i data-lucide="copy" class="icon"></i> <span>copy prompt</span></button>
+            <button class="btn-action" onclick="openPreview('PROMPT', '${safeId}')"><i data-lucide="eye" class="icon"></i> <span>preview</span></button>
           `;
         } else if (item.type === 'FILE') {
           const downloadUrl = `/api/files/${safeId}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
           const isAnalyzed = !!(item.raw?.ai_analyzed);
           if (isAnalyzed) {
-            aiBadge = '<span class="ai-badge">AI Analyzed</span>';
+            aiBadge = '<span class="ai-badge"><i data-lucide="sparkles" class="icon-sm"></i> <span>AI Analyzed</span></span>';
           }
           actionBtn = `
-            <button class="btn-action" onclick="openPreview('FILE', '${safeId}')">preview</button>
-            <button class="btn-action btn-ai" id="ai-btn-FILE-${safeId}" onclick="handleAnalyzeItem('FILE', '${safeId}', this)">${isAnalyzed ? 're-analyze' : 'ai analyze'}</button>
-            <a href="${downloadUrl}" class="btn-action" target="_blank" rel="noopener noreferrer">download</a>
+            <button class="btn-action" onclick="openPreview('FILE', '${safeId}')"><i data-lucide="eye" class="icon"></i> <span>preview</span></button>
+            <button class="btn-action btn-ai" id="ai-btn-FILE-${safeId}" onclick="handleAnalyzeItem('FILE', '${safeId}', this)"><i data-lucide="sparkles" class="icon"></i> <span>${isAnalyzed ? 're-analyze' : 'ai analyze'}</span></button>
+            <a href="${downloadUrl}" class="btn-action" target="_blank" rel="noopener noreferrer"><i data-lucide="download" class="icon"></i> <span>download</span></a>
           `;
         } else if (item.type === 'LINK') {
           const safeUrl = escapeHtml(item.url || '');
           actionBtn = `
-            <button class="btn-action" onclick="openPreview('LINK', '${safeId}')">preview</button>
-            <button class="btn-action btn-ai" id="ai-btn-LINK-${safeId}" onclick="handleAnalyzeItem('LINK', '${safeId}', this)">ai analyze</button>
-            <button class="btn-action btn-copy" onclick="handleCopyLink('${safeId}', this)">copy url</button>
-            <a href="${safeUrl}" class="btn-action" target="_blank" rel="noopener noreferrer">open link</a>
+            <button class="btn-action" onclick="openPreview('LINK', '${safeId}')"><i data-lucide="eye" class="icon"></i> <span>preview</span></button>
+            <button class="btn-action btn-ai" id="ai-btn-LINK-${safeId}" onclick="handleAnalyzeItem('LINK', '${safeId}', this)"><i data-lucide="sparkles" class="icon"></i> <span>ai analyze</span></button>
+            <button class="btn-action btn-copy" onclick="handleCopyLink('${safeId}', this)"><i data-lucide="copy" class="icon"></i> <span>copy url</span></button>
+            <a href="${safeUrl}" class="btn-action" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link" class="icon"></i> <span>open link</span></a>
           `;
         }
 
@@ -1121,7 +1164,7 @@
                   data-id="${safeId}"
                   data-btnid="${deleteId}"
                   onclick="handleDelete(this)"
-                >delete</button>
+                ><i data-lucide="trash-2" class="icon"></i> <span>delete</span></button>
               </div>
             </div>
             ${item.desc ? `<div class="${bodyClass}">${escapeHtml(item.desc)}</div>` : ''}
@@ -1133,6 +1176,8 @@
           </div>
         `;
       }).join('');
+
+      refreshIcons();
     }
 
     // ── Delete ─────────────────────────────────────────────────────────────────
@@ -1517,7 +1562,7 @@
         `;
 
         footerActions.innerHTML = `
-          <button class="btn-primary" onclick="handleCopyPrompt('${escapeHtml(String(item.id))}', this)">Copy Prompt</button>
+          <button class="btn-primary" onclick="handleCopyPrompt('${escapeHtml(String(item.id))}', this)"><i data-lucide="copy" class="icon"></i> <span>Copy Prompt</span></button>
         `;
       } else if (type === 'LINK') {
         const item = allData.links.find(l => String(l.id) === String(id));
@@ -1565,9 +1610,9 @@
         `;
 
         footerActions.innerHTML = `
-          <button class="btn-action btn-copy" onclick="handleCopyLink('${escapeHtml(String(item.id))}', this)">Copy URL</button>
-          <button class="btn-action btn-ai" id="modal-ai-btn-LINK-${escapeHtml(String(item.id))}" onclick="handleAnalyzeItem('LINK', '${escapeHtml(String(item.id))}', this)">AI Analyze</button>
-          <a href="${safeUrl}" class="btn-primary" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Open Original Link</a>
+          <button class="btn-action btn-copy" onclick="handleCopyLink('${escapeHtml(String(item.id))}', this)"><i data-lucide="copy" class="icon"></i> <span>Copy URL</span></button>
+          <button class="btn-action btn-ai" id="modal-ai-btn-LINK-${escapeHtml(String(item.id))}" onclick="handleAnalyzeItem('LINK', '${escapeHtml(String(item.id))}', this)"><i data-lucide="sparkles" class="icon"></i> <span>AI Analyze</span></button>
+          <a href="${safeUrl}" class="btn-primary" target="_blank" rel="noopener noreferrer" style="text-decoration:none"><i data-lucide="external-link" class="icon"></i> <span>Open Original Link</span></a>
         `;
       } else if (type === 'FILE') {
         const item = allData.files.find(f => String(f.id) === String(id));
@@ -1645,12 +1690,13 @@
         `;
 
         footerActions.innerHTML = `
-          <button class="btn-action btn-ai" id="modal-ai-btn-FILE-${escapeHtml(String(item.id))}" onclick="handleAnalyzeItem('FILE', '${escapeHtml(String(item.id))}', this)">${isAnalyzed ? 'Re-analyze with AI' : 'AI Analyze'}</button>
-          <a href="${downloadUrl}" class="btn-primary" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Download File</a>
+          <button class="btn-action btn-ai" id="modal-ai-btn-FILE-${escapeHtml(String(item.id))}" onclick="handleAnalyzeItem('FILE', '${escapeHtml(String(item.id))}', this)"><i data-lucide="sparkles" class="icon"></i> <span>${isAnalyzed ? 'Re-analyze with AI' : 'AI Analyze'}</span></button>
+          <a href="${downloadUrl}" class="btn-primary" target="_blank" rel="noopener noreferrer" style="text-decoration:none"><i data-lucide="download" class="icon"></i> <span>Download File</span></a>
         `;
       }
 
       backdrop.classList.add('open');
+      refreshIcons();
     }
 
     // ── Init ───────────────────────────────────────────────────────────────────
