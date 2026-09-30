@@ -43,6 +43,12 @@ app.use(express.static(PUBLIC_DIR));
 app.get(['/upload', '/viewer', '/data'], (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'privacy.html'));
+});
+app.get('/terms', (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'terms.html'));
+});
 
 // Mount REST API
 app.use('/api', apiRoutes);
