@@ -141,17 +141,20 @@ async function executeTool(name, args, userId = null) {
           ? rows.filter(r => getFileTypeCategory(r.mime_type, r.original_name).toLowerCase() === String(args.type).toLowerCase())
           : rows;
 
-        return { files: filtered.map(r => ({
-          id: r.id,
-          original_name: r.original_name,
-          mime_type: r.mime_type,
-          size: r.size,
-          is_inbox: r.is_inbox,
-          folder_name: r.folders?.name || null,
-          description: r.file_metadata?.description || null,
-          tags: r.file_metadata?.tags || null,
-          category: r.file_metadata?.category || null
-        })), count: filtered.length };
+        return { files: filtered.map(r => {
+          const meta = Array.isArray(r.file_metadata) ? r.file_metadata[0] : r.file_metadata;
+          return {
+            id: r.id,
+            original_name: r.original_name,
+            mime_type: r.mime_type,
+            size: r.size,
+            is_inbox: r.is_inbox,
+            folder_name: r.folders?.name || null,
+            description: meta?.description || null,
+            tags: meta?.tags || null,
+            category: meta?.category || null
+          };
+        }), count: filtered.length };
       }
 
       // SQLite fallback

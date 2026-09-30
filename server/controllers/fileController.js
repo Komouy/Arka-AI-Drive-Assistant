@@ -44,7 +44,7 @@ async function triggerAIAnalysis(fileId, filePath, mimeType, filename, fileBuffe
 }
 
 /** Upsert AI metadata in Supabase. */
-export async function saveMetadataSupabase(fileId, metadata) {
+export async function saveMetadataSupabase(fileId, metadata, userId = null) {
   const supabase = getSupabaseClient();
   const tags = Array.isArray(metadata.tags)
     ? metadata.tags
@@ -53,7 +53,11 @@ export async function saveMetadataSupabase(fileId, metadata) {
   const folderSuggestion = metadata.suggestedFolder || metadata.project || '';
   const nameSuggestion = metadata.suggestedName || '';
 
-  const { data: existing } = await supabase.from('file_metadata').select('id').eq('file_id', fileId).maybeSingle();
+  const { data: existing } = await supabase
+    .from('file_metadata')
+    .select('id')
+    .eq('file_id', fileId)
+    .maybeSingle();
 
   // Try with enhanced columns first
   const fullPayload = {
@@ -65,17 +69,20 @@ export async function saveMetadataSupabase(fileId, metadata) {
     suggested_folder: folderSuggestion,
     ai_analyzed: true
   };
+  if (userId) fullPayload.user_id = userId;
 
-  try {
-    if (existing) {
-      const { error } = await supabase.from('file_metadata').update(fullPayload).eq('file_id', fileId);
-      if (error && error.code === '42703') throw error;
-    } else {
-      const { error } = await supabase.from('file_metadata').insert({ file_id: fileId, ...fullPayload });
-      if (error && error.code === '42703') throw error;
-    }
-  } catch {
-    // Fallback if table doesn't have suggested_name / suggested_folder columns yet
+  let saveErr = null;
+  if (existing) {
+    const { error } = await supabase.from('file_metadata').update(fullPayload).eq('file_id', fileId);
+    saveErr = error;
+  } else {
+    const { error } = await supabase.from('file_metadata').insert({ file_id: fileId, ...fullPayload });
+    saveErr = error;
+  }
+
+  // If there's any schema mismatch (e.g. PostgREST PGRST204 or PostgreSQL 42703), fallback to base schema
+  if (saveErr) {
+    console.warn(`[ARKA AI] Falling back to standard metadata schema for file ID ${fileId}: ${saveErr.message || saveErr.code}`);
     const basePayload = {
       description: metadata.description || '',
       category: topic,
@@ -83,12 +90,24 @@ export async function saveMetadataSupabase(fileId, metadata) {
       tags,
       ai_analyzed: true
     };
+    if (userId) basePayload.user_id = userId;
+
     if (existing) {
-      await supabase.from('file_metadata').update(basePayload).eq('file_id', fileId);
+      const { error: fallbackErr } = await supabase.from('file_metadata').update(basePayload).eq('file_id', fileId);
+      if (fallbackErr) {
+        console.error(`[ARKA AI] ❌ Failed to update metadata in Supabase:`, fallbackErr);
+        throw fallbackErr;
+      }
     } else {
-      await supabase.from('file_metadata').insert({ file_id: fileId, ...basePayload });
+      const { error: fallbackErr } = await supabase.from('file_metadata').insert({ file_id: fileId, ...basePayload });
+      if (fallbackErr) {
+        console.error(`[ARKA AI] ❌ Failed to insert metadata in Supabase:`, fallbackErr);
+        throw fallbackErr;
+      }
     }
   }
+
+  console.log(`[ARKA AI] 💾 Metadata successfully saved in Supabase for file ID ${fileId}`);
 }
 
 /** Upsert AI metadata in SQLite. */
@@ -680,7 +699,7 @@ export const fileController = {
             });
           }
 
-          await saveMetadataSupabase(id, metadata);
+          await saveMetadataSupabase(id, metadata, file.user_id);
 
           const { data: updated } = await supabase
             .from('files')
@@ -688,18 +707,18 @@ export const fileController = {
             .eq('id', id)
             .single();
 
-          const meta = Array.isArray(updated.file_metadata) ? updated.file_metadata[0] : updated.file_metadata;
+          const meta = Array.isArray(updated?.file_metadata) ? updated.file_metadata[0] : updated?.file_metadata;
           const enriched = {
-            ...updated,
-            folder_name: updated.folders?.name || null,
+            ...(updated || file),
+            folder_name: updated?.folders?.name || null,
             description: meta?.description || metadata.description || null,
             category: meta?.category || metadata.category || null,
             project: meta?.project || metadata.project || null,
             suggested_folder: metadata.suggestedFolder || meta?.suggested_folder || meta?.project || null,
             suggested_name: metadata.suggestedName || meta?.suggested_name || null,
             tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
-            ai_analyzed: meta?.ai_analyzed ? 1 : 0,
-            publicUrl: updated.gdrive_view_url || updated.public_url || `/storage/${updated.storage_path}`
+            ai_analyzed: 1,
+            publicUrl: updated?.gdrive_view_url || updated?.public_url || `/storage/${updated?.storage_path || file.storage_path}`
           };
 
           return ok(res, { metadata, data: enriched });
