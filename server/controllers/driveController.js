@@ -115,6 +115,26 @@ export async function getDriveFileInfo(accessToken, driveFileId) {
 }
 
 /**
+ * Download a file's raw bytes from the user's Google Drive.
+ * Returns a Buffer with the file content, ready to be analysed.
+ *
+ * Google-native documents (Docs / Sheets / Slides) have no binary payload, so
+ * Drive rejects `alt=media` for them — that message is passed through as-is.
+ */
+export async function downloadFromGoogleDrive(accessToken, driveFileId) {
+  const res = await fetch(`${DRIVE_API_BASE}/files/${driveFileId}?alt=media&supportsAllDrives=true`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Google Drive download failed: ${err.error?.message || res.status}`);
+  }
+
+  return Buffer.from(await res.arrayBuffer());
+}
+
+/**
  * Express route handler: GET /api/drive/status
  */
 export const driveController = {

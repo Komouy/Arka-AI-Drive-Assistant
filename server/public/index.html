@@ -940,13 +940,6 @@
               <div class="selected-files-list" id="selectedFilesList" style="display:none"></div>
             </div>
             <div class="form-row">
-              <div class="form-group">
-                <label class="form-label" for="uploadDestination">Destination</label>
-                <select id="uploadDestination" class="form-select">
-                  <option value="root">Storage (Root)</option>
-                  <option value="inbox">Inbox</option>
-                </select>
-              </div>
               <div class="form-group flex-2">
                 <label class="form-label" for="uploadProject">Folder / Project (Optional)</label>
                 <input type="text" id="uploadProject" class="form-input" placeholder="e.g. Documentation, Assets, Work">
@@ -1575,14 +1568,14 @@
           }
           actionBtn = `
             <button class="btn-action" onclick="openPreview('FILE', '${safeId}')"><i data-lucide="eye" class="icon"></i> <span>preview</span></button>
-            <button class="btn-action btn-ai" id="ai-btn-FILE-${safeId}" onclick="handleAnalyzeItem('FILE', '${safeId}', this)"><i data-lucide="play" class="icon"></i> <span>${isAnalyzed ? 're-analyze' : 'ai analyze'}</span></button>
+            <button class="btn-action btn-ai" id="ai-btn-FILE-${safeId}" onclick="handleAnalyzeItem('FILE', '${safeId}', this)"><i data-lucide="play" class="icon"></i> <span>${isAnalyzed ? 're-analyze' : 'AI Analyze'}</span></button>
             <a href="${downloadUrl}" class="btn-action" target="_blank" rel="noopener noreferrer"><i data-lucide="download" class="icon"></i> <span>download</span></a>
           `;
         } else if (item.type === 'LINK') {
           const safeUrl = escapeHtml(item.url || '');
           actionBtn = `
             <button class="btn-action" onclick="openPreview('LINK', '${safeId}')"><i data-lucide="eye" class="icon"></i> <span>preview</span></button>
-            <button class="btn-action btn-ai" id="ai-btn-LINK-${safeId}" onclick="handleAnalyzeItem('LINK', '${safeId}', this)"><i data-lucide="play" class="icon"></i> <span>ai analyze</span></button>
+            <button class="btn-action btn-ai" id="ai-btn-LINK-${safeId}" onclick="handleAnalyzeItem('LINK', '${safeId}', this)"><i data-lucide="play" class="icon"></i> <span>AI Analyze</span></button>
             <button class="btn-action btn-copy" onclick="handleCopyLink('${safeId}', this)"><i data-lucide="copy" class="icon"></i> <span>copy url</span></button>
             <a href="${safeUrl}" class="btn-action" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link" class="icon"></i> <span>open link</span></a>
           `;
@@ -1746,7 +1739,6 @@
     async function handleUploadSubmit(e) {
       e.preventDefault();
       const input       = document.getElementById('fileInput');
-      const dest        = document.getElementById('uploadDestination').value;
       const project     = document.getElementById('uploadProject').value.trim();
       const submitBtn   = document.getElementById('btnUploadSubmit');
       const progressWrap = document.getElementById('uploadProgressWrap');
@@ -1768,7 +1760,8 @@
       try {
         const formData = new FormData();
         for (let i = 0; i < input.files.length; i++) formData.append('files', input.files[i]);
-        if (dest === 'inbox') formData.append('inbox', 'true');
+        // Web uploads always land in the main storage (Root). Use the CLI
+        // (`arka upload --inbox`) when you want a file to wait in the Inbox for triage.
         if (project) formData.append('project', project);
 
         const json = await new Promise((resolve, reject) => {

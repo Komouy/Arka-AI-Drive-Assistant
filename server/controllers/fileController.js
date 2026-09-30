@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { UPLOADS_DIR, INBOX_DIR, STORAGE_DIR } from '../config/env.js';
 import { isSupabaseConfigured, getSupabaseClient, BUCKET_NAME } from '../config/supabase.js';
-import { uploadToGoogleDrive, deleteFromGoogleDrive } from './driveController.js';
+import { uploadToGoogleDrive, deleteFromGoogleDrive, downloadFromGoogleDrive } from './driveController.js';
 import { getFileTypeCategory, resolveMimeType } from '../utils/fileTypes.js';
 import { resolveTargetFolder } from '../utils/folders.js';
 import { likePattern, ESCAPE_LIKE } from '../utils/search.js';
@@ -124,6 +124,86 @@ function removePhysicalFile(file) {
     console.warn(`Unlink warning for "${file?.original_name}": ${err.message}`);
   }
   return false;
+}
+
+/**
+ * Cloud uploads live in memory (multer memoryStorage), but the analyzer reads
+ * from a path. Spill the buffer to a temp file so cloud uploads get the same
+ * automatic AI analysis as local disk uploads.
+ *
+ * @returns {string|null} temp file path, or null when there is no buffer.
+ */
+function spillBufferToTemp(buffer, originalName = 'file') {
+  if (!buffer) return null;
+  try {
+    const tmpDir = path.join(os.tmpdir(), 'arka-tmp');
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    const safeName = String(originalName).replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80) || 'file';
+    const tempPath = path.join(tmpDir, `${Date.now()}-${Math.round(Math.random() * 1e6)}-${safeName}`);
+    fs.writeFileSync(tempPath, buffer);
+    return tempPath;
+  } catch (err) {
+    console.warn(`[ARKA AI] Could not stage temp file for "${originalName}": ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Run one post-upload AI analysis job.
+ *
+ * Local disk uploads: the bytes are already at `physicalPath`.
+ * Cloud / Google Drive uploads: the bytes only live in the multer buffer, so
+ * they are staged into a temp file first — and removed again afterwards.
+ */
+async function runAnalysisJob(job) {
+  const onDisk = job.physicalPath && fs.existsSync(job.physicalPath) ? job.physicalPath : null;
+  const tempPath = onDisk ? null : spillBufferToTemp(job.fileBuffer, job.originalName);
+  const analysisPath = onDisk || tempPath;
+
+  if (!analysisPath) {
+    console.warn(`[ARKA AI] ⚠️  No readable source for file ID ${job.id} — analysis skipped.`);
+    return;
+  }
+
+  try {
+    await triggerAIAnalysis(job.id, analysisPath, job.mimeType, job.originalName);
+  } catch (err) {
+    console.warn(`[ARKA AI] Analysis error for ID ${job.id}: ${err.message}`);
+  } finally {
+    if (tempPath) { try { fs.unlinkSync(tempPath); } catch {} }
+  }
+}
+
+/** Defer a job by one tick so the HTTP response is written first. */
+function deferredJob(job) {
+  return new Promise(resolve => setImmediate(resolve)).then(() => runAnalysisJob(job));
+}
+
+/**
+ * Keep post-response work alive until it settles.
+ *
+ * A long-running server (CLI / Termux / VPS) drains pending promises on its own,
+ * but a Vercel function is frozen the moment the response is sent. `waitUntil`
+ * from the optional `@vercel/functions` package keeps the invocation alive; if
+ * that package is missing we quietly fall back to plain background work.
+ *
+ * Call this *before* sending the response, so `waitUntil` is registered while
+ * the request context is still open.
+ */
+async function registerBackgroundWork(promises = []) {
+  if (!promises.length) return;
+
+  if (process.env.VERCEL) {
+    try {
+      const { waitUntil } = await import('@vercel/functions');
+      for (const promise of promises) waitUntil(promise);
+      return;
+    } catch (err) {
+      console.warn(`[ARKA] @vercel/functions unavailable (${err.message}) — background analysis may be cut short.`);
+    }
+  }
+
+  for (const promise of promises) promise.catch(() => {});
 }
 
 export const fileController = {
@@ -350,6 +430,7 @@ export const fileController = {
         }
 
         const savedRecords = [];
+        const analysisJobs = []; // { id, fileBuffer, physicalPath, mimeType, originalName }
 
         for (const f of uploadedFiles) {
           const fileBuffer = f.buffer || (f.path && fs.existsSync(f.path) ? fs.readFileSync(f.path) : null);
@@ -428,24 +509,28 @@ export const fileController = {
             typeCategory: getFileTypeCategory(inserted.mime_type, inserted.original_name)
           };
           savedRecords.push({ ...record, physicalPath: f.path || null });
+          analysisJobs.push({
+            id: inserted.id,
+            fileBuffer,
+            physicalPath: f.path || null,
+            mimeType,
+            originalName: f.originalname
+          });
         }
+
+        // Trigger AI analysis for every uploaded file. The work is registered
+        // before the response goes out so a serverless runtime (Vercel) keeps the
+        // invocation alive until it settles; the jobs themselves run right after
+        // the response is written. Cloud / Google Drive uploads only exist in the
+        // upload buffer, so `runAnalysisJob` stages them into a temp file and
+        // removes that copy again once the analysis is done.
+        await registerBackgroundWork(analysisJobs.map(deferredJob));
 
         res.status(201).json({
           success: true,
           message: `Successfully uploaded ${savedRecords.length} file(s)${ useGDrive ? ' to Google Drive' : ' to cloud'}`,
           data: savedRecords.map(({ physicalPath, ...rest }) => rest)
         });
-
-        // Trigger AI analysis asynchronously (only for non-GDrive files we have locally)
-        for (const record of savedRecords) {
-          const { id, physicalPath, mime_type, original_name } = record;
-          if (physicalPath && fs.existsSync(physicalPath)) {
-            setImmediate(() => {
-              triggerAIAnalysis(id, physicalPath, mime_type, original_name)
-                .catch(err => console.warn(`[ARKA AI] Analysis error for ID ${id}: ${err.message}`));
-            });
-          }
-        }
         return;
       }
 
@@ -488,19 +573,20 @@ export const fileController = {
         savedRecords.push({ ...formatFileRecord(record), physicalPath: desiredPhysicalPath });
       }
 
+      // Same background-analysis contract as the cloud path above: the jobs are
+      // registered before the response so a serverless runtime keeps them alive.
+      await registerBackgroundWork(savedRecords.map(record => deferredJob({
+        id: record.id,
+        physicalPath: record.physicalPath,
+        mimeType: record.mime_type,
+        originalName: record.original_name
+      })));
+
       res.status(201).json({
         success: true,
         message: `Successfully uploaded ${savedRecords.length} file(s)`,
         data: savedRecords.map(({ physicalPath, ...rest }) => rest)
       });
-
-      for (const record of savedRecords) {
-        const { id, physicalPath, mime_type, original_name } = record;
-        setImmediate(() => {
-          triggerAIAnalysis(id, physicalPath, mime_type, original_name)
-            .catch(err => console.warn(`[ARKA AI] Analysis error for ID ${id}: ${err.message}`));
-        });
-      }
 
     } catch (err) {
       return fail(res, err);
@@ -524,20 +610,41 @@ export const fileController = {
         if (fErr) return fail(res, fErr);
         if (!file) return notFound(res, 'File not found');
 
-        let tempPath = null;
-        try {
+        // Google Drive files have no copy in Supabase Storage — the bytes live in
+        // the user's own Drive and must be pulled with the OAuth provider token.
+        const isGDrive = file.storage_provider === 'gdrive' || Boolean(file.gdrive_file_id);
+
+        let sourceBuffer = null;
+        if (isGDrive) {
+          if (!file.gdrive_file_id) {
+            return badRequest(res, 'File has no Google Drive ID — cannot fetch it for analysis');
+          }
+          if (!req.providerToken) {
+            return res.status(401).json({
+              success: false,
+              error: 'Google Drive access token missing or expired — sign in with Google again, then retry.'
+            });
+          }
+          try {
+            sourceBuffer = await downloadFromGoogleDrive(req.providerToken, file.gdrive_file_id);
+          } catch (dlErr) {
+            return res.status(502).json({ success: false, error: dlErr.message });
+          }
+        } else {
           // Download file content from Supabase storage for local analysis
           const { data: blob, error: dlErr } = await supabase.storage.from(BUCKET_NAME).download(file.storage_path);
           if (dlErr || !blob) {
             return res.status(502).json({ success: false, error: 'Could not fetch file from storage for analysis' });
           }
+          sourceBuffer = Buffer.from(await blob.arrayBuffer());
+        }
 
-          const arrayBuffer = await blob.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          const tmpDir = path.join(os.tmpdir(), 'arka-tmp');
-          if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-          tempPath = path.join(tmpDir, `${Date.now()}-${file.stored_name}`);
-          fs.writeFileSync(tempPath, buffer);
+        let tempPath = null;
+        try {
+          tempPath = spillBufferToTemp(sourceBuffer, file.stored_name);
+          if (!tempPath) {
+            return res.status(500).json({ success: false, error: 'Could not stage file for analysis' });
+          }
 
           const { analyzeFile } = await import('../ai/analyzer.js');
           const metadata = await analyzeFile(tempPath, file.mime_type, file.original_name);
