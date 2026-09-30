@@ -1,6 +1,7 @@
 import multer from 'multer';
 import path from 'node:path';
 import { UPLOADS_DIR, INBOX_DIR, ensureDir } from '../config/env.js';
+import { isSupabaseConfigured } from '../config/supabase.js';
 
 /** Max size per uploaded file (override with ARKA_MAX_UPLOAD_MB). */
 export const MAX_UPLOAD_BYTES = Math.max(1, Number(process.env.ARKA_MAX_UPLOAD_MB) || 500) * 1024 * 1024;
@@ -20,7 +21,7 @@ export function targetDirFor(body = {}, query = {}, reqPath = '') {
   return ensureDir(wantsInbox ? INBOX_DIR : UPLOADS_DIR);
 }
 
-const storage = multer.diskStorage({
+const diskStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, targetDirFor(req.body, req.query, req.path));
   },
@@ -28,6 +29,10 @@ const storage = multer.diskStorage({
     cb(null, buildStoredName(file.originalname));
   }
 });
+
+// In serverless (Vercel) or when Supabase Cloud is used, use memoryStorage
+const isCloudOrServerless = isSupabaseConfigured() || Boolean(process.env.VERCEL);
+const storage = isCloudOrServerless ? multer.memoryStorage() : diskStorage;
 
 export const uploadMiddleware = multer({
   storage,
@@ -38,3 +43,4 @@ export const uploadMiddleware = multer({
 });
 
 export default uploadMiddleware;
+
