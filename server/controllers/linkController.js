@@ -365,18 +365,27 @@ Respond with ONLY this JSON:
 }`;
 
       const { groqChat } = await import('../ai/providers.js');
-      const aiRes = await groqChat([
-        { role: 'system', content: 'You are ARKA, an intelligent bookmark and link classifier. Always return strictly valid JSON without markdown fences.' },
-        { role: 'user', content: prompt }
-      ], { json: true });
+      let rawText = '';
+      try {
+        rawText = await groqChat([
+          { role: 'system', content: 'You are ARKA, an intelligent bookmark and link classifier. Always return strictly valid JSON without markdown fences.' },
+          { role: 'user', content: prompt }
+        ], { json: true });
+      } catch (aiErr) {
+        return res.status(502).json({ success: false, error: aiErr.message || 'AI analysis failed' });
+      }
 
-      if (!aiRes.ok) {
-        return res.status(502).json({ success: false, error: aiRes.error || 'AI analysis failed' });
+      if (!rawText) {
+        return res.status(502).json({ success: false, error: 'AI analysis returned an empty response' });
       }
 
       let parsed = {};
       try {
-        parsed = JSON.parse(aiRes.content);
+        const cleaned = String(rawText).replace(/```json?/gi, '').replace(/```/g, '').trim();
+        const start = cleaned.indexOf('{');
+        const end = cleaned.lastIndexOf('}');
+        const candidate = start !== -1 && end > start ? cleaned.slice(start, end + 1) : cleaned;
+        parsed = JSON.parse(candidate);
       } catch {
         return res.status(502).json({ success: false, error: 'AI returned invalid JSON' });
       }

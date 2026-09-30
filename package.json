@@ -1,15 +1,14 @@
 {
   "name": "arka-workspace",
   "version": "1.0.0",
-  "description": "ARKA — Personal AI Workspace (CLI & Termux)",
+  "description": "ARKA — Personal AI Workspace (Web & Cloud on Vercel)",
   "type": "module",
   "engines": {
     "node": ">=20.0.0"
   },
   "scripts": {
     "server": "node server/index.js",
-    "start": "node server/index.js",
-    "arka": "node cli/bin/arka.js"
+    "start": "node server/index.js"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",

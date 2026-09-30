@@ -51,8 +51,9 @@ export const aiController = {
       }
 
       const { runAgent } = await import('../ai/agent.js');
+      const userId = req.user?.id || null;
       // reset=true → forget the short conversation memory before answering
-      const result = await runAgent(query.trim(), { reset: !!reset });
+      const result = await runAgent(query.trim(), { reset: !!reset, userId });
 
       // A provider outage is reported as 502 with the real reason, never as success
       if (result.error) {

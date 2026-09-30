@@ -48,6 +48,8 @@ export const inboxController = {
             description: meta?.description || null,
             category: meta?.category || null,
             project: meta?.project || null,
+            suggested_folder: meta?.suggested_folder || meta?.project || null,
+            suggested_name: meta?.suggested_name || null,
             tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
             ai_analyzed: meta?.ai_analyzed ? 1 : 0,
             typeCategory: getFileTypeCategory(f.mime_type, f.original_name),

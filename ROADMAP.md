@@ -10,19 +10,14 @@
 
 | Fase | Nama | Status |
 |:---:|---|---|
-| 0 | Foundation — ARKA Core (REST API + SQLite + Local Storage) | ✅ Selesai |
-| 1 | ARKA Drive (upload, folder, move, rename, trash, download) | ✅ Selesai (versi CLI) |
-| 2 | ARKA Inbox — staging area & triage 1-klik | ✅ Selesai |
-| 3 | ARKA CLI — `arka status/ls/mkdir/move/download` | ✅ Selesai |
-| 4 | Native File Picker — PowerShell OpenFileDialog | ✅ Selesai |
-| 5 | Smart Metadata — LLM analyzer, auto-tags, auto-description | ✅ Selesai (+ otomatis saat upload) |
-| 6 | Prompt & Knowledge Manager — prompt hub + kategori | ✅ Dasar selesai |
-| 7 | Semantic Search (FTS5 → Vector) | ⚠️ Sebagian — masih keyword `LIKE` |
-| 8 | AI Chat (percakapan + memory) | ❌ Belum |
-| 9 | AI Agent (`move_file`, `create_folder`, dll) | ⚠️ Sebagian — masih **read-only** (6 tool) |
-| 10 | Cloud Sync & Remote Access (Vercel + Supabase) | 📋 Siap Dikerjakan Besok (lihat `SUPABASE_VERCEL_MIGRATION.md`) |
-| 11 | ~~Voice Assistant (STT/TTS)~~ | 🚫 **DIHAPUS dari roadmap** |
-| 12 | Computer Agent (shell/apps + permission system) | ❌ Belum |
+| 0 | Foundation — ARKA Core (REST API + Supabase / Cloud Architecture) | ✅ Selesai |
+| 1 | ARKA Drive & Storage (Google Drive BYOD & Cloud Storage) | ✅ Selesai |
+| 2 | Web Dashboard & UI (Responsive Web App for Vercel) | ✅ Selesai |
+| 3 | Smart Metadata — Multimodal Vision/Audio (Gemini) + Doc/Code (Groq) | ✅ Selesai (Otomatis saat upload & manual trigger) |
+| 4 | Web Bookmarks & Link AI Enrichment (Groq summarizer & auto-categorizer) | ✅ Selesai |
+| 5 | Prompt & Knowledge Hub | ✅ Selesai |
+| 6 | Multi-Tenant Data Isolation & RLS (Supabase Auth + Google OAuth) | ✅ Selesai |
+| 7 | Smart & Semantic Search (Metadata-driven + Tag indexing) | 🔄 Sedang dioptimalkan |
 
 ---
 
@@ -118,14 +113,10 @@ dan **hanya** mematikan proses `node.exe` (proses lain yang menyerobot port dibi
 
 | Item | Alasan |
 |---|---|
-| **Voice Assistant (Phase 11)** — STT/TTS, "arka, cari prompt database" | Produk dipusatkan 100% ke CLI/Termux teks; voice di luar scope |
-| Web UI React + Vite + Tailwind (`web/`) | Digantikan oleh CLI; GUI tidak dipakai |
-| `IMPLEMENTATION.md` | Roadmap lama berisi rencana web GUI / voice / computer control |
-| Folder kosong `ai/`, `docs/` | Tidak dirujuk kode mana pun |
-| README versi lama (roadmap 13 fase, mencantumkan Voice) | Digantikan oleh dokumen ini |
-
-> **Phase 12 — Computer Agent tetap dipertahankan**, wajib memakai permission system:
-> 🟢 allowed (buka app, baca file, buat folder) · 🟡 confirmation (hapus file, jalankan command) · 🔴 blocked (operasi sistem berbahaya).
+| **Chatbot Assistant (Phase 8 & AI Chat)** | Dihapus. Fokus dialihkan murni ke **Sistem AI Pemrosesan Drive** (Auto-tagging multimodal, smart summarizer file & link, metadata extraction). |
+| **CLI & Termux Support** | Dihapus dari workspace. Produk 100% dipusatkan ke **Web App di Vercel (`vercel.app`)** dengan antarmuka visual modern. |
+| **Voice Assistant (Phase 11)** | STT/TTS di luar scope produk drive & workspace. |
+| **Computer Agent (Phase 12)** | Shell/OS execution di luar arsitektur cloud serverless Vercel. |
 
 ---
 

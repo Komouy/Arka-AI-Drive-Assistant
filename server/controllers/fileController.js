@@ -50,25 +50,44 @@ export async function saveMetadataSupabase(fileId, metadata) {
     ? metadata.tags
     : String(metadata.tags || '').split(',').map(t => t.trim()).filter(Boolean);
   const topic = metadata.topic || metadata.category || '';
+  const folderSuggestion = metadata.suggestedFolder || metadata.project || '';
+  const nameSuggestion = metadata.suggestedName || '';
 
   const { data: existing } = await supabase.from('file_metadata').select('id').eq('file_id', fileId).maybeSingle();
-  if (existing) {
-    await supabase.from('file_metadata').update({
+
+  // Try with enhanced columns first
+  const fullPayload = {
+    description: metadata.description || '',
+    category: topic,
+    project: folderSuggestion,
+    tags,
+    suggested_name: nameSuggestion,
+    suggested_folder: folderSuggestion,
+    ai_analyzed: true
+  };
+
+  try {
+    if (existing) {
+      const { error } = await supabase.from('file_metadata').update(fullPayload).eq('file_id', fileId);
+      if (error && error.code === '42703') throw error;
+    } else {
+      const { error } = await supabase.from('file_metadata').insert({ file_id: fileId, ...fullPayload });
+      if (error && error.code === '42703') throw error;
+    }
+  } catch {
+    // Fallback if table doesn't have suggested_name / suggested_folder columns yet
+    const basePayload = {
       description: metadata.description || '',
       category: topic,
-      project: metadata.project || '',
+      project: folderSuggestion,
       tags,
       ai_analyzed: true
-    }).eq('file_id', fileId);
-  } else {
-    await supabase.from('file_metadata').insert({
-      file_id: fileId,
-      description: metadata.description || '',
-      category: topic,
-      project: metadata.project || '',
-      tags,
-      ai_analyzed: true
-    });
+    };
+    if (existing) {
+      await supabase.from('file_metadata').update(basePayload).eq('file_id', fileId);
+    } else {
+      await supabase.from('file_metadata').insert({ file_id: fileId, ...basePayload });
+    }
   }
 }
 
@@ -260,6 +279,8 @@ export const fileController = {
             description: meta?.description || null,
             category: meta?.category || null,
             project: meta?.project || null,
+            suggested_folder: meta?.suggested_folder || meta?.project || null,
+            suggested_name: meta?.suggested_name || null,
             tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
             ai_analyzed: meta?.ai_analyzed ? 1 : 0,
             typeCategory: getFileTypeCategory(f.mime_type, f.original_name),
@@ -362,10 +383,12 @@ export const fileController = {
           description: meta?.description || null,
           category: meta?.category || null,
           project: meta?.project || null,
+          suggested_folder: meta?.suggested_folder || meta?.project || null,
+          suggested_name: meta?.suggested_name || null,
           tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
           ai_analyzed: meta?.ai_analyzed ? 1 : 0,
           typeCategory: getFileTypeCategory(result.mime_type, result.original_name),
-          publicUrl: result.public_url || `/storage/${result.storage_path}`
+          publicUrl: result.gdrive_view_url || result.public_url || `/storage/${result.storage_path}`
         };
 
         return ok(res, { data: fileObj });
@@ -669,12 +692,14 @@ export const fileController = {
           const enriched = {
             ...updated,
             folder_name: updated.folders?.name || null,
-            description: meta?.description || null,
-            category: meta?.category || null,
-            project: meta?.project || null,
+            description: meta?.description || metadata.description || null,
+            category: meta?.category || metadata.category || null,
+            project: meta?.project || metadata.project || null,
+            suggested_folder: metadata.suggestedFolder || meta?.suggested_folder || meta?.project || null,
+            suggested_name: metadata.suggestedName || meta?.suggested_name || null,
             tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
             ai_analyzed: meta?.ai_analyzed ? 1 : 0,
-            publicUrl: updated.public_url || `/storage/${updated.storage_path}`
+            publicUrl: updated.gdrive_view_url || updated.public_url || `/storage/${updated.storage_path}`
           };
 
           return ok(res, { metadata, data: enriched });

@@ -586,6 +586,59 @@
       border: 1px solid rgba(99, 102, 241, 0.4); padding: 1px 6px; border-radius: 3px;
     }
 
+    .btn-action.btn-ai-suggest {
+      color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08);
+    }
+    .btn-action.btn-ai-suggest:hover {
+      color: #7dd3fc; border-color: #38bdf8; background: rgba(56, 189, 248, 0.18);
+    }
+    .btn-action.btn-ai-folder {
+      color: #34d399; border-color: rgba(52, 211, 153, 0.35); background: rgba(52, 211, 153, 0.08);
+    }
+    .btn-action.btn-ai-folder:hover {
+      color: #6ee7b7; border-color: #34d399; background: rgba(52, 211, 153, 0.18);
+    }
+
+    .btn-smart-triage {
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #c7d2fe; font-family: var(--font-mono);
+    }
+    .btn-smart-triage:hover {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: #818cf8;
+      color: #f5f3ff;
+    }
+
+    .ai-suggestion-box {
+      background: rgba(24, 24, 27, 0.65);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: var(--radius-md);
+      padding: 0.65rem 0.85rem;
+    }
+    .ai-suggestion-header {
+      display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem; flex-wrap: wrap;
+    }
+    .ai-suggestion-badge {
+      display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.72rem;
+      font-family: var(--font-mono); font-weight: 600; color: #38bdf8;
+    }
+    .ai-suggestion-body {
+      font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+    }
+    .btn-sm {
+      padding: 0.22rem 0.6rem; font-size: 0.72rem; font-family: var(--font-mono); border-radius: var(--radius-sm);
+      display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; transition: all 0.15s ease;
+    }
+    .btn-outline {
+      background: transparent; border: 1px solid #3f3f46; color: var(--text-main);
+    }
+    .btn-outline:hover {
+      background: var(--bg-elevated); border-color: var(--border-focus);
+    }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
     /* ── Preview Modal ──────────────────────────────────────────────────────── */
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8);
@@ -822,6 +875,206 @@
       #toastContainer { bottom: 1rem; right: 1rem; left: 1rem; }
       .toast { min-width: unset; max-width: 100%; }
     }
+
+    /* ── AI Assistant Chat Panel ─────────────────────────────────────────── */
+    #aiChatBtn {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 900;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.45);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      color: #fff;
+    }
+    #aiChatBtn:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(99,102,241,0.6); }
+    #aiChatBtn.active { transform: scale(0.95); }
+    #aiChatBtn .icon { width: 22px; height: 22px; }
+
+    #aiChatPanel {
+      position: fixed;
+      bottom: 5.5rem;
+      right: 1.5rem;
+      z-index: 899;
+      width: 380px;
+      max-width: calc(100vw - 2rem);
+      max-height: 560px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+      transform: translateY(20px) scale(0.96);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.22s cubic-bezier(.22,.68,0,1.2), opacity 0.18s ease;
+    }
+    #aiChatPanel.open {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .ai-chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border);
+      gap: 0.5rem;
+    }
+    .ai-chat-header-left {
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .ai-chat-avatar {
+      width: 30px; height: 30px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; color: #fff; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .ai-chat-title { font-size: 0.875rem; font-weight: 600; color: var(--text-main); }
+    .ai-chat-subtitle { font-size: 0.7rem; color: var(--text-muted); }
+    .ai-chat-header-btns { display: flex; gap: 0.35rem; align-items: center; }
+    .ai-chat-icon-btn {
+      background: transparent; border: none; cursor: pointer;
+      color: var(--text-dim); padding: 0.25rem; border-radius: var(--radius-sm);
+      display: flex; align-items: center; transition: color 0.15s;
+    }
+    .ai-chat-icon-btn:hover { color: var(--text-main); }
+    .ai-chat-icon-btn .icon { width: 15px; height: 15px; }
+
+    .ai-chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .ai-msg {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-start;
+      animation: msgSlideIn 0.18s ease;
+    }
+    @keyframes msgSlideIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    .ai-msg.user { flex-direction: row-reverse; }
+    .ai-msg-bubble {
+      max-width: 82%;
+      padding: 0.55rem 0.8rem;
+      border-radius: 10px;
+      font-size: 0.825rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .ai-msg.user .ai-msg-bubble {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      border-bottom-right-radius: 3px;
+    }
+    .ai-msg.assistant .ai-msg-bubble {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 3px;
+    }
+    .ai-msg-ava {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .ai-msg.user .ai-msg-ava { background: #6366f1; color:#fff; }
+    .ai-msg.assistant .ai-msg-ava { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted); }
+
+    .ai-typing-dots {
+      display: flex; align-items: center; gap: 4px;
+      padding: 0.55rem 0.8rem;
+      background: var(--bg-elevated);
+      border-radius: 10px; border: 1px solid var(--border);
+      border-bottom-left-radius: 3px;
+    }
+    .ai-typing-dots span {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--text-dim); display: block;
+      animation: aiDot 1.2s infinite;
+    }
+    .ai-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .ai-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes aiDot { 0%,80%,100%{transform:scale(0.7);opacity:.5} 40%{transform:scale(1);opacity:1} }
+
+    .ai-chat-footer {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.65rem 0.85rem;
+      border-top: 1px solid var(--border);
+      align-items: flex-end;
+    }
+    #aiChatInput {
+      flex: 1;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      border-radius: 8px;
+      padding: 0.5rem 0.7rem;
+      font-size: 0.825rem;
+      font-family: var(--font-sans);
+      resize: none;
+      max-height: 100px;
+      line-height: 1.45;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    #aiChatInput:focus { border-color: #6366f1; }
+    #aiChatInput::placeholder { color: var(--text-dim); }
+    #aiChatSendBtn {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      background: #6366f1;
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+      flex-shrink: 0;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    #aiChatSendBtn:hover { background: #818cf8; }
+    #aiChatSendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #aiChatSendBtn .icon { width: 16px; height: 16px; }
+
+    .ai-chat-empty {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: var(--text-dim); gap: 0.5rem; padding: 1rem;
+      text-align: center;
+    }
+    .ai-chat-empty .icon { width: 32px; height: 32px; opacity: 0.4; }
+    .ai-chat-empty-title { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+    .ai-chat-empty-sub { font-size: 0.75rem; line-height: 1.4; }
+    .ai-chat-suggestions {
+      display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.5rem; width: 100%;
+    }
+    .ai-suggestion-btn {
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      color: var(--text-muted); border-radius: 6px;
+      padding: 0.4rem 0.65rem; font-size: 0.75rem;
+      cursor: pointer; text-align: left; transition: all 0.15s;
+    }
+    .ai-suggestion-btn:hover { border-color: #6366f1; color: var(--text-main); background: rgba(99,102,241,0.08); }
   </style>
 </head>
 <body>
@@ -1040,8 +1293,14 @@
           </button>
         </div>
 
-        <div class="search-box">
-          <input type="text" id="searchInput" class="search-input" placeholder="Search keywords..." oninput="handleSearch(this.value)">
+        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap">
+          <button class="tab-btn btn-smart-triage" id="btnSmartTriage" onclick="handleBatchSmartTriage()" title="AI Smart Triage: Otomatis rapikan semua file ke folder saran AI">
+            <i data-lucide="sparkles" class="icon"></i>
+            <span>AI Smart Triage</span>
+          </button>
+          <div class="search-box">
+            <input type="text" id="searchInput" class="search-input" placeholder="Search keywords..." oninput="handleSearch(this.value)">
+          </div>
         </div>
       </div>
 
@@ -1054,6 +1313,55 @@
 
     </div><!-- /.container -->
   </div><!-- /#dashboard -->
+
+  <!-- ── AI Assistant Chat Panel ─────────────────────────────────────────── -->
+  <!-- Floating button -->
+  <button id="aiChatBtn" title="AI Assistant" onclick="toggleAiChat()" aria-label="Open AI Assistant">
+    <i data-lucide="bot" class="icon"></i>
+  </button>
+
+  <!-- Chat panel -->
+  <div id="aiChatPanel" role="dialog" aria-label="ARKA AI Assistant">
+    <div class="ai-chat-header">
+      <div class="ai-chat-header-left">
+        <div class="ai-chat-avatar">AI</div>
+        <div>
+          <div class="ai-chat-title">ARKA Assistant</div>
+          <div class="ai-chat-subtitle">Powered by Groq</div>
+        </div>
+      </div>
+      <div class="ai-chat-header-btns">
+        <button class="ai-chat-icon-btn" title="Reset conversation" onclick="resetAiChat()">
+          <i data-lucide="rotate-ccw" class="icon"></i>
+        </button>
+        <button class="ai-chat-icon-btn" title="Close" onclick="toggleAiChat()">
+          <i data-lucide="x" class="icon"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ai-chat-messages" id="aiChatMessages">
+      <!-- Empty state -->
+      <div class="ai-chat-empty" id="aiChatEmpty">
+        <i data-lucide="sparkles" class="icon"></i>
+        <div class="ai-chat-empty-title">Tanya ARKA apa saja</div>
+        <div class="ai-chat-empty-sub">Cari file, cek statistik, lihat inbox, atau tanya cara pakai ARKA.</div>
+        <div class="ai-chat-suggestions">
+          <button class="ai-suggestion-btn" onclick="sendAiSuggestion(this)">Berapa total file di workspace ku?</button>
+          <button class="ai-suggestion-btn" onclick="sendAiSuggestion(this)">Tampilkan file yang ada di inbox</button>
+          <button class="ai-suggestion-btn" onclick="sendAiSuggestion(this)">Cari file gambar terbaru</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ai-chat-footer">
+      <textarea id="aiChatInput" placeholder="Tanya sesuatu..." rows="1"
+        onkeydown="aiChatKeydown(event)" oninput="aiChatAutoResize(this)"></textarea>
+      <button id="aiChatSendBtn" onclick="sendAiMessage()" title="Send" disabled>
+        <i data-lucide="send" class="icon"></i>
+      </button>
+    </div>
+  </div>
 
   <script>
     // ── Constants ─────────────────────────────────────────────────────────────
@@ -1189,6 +1497,15 @@
         }
       }
       return res;
+    }
+
+    /** Returns auth headers object (for use with raw fetch when needed) */
+    function authHeaders() {
+      const h = {};
+      if (authToken) h['Authorization'] = `Bearer ${authToken}`;
+      const pt = providerToken || loadProviderToken();
+      if (pt) h['X-Provider-Token'] = pt;
+      return h;
     }
 
     // ── Google OAuth flow ──────────────────────────────────────────────────────
@@ -1566,7 +1883,30 @@
           if (isAnalyzed) {
             aiBadge = '<span class="ai-badge"><i data-lucide="play" class="icon-sm"></i> <span>AI Analyzed</span></span>';
           }
+
+          let suggestBtns = '';
+          const rawObj = item.raw || {};
+          const suggName = rawObj.suggested_name;
+          const suggFolder = rawObj.suggested_folder;
+          const currFolder = rawObj.folder_name;
+
+          if (suggName && suggName !== rawObj.original_name) {
+            suggestBtns += `
+              <button class="btn-action btn-ai-suggest" title="Rename AI: ${escapeHtml(suggName)}" onclick="handleApplyRename('${safeId}', '${escapeHtml(suggName)}')">
+                <i data-lucide="sparkles" class="icon"></i> <span>Rename AI</span>
+              </button>
+            `;
+          }
+          if (suggFolder && (!currFolder || currFolder !== suggFolder)) {
+            suggestBtns += `
+              <button class="btn-action btn-ai-folder" title="Move to folder: ${escapeHtml(suggFolder)}" onclick="handleApplyFolder('${safeId}', '${escapeHtml(suggFolder)}')">
+                <i data-lucide="folder-input" class="icon"></i> <span>→ ${escapeHtml(suggFolder.length > 14 ? suggFolder.slice(0, 12) + '...' : suggFolder)}</span>
+              </button>
+            `;
+          }
+
           actionBtn = `
+            ${suggestBtns}
             <button class="btn-action" onclick="openPreview('FILE', '${safeId}')"><i data-lucide="eye" class="icon"></i> <span>preview</span></button>
             <button class="btn-action btn-ai" id="ai-btn-FILE-${safeId}" onclick="handleAnalyzeItem('FILE', '${safeId}', this)"><i data-lucide="play" class="icon"></i> <span>${isAnalyzed ? 're-analyze' : 'AI Analyze'}</span></button>
             <a href="${downloadUrl}" class="btn-action" target="_blank" rel="noopener noreferrer"><i data-lucide="download" class="icon"></i> <span>download</span></a>
@@ -1979,6 +2319,10 @@
 
           setTimeout(() => {
             render();
+            const modalBackdrop = document.getElementById('previewModalBackdrop');
+            if (modalBackdrop && modalBackdrop.classList.contains('open')) {
+              openPreview(type, id);
+            }
           }, 600);
         } else {
           btn.textContent = 'failed';
@@ -1996,6 +2340,109 @@
         setTimeout(() => { btn.textContent = originalText; }, 2000);
         showToast('error', 'Network error: ' + err.message);
       }
+    }
+
+    // ── AI Smart Ingestion Handlers (Auto-Rename & Auto-Folder) ───────────────
+    async function handleApplyRename(id, newName) {
+      if (!newName || !newName.trim()) return;
+      try {
+        const res = await authFetch(`${API_BASE}/files/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ original_name: newName.trim() })
+        });
+        const json = await res.json();
+        if (res.ok && json.success) {
+          const idx = allData.files.findIndex(f => String(f.id) === String(id));
+          if (idx !== -1) {
+            allData.files[idx].original_name = newName.trim();
+            allData.files[idx].suggested_name = null;
+          }
+          showToast('success', `File di-rename menjadi "${newName.trim()}"`);
+          const modalBackdrop = document.getElementById('previewModalBackdrop');
+          if (modalBackdrop && modalBackdrop.classList.contains('open')) {
+            openPreview('FILE', id);
+          }
+          render();
+        } else {
+          showToast('warn', 'Gagal rename: ' + (json.error || 'Server error'));
+        }
+      } catch (err) {
+        showToast('error', 'Network error: ' + err.message);
+      }
+    }
+
+    async function handleApplyFolder(id, folderName) {
+      if (!folderName || !folderName.trim()) return;
+      try {
+        const res = await authFetch(`${API_BASE}/files/${id}/organize`, {
+          method: 'POST',
+          body: JSON.stringify({ project_name: folderName.trim() })
+        });
+        const json = await res.json();
+        if (res.ok && json.success) {
+          const idx = allData.files.findIndex(f => String(f.id) === String(id));
+          if (idx !== -1) {
+            allData.files[idx].folder_name = folderName.trim();
+            allData.files[idx].is_inbox = false;
+          }
+          showToast('success', `File dipindahkan ke folder "${folderName.trim()}"`);
+          const modalBackdrop = document.getElementById('previewModalBackdrop');
+          if (modalBackdrop && modalBackdrop.classList.contains('open')) {
+            openPreview('FILE', id);
+          }
+          render();
+        } else {
+          showToast('warn', 'Gagal memindahkan file: ' + (json.error || 'Server error'));
+        }
+      } catch (err) {
+        showToast('error', 'Network error: ' + err.message);
+      }
+    }
+
+    async function handleBatchSmartTriage() {
+      const candidates = (allData.files || []).filter(f => 
+        f.suggested_folder && 
+        (!f.folder_name || f.folder_name !== f.suggested_folder) && 
+        !f.is_trash
+      );
+
+      if (candidates.length === 0) {
+        showToast('info', 'Semua file sudah berada di folder yang sesuai saran AI!');
+        return;
+      }
+
+      const btn = document.getElementById('btnSmartTriage');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader" class="icon spin"></i> <span>Triaging...</span>';
+        refreshIcons();
+      }
+
+      showToast('info', `AI Smart Triage: Memindahkan ${candidates.length} file ke foldernya...`);
+
+      let moved = 0;
+      for (const file of candidates) {
+        try {
+          const res = await authFetch(`${API_BASE}/files/${file.id}/organize`, {
+            method: 'POST',
+            body: JSON.stringify({ project_name: file.suggested_folder })
+          });
+          if (res.ok) {
+            file.folder_name = file.suggested_folder;
+            file.is_inbox = false;
+            moved++;
+          }
+        } catch {}
+      }
+
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="sparkles" class="icon"></i> <span>AI Smart Triage</span>';
+        refreshIcons();
+      }
+
+      render();
+      showToast('success', `Selesai! ${moved} file berhasil dirapikan ke folder AI.`);
     }
 
     // ── Preview Modal ──────────────────────────────────────────────────────────
@@ -2220,13 +2667,164 @@
       setTimeout(dismiss, duration);
     }
 
+    // ── AI Chat Panel ───────────────────────────────────────────────────────────
+    let aiChatOpen = false;
+    let aiChatLoading = false;
+    let aiChatHasMessages = false;
+
+    function toggleAiChat() {
+      aiChatOpen = !aiChatOpen;
+      const panel = document.getElementById('aiChatPanel');
+      const btn = document.getElementById('aiChatBtn');
+      panel.classList.toggle('open', aiChatOpen);
+      btn.classList.toggle('active', aiChatOpen);
+      if (aiChatOpen) {
+        refreshIcons();
+        setTimeout(() => document.getElementById('aiChatInput')?.focus(), 220);
+      }
+    }
+
+    function aiChatAutoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+      document.getElementById('aiChatSendBtn').disabled = !el.value.trim() || aiChatLoading;
+    }
+
+    function aiChatKeydown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendAiMessage();
+      }
+    }
+
+    function sendAiSuggestion(btn) {
+      const text = btn.textContent.trim();
+      const input = document.getElementById('aiChatInput');
+      input.value = text;
+      aiChatAutoResize(input);
+      sendAiMessage();
+    }
+
+    function addAiMessage(role, text) {
+      const container = document.getElementById('aiChatMessages');
+
+      // Remove empty state on first real message
+      if (!aiChatHasMessages) {
+        const emptyEl = document.getElementById('aiChatEmpty');
+        if (emptyEl) emptyEl.remove();
+        aiChatHasMessages = true;
+      }
+
+      const msgEl = document.createElement('div');
+      msgEl.className = `ai-msg ${role}`;
+      msgEl.innerHTML = `
+        <div class="ai-msg-ava">${role === 'user' ? 'U' : 'AI'}</div>
+        <div class="ai-msg-bubble">${escapeHtmlAi(text)}</div>
+      `;
+      container.appendChild(msgEl);
+      container.scrollTop = container.scrollHeight;
+      refreshIcons();
+      return msgEl;
+    }
+
+    function addAiTyping() {
+      const container = document.getElementById('aiChatMessages');
+      const el = document.createElement('div');
+      el.className = 'ai-msg assistant';
+      el.id = 'aiTypingIndicator';
+      el.innerHTML = `
+        <div class="ai-msg-ava">AI</div>
+        <div class="ai-typing-dots"><span></span><span></span><span></span></div>
+      `;
+      container.appendChild(el);
+      container.scrollTop = container.scrollHeight;
+      return el;
+    }
+
+    function removeAiTyping() {
+      document.getElementById('aiTypingIndicator')?.remove();
+    }
+
+    function escapeHtmlAi(text) {
+      return String(text)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\n/g,'<br>');
+    }
+
+    async function sendAiMessage() {
+      const input = document.getElementById('aiChatInput');
+      const query = (input.value || '').trim();
+      if (!query || aiChatLoading) return;
+
+      input.value = '';
+      input.style.height = 'auto';
+      document.getElementById('aiChatSendBtn').disabled = true;
+      aiChatLoading = true;
+
+      addAiMessage('user', query);
+      addAiTyping();
+
+      try {
+        const resp = await authFetch(`${API_BASE}/ai/ask`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        const data = await resp.json();
+        removeAiTyping();
+
+        if (data.success === false) {
+          addAiMessage('assistant', `⚠️ ${data.error || 'AI tidak merespons. Coba lagi.'}`);
+        } else {
+          const answer = data.data?.answer || data.answer || 'Tidak ada jawaban.';
+          addAiMessage('assistant', answer);
+        }
+      } catch (err) {
+        removeAiTyping();
+        addAiMessage('assistant', '⚠️ Gagal terhubung ke AI. Pastikan server berjalan.');
+      }
+
+      aiChatLoading = false;
+      document.getElementById('aiChatSendBtn').disabled = !input.value.trim();
+      input.focus();
+    }
+
+    async function resetAiChat() {
+      // Clear UI
+      const container = document.getElementById('aiChatMessages');
+      container.innerHTML = `
+        <div class="ai-chat-empty" id="aiChatEmpty">
+          <i data-lucide="sparkles" class="icon"></i>
+          <div class="ai-chat-empty-title">Tanya ARKA apa saja</div>
+          <div class="ai-chat-empty-sub">Cari file, cek statistik, lihat inbox, atau tanya cara pakai ARKA.</div>
+          <div class="ai-chat-suggestions">
+            <button class="ai-suggestion-btn" onclick="sendAiSuggestion(this)">Berapa total file di workspace ku?</button>
+            <button class="ai-suggestion-btn" onclick="sendAiSuggestion(this)">Tampilkan file yang ada di inbox</button>
+            <button class="ai-suggestion-btn" onclick="sendAiSuggestion(this)">Cari file gambar terbaru</button>
+          </div>
+        </div>`;
+      aiChatHasMessages = false;
+      refreshIcons();
+
+      // Reset server memory too
+      try {
+        await authFetch(`${API_BASE}/ai/reset`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch {}
+    }
+
     // ── Init ───────────────────────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
       refreshIcons();
       setupDragAndDrop();
       checkAuthOnLoad();
       window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closePreview();
+        if (e.key === 'Escape') {
+          closePreview();
+          if (aiChatOpen) toggleAiChat();
+        }
         // Press '/' to focus search (when not in an input)
         if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
           const searchEl = document.getElementById('searchInput');

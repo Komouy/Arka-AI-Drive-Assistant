@@ -51,7 +51,8 @@ Respond with ONLY this JSON (no markdown, no explanation):
   "topic": "Main topic/subject in 2-5 words (e.g. 'Mobile App Design', 'Database Schema')",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
   "project": "Most likely project name this belongs to (e.g. 'Instagram', 'Programming', 'Personal', 'Website')",
-  "suggestedFolder": "Best folder path suggestion (e.g. 'Projects/Instagram' or 'Programming')"
+  "suggestedFolder": "Best folder path suggestion (e.g. 'Projects/Instagram' or 'Programming')",
+  "suggestedName": "A clean, human-readable, descriptive filename preserving the original extension (e.g. 'Database-Schema-Migration.sql' or 'API-Integration-Guide.md')"
 }`;
 }
 
@@ -92,7 +93,8 @@ Respond with ONLY this JSON (no markdown, no explanation):
   "topic": "Main topic/subject in 2-5 words (e.g. 'Mobile App Design', 'Database Schema')",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
   "project": "Most likely project name this belongs to (e.g. 'Instagram', 'Programming', 'Personal', 'Website')",
-  "suggestedFolder": "Best folder path suggestion (e.g. 'Projects/Instagram' or 'Programming')"
+  "suggestedFolder": "Best folder path suggestion (e.g. 'Projects/Instagram' or 'Programming')",
+  "suggestedName": "A clean, human-readable, descriptive filename preserving the original extension (e.g. 'Receipt-Starbucks-Sep2026.jpg' or 'Figma-Wireframe.png')"
 }`;
 
   const model = MODELS.gemini.flash;
@@ -141,7 +143,7 @@ async function analyzeWithGroq(filePath, mimeType, filename, hint = '') {
 }
 
 // ── Parse AI JSON response safely ─────────────────────────────────────────────
-function parseAIResponse(raw = '') {
+function parseAIResponse(raw = '', originalFilename = '') {
   const cleaned = String(raw).replace(/```json?/gi, '').replace(/```/g, '').trim();
 
   // Models sometimes wrap the JSON in prose — keep only the object body
@@ -159,17 +161,26 @@ function parseAIResponse(raw = '') {
       ? parsed.tags
       : String(parsed.tags || '').split(',');
 
+    let suggestedName = String(parsed.suggestedName || '').trim().replace(/[/\\?%*:|"<>]/g, '-').slice(0, 150);
+    if (suggestedName && originalFilename && originalFilename.includes('.')) {
+      const ext = originalFilename.split('.').pop();
+      if (ext && !suggestedName.toLowerCase().endsWith('.' + ext.toLowerCase())) {
+        suggestedName = `${suggestedName}.${ext}`;
+      }
+    }
+
     return {
       description:     String(parsed.description || '').slice(0, 500),
       category,
       topic:           String(parsed.topic || '').slice(0, 100),
       tags:            [...new Set(rawTags.map(t => String(t).toLowerCase().trim()).filter(Boolean))].slice(0, 8),
       project:         String(parsed.project || '').slice(0, 100),
-      suggestedFolder: String(parsed.suggestedFolder || '').slice(0, 200)
+      suggestedFolder: String(parsed.suggestedFolder || parsed.project || '').slice(0, 200),
+      suggestedName:   suggestedName || ''
     };
   } catch {
     console.warn('[ARKA AI] Could not parse AI response as JSON:', String(raw).slice(0, 200));
-    return { description: '', category: 'Other', topic: '', tags: [], project: '', suggestedFolder: '' };
+    return { description: '', category: 'Other', topic: '', tags: [], project: '', suggestedFolder: '', suggestedName: '' };
   }
 }
 
@@ -223,7 +234,7 @@ export async function analyzeFile(filePath, mimeType, filename) {
     }
   }
 
-  const metadata = parseAIResponse(raw);
+  const metadata = parseAIResponse(raw, filename);
 
   if (!metadata.description && metadata.tags.length === 0) {
     console.warn(`[ARKA AI] "${filename}": provider ${usedProvider} returned no usable metadata.`);

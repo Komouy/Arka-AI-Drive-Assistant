@@ -1,35 +1,32 @@
-# 🤖 ARKA — Personal AI Workspace (CLI & Termux)
+# 🤖 ARKA — Personal AI Drive Assistant (Web & Cloud)
 
 > **Your files. Your memory. Your AI.**  
-> *ARKA dioperasikan 100% via Command Line Interface (Windows CMD/PowerShell) dan Android Termux.*
+> *ARKA adalah Personal AI Drive & Workspace berbasis Web yang di-deploy di Vercel (`vercel.app`) dan terintegrasi dengan Supabase & Google Drive.*
 
 ---
 
 ## 🏛️ Arsitektur Sistem
 
 ```
-                      🤖 ARKA
+                      🌐 ARKA WEB (Vercel)
+               (Responsive HTML5 + CSS + JavaScript)
                          │
                   ┌──────┴──────┐
-                  │  ARKA CORE  │ (Node.js API + SQLite)
+                  │  ARKA CORE  │ (Express / Serverless API)
                   └──────┬──────┘
                          │
-           ┌─────────────┴─────────────┐
-           ↓                           ↓
-      💻 WINDOWS CMD               📱 TERMUX
-   (Native File Explorer)       (Mobile Storage Sync)
-           │                           │
-           └─────────────┬─────────────┘
+          ┌──────────────┼──────────────┐
+          ↓              ↓              ↓
+    🟣 Groq LLM    🔵 Gemini AI   📦 Storage & DB
+    (Text/Docs)    (Vision/Audio)  (Supabase + GDrive)
+          │              │              │
+          └──────────────┼──────────────┘
                          ↓
-                🧠 AI + MEMORY
-                    ┌────┴────┐
-                    ↓         ↓
-               🟣 Groq    🔵 Gemini
-            (Agent/Text) (Vision/Image)
-                    │
-         ┌──────────┼──────────┐
-         ↓          ↓          ↓
-      📦 Storage  🗄️ Database  🔎 Search
+             🧠 SMART AI PROCESSING
+       - Multimodal Visual & Audio Analysis
+       - Smart Web Bookmark & Link Enrichment
+       - Auto-Categorization & Tagging
+       - Smart Metadata Search
 ```
 
 ---
