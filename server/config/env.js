@@ -115,7 +115,11 @@ export function getPort() {
 
 // ── Filesystem helpers ────────────────────────────────────────────────────────
 export function ensureDir(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  try {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  } catch {
+    // Silently ignore filesystem write errors in read-only/serverless environments (Vercel)
+  }
   return dir;
 }
 

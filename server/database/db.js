@@ -1,17 +1,62 @@
-import { DatabaseSync } from 'node:sqlite';
+/**
+ * ARKA — SQLite Database (Local Mode Only)
+ *
+ * Safe to import in any environment — SQLite is initialised lazily and
+ * only when actually needed. On Vercel/cloud (Supabase mode) the db is
+ * never opened and controllers use Supabase instead.
+ */
+
+import { createRequire } from 'node:module';
 import { DATABASE_FILE, ensureStorageDirs } from '../config/env.js';
 
-// Ensure /storage, /storage/uploads, /storage/inbox and /database exist
-ensureStorageDirs();
+const _require = createRequire(import.meta.url);
 
-export const db = new DatabaseSync(DATABASE_FILE);
+let _db = null;
+let _initAttempted = false;
 
-// Enable WAL mode & foreign keys
-db.exec('PRAGMA journal_mode = WAL;');
-db.exec('PRAGMA foreign_keys = ON;');
+/** Returns the singleton SQLite connection, initialising it on first call. */
+function openDb() {
+  if (_initAttempted) return _db;
+  _initAttempted = true;
+
+  try {
+    const { DatabaseSync } = _require('node:sqlite');
+    ensureStorageDirs();
+    _db = new DatabaseSync(DATABASE_FILE);
+    _db.exec('PRAGMA journal_mode = WAL;');
+    _db.exec('PRAGMA foreign_keys = ON;');
+  } catch (err) {
+    console.warn('[DB] SQLite not available (cloud/serverless mode):', err.message);
+    _db = null;
+  }
+
+  return _db;
+}
+
+/**
+ * Proxy shim — controllers can do `db.prepare(...)` directly.
+ * In cloud mode (Supabase), controllers should never call db methods;
+ * the proxy throws a clear error if they do.
+ */
+export const db = new Proxy({}, {
+  get(_target, prop) {
+    const database = openDb();
+    if (!database) {
+      throw new Error(`[DB] SQLite not available. Use Supabase in cloud mode. (Attempted: db.${String(prop)})`);
+    }
+    const value = database[prop];
+    return typeof value === 'function' ? value.bind(database) : value;
+  }
+});
 
 export function initDatabase() {
-  db.exec(`
+  const database = openDb();
+  if (!database) {
+    console.warn('[DB] initDatabase() skipped — SQLite not available.');
+    return;
+  }
+
+  database.exec(`
     CREATE TABLE IF NOT EXISTS folders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -76,49 +121,35 @@ export function initDatabase() {
     );
   `);
 
-  // Ensure is_inbox column exists (for migrations if needed)
+  // Migration: ensure is_inbox column exists
   try {
-    const tableInfo = db.prepare("PRAGMA table_info(files)").all();
-    const hasInbox = tableInfo.some(col => col.name === 'is_inbox');
-    if (!hasInbox) {
-      db.exec("ALTER TABLE files ADD COLUMN is_inbox INTEGER DEFAULT 0;");
+    const tableInfo = database.prepare('PRAGMA table_info(files)').all();
+    if (!tableInfo.some(col => col.name === 'is_inbox')) {
+      database.exec('ALTER TABLE files ADD COLUMN is_inbox INTEGER DEFAULT 0;');
     }
   } catch (err) {
-    console.error("Migration check:", err);
+    console.error('[DB] Migration check error:', err);
   }
 
-  // Seed default folders if empty
-  const folderCount = db.prepare('SELECT COUNT(*) as count FROM folders').get().count;
+  // Seed default folders
+  const folderCount = database.prepare('SELECT COUNT(*) as count FROM folders').get().count;
   if (folderCount === 0) {
-    const insertFolder = db.prepare('INSERT INTO folders (name, parent_id, color, icon) VALUES (?, ?, ?, ?)');
-    
-    insertFolder.run('Projects', null, '#6366f1', 'folder-kanban');
-    const projectsId = db.prepare('SELECT id FROM folders WHERE name = ?').get('Projects').id;
-
-    insertFolder.run('Website', projectsId, '#3b82f6', 'globe');
-    insertFolder.run('Instagram', projectsId, '#ec4899', 'instagram');
-    insertFolder.run('TikTok', projectsId, '#06b6d4', 'video');
-    insertFolder.run('Programming', projectsId, '#10b981', 'code');
-    insertFolder.run('Personal', null, '#f59e0b', 'user');
-
-    console.log('✨ Seeded default ARKA folder structure.');
+    const ins = database.prepare('INSERT INTO folders (name, parent_id, color, icon) VALUES (?, ?, ?, ?)');
+    ins.run('Projects', null, '#6366f1', 'folder-kanban');
+    const projectsId = database.prepare('SELECT id FROM folders WHERE name = ?').get('Projects').id;
+    ins.run('Website', projectsId, '#3b82f6', 'globe');
+    ins.run('Instagram', projectsId, '#ec4899', 'instagram');
+    ins.run('TikTok', projectsId, '#06b6d4', 'video');
+    ins.run('Programming', projectsId, '#10b981', 'code');
+    ins.run('Personal', null, '#f59e0b', 'user');
+    console.log('[DB] Seeded default folder structure.');
   }
 
-  // Seed sample prompt categories if empty
-  const promptCount = db.prepare('SELECT COUNT(*) as count FROM prompts').get().count;
+  // Seed sample prompts
+  const promptCount = database.prepare('SELECT COUNT(*) as count FROM prompts').get().count;
   if (promptCount === 0) {
-    const insertPrompt = db.prepare('INSERT INTO prompts (title, content, category, tags) VALUES (?, ?, ?, ?)');
-    insertPrompt.run(
-      'Instagram Carousel Database Design',
-      'Create an engaging 5-slide carousel explaining Database Normalization for beginner software engineers with visual metaphors.',
-      'Social Media',
-      'carousel,instagram,database,tech'
-    );
-    insertPrompt.run(
-      'Minimalist Modern UI Mockup',
-      'Generate a sleek dark-mode personal AI workspace dashboard with glassmorphic cards, indigo accents, and clean typography.',
-      'Image Generation',
-      'ui,dark-mode,glassmorphism,midjourney'
-    );
+    const ins = database.prepare('INSERT INTO prompts (title, content, category, tags) VALUES (?, ?, ?, ?)');
+    ins.run('Instagram Carousel Database Design', 'Create an engaging 5-slide carousel explaining Database Normalization for beginner software engineers with visual metaphors.', 'Social Media', 'carousel,instagram,database,tech');
+    ins.run('Minimalist Modern UI Mockup', 'Generate a sleek dark-mode personal AI workspace dashboard with glassmorphic cards, indigo accents, and clean typography.', 'Image Generation', 'ui,dark-mode,glassmorphism,midjourney');
   }
 }
