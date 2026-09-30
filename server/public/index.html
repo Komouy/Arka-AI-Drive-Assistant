@@ -1028,7 +1028,11 @@
         const { error } = await client.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: window.location.origin
+            // Always redirect to the canonical production URL so OAuth callback
+            // doesn't break when initiated from localhost or dev environments.
+            redirectTo: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+              ? window.location.origin
+              : 'https://arka-ai-drive-assistant.vercel.app'
           }
         });
         if (error) throw error;
