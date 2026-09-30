@@ -906,10 +906,12 @@
   <script>
     // ── Constants ─────────────────────────────────────────────────────────────
     const API_BASE    = '/api';
-    const TOKEN_KEY   = 'arka_token';
+    const TOKEN_KEY          = 'arka_token';
+    const PROVIDER_TOKEN_KEY = 'arka_provider_token';
 
     // ── State ──────────────────────────────────────────────────────────────────
-    let authToken = null;
+    let authToken     = null;
+    let providerToken = null; // Google Drive OAuth access token (Phase 2 BYOD)
 
     let allData = { files: [], prompts: [], links: [] };
     let currentFilter = 'all';
@@ -974,6 +976,24 @@
       } catch {}
     }
 
+    function saveProviderToken(token) {
+      providerToken = token || null;
+      try {
+        if (token) localStorage.setItem(PROVIDER_TOKEN_KEY, token);
+        else localStorage.removeItem(PROVIDER_TOKEN_KEY);
+      } catch {}
+    }
+
+    function loadProviderToken() {
+      try { providerToken = localStorage.getItem(PROVIDER_TOKEN_KEY) || null; } catch {}
+      return providerToken;
+    }
+
+    function clearProviderToken() {
+      providerToken = null;
+      try { localStorage.removeItem(PROVIDER_TOKEN_KEY); } catch {}
+    }
+
     function updateUserUI(user) {
       const badge = document.getElementById('userProfileBadge');
       if (!badge) return;
@@ -998,6 +1018,9 @@
     async function authFetch(url, options = {}) {
       const headers = { ...(options.headers || {}) };
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+      // Send Google Drive provider token for BYOD file storage
+      const pt = providerToken || loadProviderToken();
+      if (pt) headers['X-Provider-Token'] = pt;
       const res = await fetch(url, { ...options, headers });
       if (res.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/config')) {
         handleLogout();
@@ -1028,8 +1051,9 @@
         const { error } = await client.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            // Always redirect to the canonical production URL so OAuth callback
-            // doesn't break when initiated from localhost or dev environments.
+            // Request Google Drive file access scope (Phase 2 BYOD)
+            scopes: 'https://www.googleapis.com/auth/drive.file',
+            // Always redirect to the canonical production URL
             redirectTo: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
               ? window.location.origin
               : 'https://arka-ai-drive-assistant.vercel.app'
@@ -1092,6 +1116,7 @@
         console.warn('Sign out error:', err);
       }
       clearToken();
+      clearProviderToken();
       updateUserUI(null);
       allData = { files: [], prompts: [], links: [] };
       const passInput = document.getElementById('loginPassword');
@@ -1118,10 +1143,16 @@
         client.auth.onAuthStateChange((event, session) => {
           if (event === 'SIGNED_IN' && session && session.access_token) {
             saveToken(session.access_token);
+            // Save Google Drive provider_token if present (Phase 2 BYOD)
+            if (session.provider_token) saveProviderToken(session.provider_token);
             updateUserUI(session.user);
             showDashboard();
+          } else if (event === 'TOKEN_REFRESHED' && session) {
+            saveToken(session.access_token);
+            if (session.provider_token) saveProviderToken(session.provider_token);
           } else if (event === 'SIGNED_OUT') {
             clearToken();
+            clearProviderToken();
             updateUserUI(null);
           }
         });
@@ -1130,6 +1161,7 @@
         const { data: { session } } = await client.auth.getSession();
         if (session && session.access_token) {
           saveToken(session.access_token);
+          if (session.provider_token) saveProviderToken(session.provider_token);
           updateUserUI(session.user);
           showDashboard();
           return;
@@ -1139,6 +1171,7 @@
       // If no Supabase session, check stored token (local JWT or saved OAuth token)
       const token = loadToken();
       if (!token) return;
+      loadProviderToken(); // Restore provider token from localStorage
 
       try {
         const res = await fetch(`${API_BASE}/auth/verify`, {
@@ -1957,3 +1990,7 @@
   </div>
 </body>
 </html>
+
+
+
+

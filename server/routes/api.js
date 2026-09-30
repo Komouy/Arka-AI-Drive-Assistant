@@ -7,6 +7,7 @@ import { linkController } from '../controllers/linkController.js';
 import { systemController } from '../controllers/systemController.js';
 import { aiController } from '../controllers/aiController.js';
 import { authController } from '../controllers/authController.js';
+import { driveController } from '../controllers/driveController.js';
 import { uploadMiddleware } from '../middlewares/upload.js';
 import { requireAuth } from '../middlewares/auth.js';
 
@@ -61,5 +62,8 @@ router.delete('/links/:id', linkController.delete);
 router.get('/ai/status', aiController.status);
 router.post('/ai/ask', aiController.ask);
 router.post('/ai/reset', aiController.resetMemory);
+
+// Google Drive — BYOD Storage Status
+router.get('/drive/status', driveController.status);
 
 export default router;

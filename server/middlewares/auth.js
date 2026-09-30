@@ -12,6 +12,7 @@ function getJwtSecret() {
  * 1) Supabase OAuth access tokens (from Google Sign-In)
  * 2) Custom signed JWTs (from owner password login)
  * Attaches the decoded user payload to `req.user`.
+ * Also attaches `req.providerToken` (Google Drive access token) if present.
  */
 export async function requireAuth(req, res, next) {
   const authHeader = req.headers['authorization'] || '';
@@ -25,6 +26,9 @@ export async function requireAuth(req, res, next) {
   if (!token) {
     return res.status(401).json({ success: false, error: 'Authentication required' });
   }
+
+  // Extract Google Drive provider token from header (sent as X-Provider-Token)
+  const providerToken = req.headers['x-provider-token'] || null;
 
   // 1. Verify via Supabase Auth if Supabase is active
   if (isSupabaseConfigured()) {
@@ -40,6 +44,7 @@ export async function requireAuth(req, res, next) {
             role: 'authenticated',
             user_metadata: data.user.user_metadata || {}
           };
+          req.providerToken = providerToken; // Google Drive access token
           return next();
         }
       }
@@ -52,9 +57,11 @@ export async function requireAuth(req, res, next) {
   try {
     const decoded = jwt.verify(token, getJwtSecret());
     req.user = decoded;
+    req.providerToken = providerToken; // may be null for password login
     return next();
   } catch (err) {
     const message = err.name === 'TokenExpiredError' ? 'Session expired — please log in again' : 'Invalid token';
     return res.status(401).json({ success: false, error: message });
   }
 }
+

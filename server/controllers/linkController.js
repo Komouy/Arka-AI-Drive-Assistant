@@ -47,7 +47,14 @@ export const linkController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+
         let query = supabase.from('links').select('*');
+
+        // Multi-tenant: show user's own links + shared owner links (user_id IS NULL)
+        if (userId) {
+          query = query.or(`user_id.eq.${userId},user_id.is.null`);
+        }
 
         if (category) {
           query = query.eq('category', category);
@@ -64,8 +71,10 @@ export const linkController = {
         const { data: links, error } = await query;
         if (error) return fail(res, error);
 
-        // Categories summary
-        const { data: allLinks } = await supabase.from('links').select('category');
+        // Categories summary (scoped to user)
+        let catQuery = supabase.from('links').select('category');
+        if (userId) catQuery = catQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        const { data: allLinks } = await catQuery;
         const catMap = {};
         for (const l of (allLinks || [])) {
           const c = l.category || 'General';
@@ -166,6 +175,7 @@ export const linkController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
         const tagsVal = Array.isArray(tags) ? tags : String(tags || '').split(',').map(t => t.trim()).filter(Boolean);
 
         const { data: created, error } = await supabase.from('links').insert({
@@ -174,7 +184,8 @@ export const linkController = {
           description: String(description || '').trim(),
           category: String(category || 'General').trim(),
           tags: tagsVal,
-          domain
+          domain,
+          user_id: userId
         }).select().single();
 
         if (error) return fail(res, error);

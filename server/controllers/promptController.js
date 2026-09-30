@@ -11,7 +11,14 @@ export const promptController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+
         let query = supabase.from('prompts').select('*');
+
+        // Multi-tenant: show user's own prompts + shared owner prompts (user_id IS NULL)
+        if (userId) {
+          query = query.or(`user_id.eq.${userId},user_id.is.null`);
+        }
 
         if (category) {
           query = query.eq('category', category);
@@ -28,8 +35,10 @@ export const promptController = {
         const { data: prompts, error } = await query;
         if (error) return fail(res, error);
 
-        // Get categories summary
-        const { data: allPrompts } = await supabase.from('prompts').select('category');
+        // Get categories summary (scoped to user)
+        let catQuery = supabase.from('prompts').select('category');
+        if (userId) catQuery = catQuery.or(`user_id.eq.${userId},user_id.is.null`);
+        const { data: allPrompts } = await catQuery;
         const catMap = {};
         for (const p of (allPrompts || [])) {
           const c = p.category || 'General';
@@ -87,13 +96,15 @@ export const promptController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
         const tagsVal = Array.isArray(tags) ? tags : String(tags || '').split(',').map(t => t.trim()).filter(Boolean);
 
         const { data: prompt, error } = await supabase.from('prompts').insert({
           title: cleanTitle,
           content: cleanContent,
           category: String(category || 'General').trim(),
-          tags: tagsVal
+          tags: tagsVal,
+          user_id: userId
         }).select().single();
 
         if (error) return fail(res, error);

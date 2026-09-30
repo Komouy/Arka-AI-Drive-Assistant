@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { UPLOADS_DIR, INBOX_DIR, STORAGE_DIR } from '../config/env.js';
 import { isSupabaseConfigured, getSupabaseClient, BUCKET_NAME } from '../config/supabase.js';
+import { uploadToGoogleDrive, deleteFromGoogleDrive } from './driveController.js';
 import { getFileTypeCategory, resolveMimeType } from '../utils/fileTypes.js';
 import { resolveTargetFolder } from '../utils/folders.js';
 import { likePattern, ESCAPE_LIKE } from '../utils/search.js';
@@ -133,9 +134,16 @@ export const fileController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+
         let query = supabase
           .from('files')
           .select('*, folders(name), file_metadata(description, category, project, tags, ai_analyzed)');
+
+        // Multi-tenant: scope to this user's files only (NULL = owner data, visible to password login)
+        if (userId) {
+          query = query.or(`user_id.eq.${userId},user_id.is.null`);
+        }
 
         if (trash === 'true') {
           query = query.eq('is_trash', true);
@@ -175,7 +183,7 @@ export const fileController = {
             tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
             ai_analyzed: meta?.ai_analyzed ? 1 : 0,
             typeCategory: getFileTypeCategory(f.mime_type, f.original_name),
-            publicUrl: f.public_url || `/storage/${f.storage_path}`
+            publicUrl: f.gdrive_view_url || f.public_url || `/storage/${f.storage_path}`
           };
         });
 
@@ -313,17 +321,23 @@ export const fileController = {
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+        const providerToken = req.providerToken || null;
+        const useGDrive = Boolean(providerToken && userId); // Only Google-authenticated users get GDrive
+
         let targetFolderId = null;
 
         if (!toInbox) {
           if (folderIdInput) {
             targetFolderId = folderIdInput;
           } else if (project) {
-            const { data: foundFolder } = await supabase.from('folders').select('id').ilike('name', project).maybeSingle();
+            let folderQuery = supabase.from('folders').select('id').ilike('name', project);
+            if (userId) folderQuery = folderQuery.or(`user_id.eq.${userId},user_id.is.null`);
+            const { data: foundFolder } = await folderQuery.maybeSingle();
             if (foundFolder) {
               targetFolderId = foundFolder.id;
             } else {
-              const { data: newF } = await supabase.from('folders').insert({ name: project }).select().single();
+              const { data: newF } = await supabase.from('folders').insert({ name: project, user_id: userId }).select().single();
               if (newF) targetFolderId = newF.id;
             }
           }
@@ -334,40 +348,66 @@ export const fileController = {
         for (const f of uploadedFiles) {
           const fileBuffer = f.buffer || (f.path && fs.existsSync(f.path) ? fs.readFileSync(f.path) : null);
           const ext = path.extname(f.originalname);
-          const cleanName = path.basename(f.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
+          const cleanName = path.basename(f.originalname, ext).replace(/[^a-zA-Z0-9_\-.]/g, '_');
           const storedName = `${cleanName}-${Date.now()}-${Math.round(Math.random() * 1e5)}${ext}`;
-          const storagePath = `${toInbox ? 'inbox' : 'uploads'}/${storedName}`;
+          const mimeType = resolveMimeType(f.mimetype, f.originalname);
 
-          // Upload to Supabase Storage Bucket
-          if (fileBuffer) {
+          let publicUrl = null;
+          let storagePath = null;
+          let gdriveFileId = null;
+          let gdriveViewUrl = null;
+          let storageProvider = 'supabase';
+
+          if (useGDrive && fileBuffer) {
+            // ── Upload to user's Google Drive ──────────────────────────────
+            try {
+              const driveResult = await uploadToGoogleDrive(providerToken, fileBuffer, f.originalname, mimeType);
+              gdriveFileId = driveResult.id;
+              gdriveViewUrl = driveResult.webViewLink || null;
+              publicUrl = driveResult.webContentLink || driveResult.webViewLink || null;
+              storageProvider = 'gdrive';
+              storagePath = `gdrive/${gdriveFileId}`;
+            } catch (driveErr) {
+              console.error('[GDrive Upload Error]', driveErr.message);
+              // Fallback to Supabase Storage if Drive fails
+              useGDriveFallback: {
+                if (fileBuffer) {
+                  storagePath = `${toInbox ? 'inbox' : 'uploads'}/${storedName}`;
+                  await supabase.storage.from(BUCKET_NAME).upload(storagePath, fileBuffer, { contentType: mimeType, upsert: true });
+                  const { data: pubData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
+                  publicUrl = pubData?.publicUrl || null;
+                }
+              }
+            }
+          } else if (fileBuffer) {
+            // ── Upload to Supabase Storage (owner/password login or no Drive token) ──
+            storagePath = `${toInbox ? 'inbox' : 'uploads'}/${storedName}`;
             const { error: upErr } = await supabase.storage
               .from(BUCKET_NAME)
-              .upload(storagePath, fileBuffer, {
-                contentType: f.mimetype || 'application/octet-stream',
-                upsert: true
-              });
+              .upload(storagePath, fileBuffer, { contentType: mimeType, upsert: true });
 
-            if (upErr) {
-              console.error('[Supabase Storage Upload Error]', upErr);
-            }
+            if (upErr) console.error('[Supabase Storage Upload Error]', upErr);
+
+            const { data: pubData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
+            publicUrl = pubData?.publicUrl || null;
           }
-
-          // Get public URL
-          const { data: pubData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
-          const publicUrl = pubData?.publicUrl || null;
 
           // Insert row into Supabase 'files' table
           const { data: inserted, error: insErr } = await supabase.from('files').insert({
             folder_id: targetFolderId,
             original_name: f.originalname,
             stored_name: storedName,
-            mime_type: resolveMimeType(f.mimetype, f.originalname),
+            mime_type: mimeType,
             size: f.size,
             storage_path: storagePath,
             public_url: publicUrl,
+            gdrive_file_id: gdriveFileId,
+            gdrive_view_url: gdriveViewUrl,
+            storage_provider: storageProvider,
             is_inbox: toInbox,
             is_favorite: false,
-            is_trash: false
+            is_trash: false,
+            user_id: userId
           }).select('*, folders(name)').single();
 
           if (insErr) {
@@ -378,7 +418,7 @@ export const fileController = {
           const record = {
             ...inserted,
             folder_name: inserted.folders?.name || null,
-            publicUrl: inserted.public_url || publicUrl,
+            publicUrl: inserted.gdrive_view_url || inserted.public_url || publicUrl,
             typeCategory: getFileTypeCategory(inserted.mime_type, inserted.original_name)
           };
           savedRecords.push({ ...record, physicalPath: f.path || null });
@@ -386,11 +426,11 @@ export const fileController = {
 
         res.status(201).json({
           success: true,
-          message: `Successfully uploaded ${savedRecords.length} file(s) to cloud`,
+          message: `Successfully uploaded ${savedRecords.length} file(s)${ useGDrive ? ' to Google Drive' : ' to cloud'}`,
           data: savedRecords.map(({ physicalPath, ...rest }) => rest)
         });
 
-        // Trigger AI analysis asynchronously
+        // Trigger AI analysis asynchronously (only for non-GDrive files we have locally)
         for (const record of savedRecords) {
           const { id, physicalPath, mime_type, original_name } = record;
           if (physicalPath && fs.existsSync(physicalPath)) {
