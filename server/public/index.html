@@ -1571,18 +1571,18 @@
           const downloadUrl = `/api/files/${safeId}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
           const isAnalyzed = !!(item.raw?.ai_analyzed);
           if (isAnalyzed) {
-            aiBadge = '<span class="ai-badge"><i data-lucide="sparkles" class="icon-sm"></i> <span>AI Analyzed</span></span>';
+            aiBadge = '<span class="ai-badge"><i data-lucide="play" class="icon-sm"></i> <span>AI Analyzed</span></span>';
           }
           actionBtn = `
             <button class="btn-action" onclick="openPreview('FILE', '${safeId}')"><i data-lucide="eye" class="icon"></i> <span>preview</span></button>
-            <button class="btn-action btn-ai" id="ai-btn-FILE-${safeId}" onclick="handleAnalyzeItem('FILE', '${safeId}', this)"><i data-lucide="sparkles" class="icon"></i> <span>${isAnalyzed ? 're-analyze' : 'ai analyze'}</span></button>
+            <button class="btn-action btn-ai" id="ai-btn-FILE-${safeId}" onclick="handleAnalyzeItem('FILE', '${safeId}', this)"><i data-lucide="play" class="icon"></i> <span>${isAnalyzed ? 're-analyze' : 'ai analyze'}</span></button>
             <a href="${downloadUrl}" class="btn-action" target="_blank" rel="noopener noreferrer"><i data-lucide="download" class="icon"></i> <span>download</span></a>
           `;
         } else if (item.type === 'LINK') {
           const safeUrl = escapeHtml(item.url || '');
           actionBtn = `
             <button class="btn-action" onclick="openPreview('LINK', '${safeId}')"><i data-lucide="eye" class="icon"></i> <span>preview</span></button>
-            <button class="btn-action btn-ai" id="ai-btn-LINK-${safeId}" onclick="handleAnalyzeItem('LINK', '${safeId}', this)"><i data-lucide="sparkles" class="icon"></i> <span>ai analyze</span></button>
+            <button class="btn-action btn-ai" id="ai-btn-LINK-${safeId}" onclick="handleAnalyzeItem('LINK', '${safeId}', this)"><i data-lucide="play" class="icon"></i> <span>ai analyze</span></button>
             <button class="btn-action btn-copy" onclick="handleCopyLink('${safeId}', this)"><i data-lucide="copy" class="icon"></i> <span>copy url</span></button>
             <a href="${safeUrl}" class="btn-action" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link" class="icon"></i> <span>open link</span></a>
           `;
@@ -2110,7 +2110,7 @@
 
         footerActions.innerHTML = `
           <button class="btn-action btn-copy" onclick="handleCopyLink('${escapeHtml(String(item.id))}', this)"><i data-lucide="copy" class="icon"></i> <span>Copy URL</span></button>
-          <button class="btn-action btn-ai" id="modal-ai-btn-LINK-${escapeHtml(String(item.id))}" onclick="handleAnalyzeItem('LINK', '${escapeHtml(String(item.id))}', this)"><i data-lucide="sparkles" class="icon"></i> <span>AI Analyze</span></button>
+          <button class="btn-action btn-ai" id="modal-ai-btn-LINK-${escapeHtml(String(item.id))}" onclick="handleAnalyzeItem('LINK', '${escapeHtml(String(item.id))}', this)"><i data-lucide="play" class="icon"></i> <span>AI Analyze</span></button>
           <a href="${safeUrl}" class="btn-primary" target="_blank" rel="noopener noreferrer" style="text-decoration:none"><i data-lucide="external-link" class="icon"></i> <span>Open Original Link</span></a>
         `;
       } else if (type === 'FILE') {
@@ -2189,7 +2189,7 @@
         `;
 
         footerActions.innerHTML = `
-          <button class="btn-action btn-ai" id="modal-ai-btn-FILE-${escapeHtml(String(item.id))}" onclick="handleAnalyzeItem('FILE', '${escapeHtml(String(item.id))}', this)"><i data-lucide="sparkles" class="icon"></i> <span>${isAnalyzed ? 'Re-analyze with AI' : 'AI Analyze'}</span></button>
+          <button class="btn-action btn-ai" id="modal-ai-btn-FILE-${escapeHtml(String(item.id))}" onclick="handleAnalyzeItem('FILE', '${escapeHtml(String(item.id))}', this)"><i data-lucide="play" class="icon"></i> <span>${isAnalyzed ? 'Re-analyze with AI' : 'AI Analyze'}</span></button>
           <a href="${downloadUrl}" class="btn-primary" target="_blank" rel="noopener noreferrer" style="text-decoration:none"><i data-lucide="download" class="icon"></i> <span>Download File</span></a>
         `;
       }
