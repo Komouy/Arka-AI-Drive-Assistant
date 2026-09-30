@@ -75,6 +75,25 @@ export const authController = {
     if (!req.user) {
       return res.status(401).json({ success: false, error: 'Not authenticated' });
     }
-    return res.json({ success: true, username: req.user.sub });
+    return res.json({
+      success: true,
+      username: req.user.sub || req.user.email,
+      user: req.user
+    });
+  },
+
+  /**
+   * GET /api/auth/config
+   * Exposes public client-side Supabase URL and anon key for Google OAuth
+   */
+  getConfig: (req, res) => {
+    const supabaseUrl = getEnv('SUPABASE_URL');
+    const supabaseAnonKey = getEnv('SUPABASE_ANON_KEY');
+    return res.json({
+      success: true,
+      supabaseUrl: supabaseUrl || null,
+      supabaseAnonKey: supabaseAnonKey || null,
+      googleAuthEnabled: Boolean(supabaseUrl && supabaseAnonKey)
+    });
   }
 };
