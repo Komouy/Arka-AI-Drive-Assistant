@@ -687,11 +687,140 @@
     .empty-state { padding: 3.5rem 1.5rem; text-align: center; color: var(--text-dim); font-size: 0.85rem; }
     .loading-state { padding: 2rem; text-align: center; color: var(--text-dim); font-family: var(--font-mono); font-size: 0.8rem; }
 
+    /* ── Skeleton Loading ────────────────────────────────────────────────── */
+    @keyframes skeleton-shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+    .skeleton-row {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .skeleton-line {
+      height: 12px; border-radius: 4px;
+      background: linear-gradient(90deg, #1f1f23 25%, #27272a 50%, #1f1f23 75%);
+      background-size: 400px 100%;
+      animation: skeleton-shimmer 1.4s ease infinite;
+    }
+    .skeleton-line.wide  { width: 65%; }
+    .skeleton-line.medium{ width: 40%; }
+    .skeleton-line.short { width: 25%; }
+
+    /* ── Upload Progress Bar ─────────────────────────────────────────────── */
+    .upload-progress-wrap {
+      display: none;
+      flex-direction: column; gap: 0.35rem;
+      margin-top: 0.5rem;
+    }
+    .upload-progress-wrap.visible { display: flex; }
+    .upload-progress-bar-track {
+      width: 100%; height: 4px;
+      background: var(--bg-elevated);
+      border-radius: 999px; overflow: hidden;
+    }
+    .upload-progress-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #6366f1, #818cf8);
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+    .upload-progress-label {
+      font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim);
+    }
+
+    /* ── Toast Notification System ───────────────────────────────────────── */
+    #toastContainer {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+    .toast {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.65rem 1rem;
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      line-height: 1.4;
+      min-width: 240px;
+      max-width: 380px;
+      border: 1px solid transparent;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      pointer-events: all;
+      cursor: default;
+      animation: toast-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      backdrop-filter: blur(8px);
+    }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(12px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)   scale(1); }
+    }
+    @keyframes toast-out {
+      from { opacity: 1; transform: translateY(0) scale(1); max-height: 80px; margin-bottom: 0; }
+      to   { opacity: 0; transform: translateY(6px) scale(0.97); max-height: 0; margin-bottom: -0.5rem; }
+    }
+    .toast.hiding { animation: toast-out 0.2s ease forwards; }
+    .toast-icon { flex-shrink: 0; width: 16px; height: 16px; }
+    .toast-msg  { flex: 1; color: inherit; }
+    .toast-close {
+      background: transparent; border: none; cursor: pointer;
+      opacity: 0.5; padding: 2px; border-radius: 3px;
+      color: inherit; transition: opacity 0.1s ease;
+      font-size: 0.9rem; line-height: 1;
+    }
+    .toast-close:hover { opacity: 1; }
+    .toast.success {
+      background: rgba(5, 150, 105, 0.18);
+      border-color: rgba(16, 185, 129, 0.35);
+      color: #6ee7b7;
+    }
+    .toast.error {
+      background: rgba(127, 29, 29, 0.22);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+    .toast.info {
+      background: rgba(99, 102, 241, 0.18);
+      border-color: rgba(99, 102, 241, 0.35);
+      color: #c7d2fe;
+    }
+    .toast.warn {
+      background: rgba(161, 98, 7, 0.18);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: #fcd34d;
+    }
+
+    /* ── Refresh Button ──────────────────────────────────────────────────── */
+    .btn-refresh {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex; align-items: center; gap: 0.4rem;
+    }
+    .btn-refresh:hover { color: var(--text-main); border-color: var(--border-focus); }
+    .btn-refresh.spinning .icon { animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     /* Responsive */
     @media (max-width: 768px) {
       .stats-row { grid-template-columns: repeat(2, 1fr); }
       .controls-bar { flex-direction: column; align-items: stretch; }
       .search-box { max-width: 100%; }
+      #toastContainer { bottom: 1rem; right: 1rem; left: 1rem; }
+      .toast { min-width: unset; max-width: 100%; }
     }
   </style>
 </head>
@@ -764,6 +893,7 @@
             <div id="statusIndicator" class="status-indicator"></div>
             <span id="statusText">checking...</span>
           </div>
+          <button class="btn-refresh" id="btnRefresh" onclick="handleRefresh(this)" title="Refresh data (R)"><i data-lucide="refresh-cw" class="icon"></i></button>
           <button class="btn-logout" onclick="handleLogout()"><i data-lucide="log-out" class="icon"></i> <span>Sign out</span></button>
         </div>
       </header>
@@ -821,6 +951,12 @@
                 <label class="form-label" for="uploadProject">Folder / Project (Optional)</label>
                 <input type="text" id="uploadProject" class="form-input" placeholder="e.g. Documentation, Assets, Work">
               </div>
+            </div>
+            <div class="upload-progress-wrap" id="uploadProgressWrap">
+              <div class="upload-progress-bar-track">
+                <div class="upload-progress-bar-fill" id="uploadProgressFill"></div>
+              </div>
+              <div class="upload-progress-label" id="uploadProgressLabel">Uploading...</div>
             </div>
             <div class="form-footer">
               <span class="form-status" id="uploadStatus"></span>
@@ -1277,8 +1413,26 @@
       }
     }
 
+    function renderSkeleton() {
+      const rows = Array.from({ length: 5 }, () => `
+        <div class="skeleton-row">
+          <div style="display:flex;gap:0.5rem;align-items:center">
+            <div class="skeleton-line" style="width:50px"></div>
+            <div class="skeleton-line wide"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+          <div class="skeleton-line medium"></div>
+          <div style="display:flex;gap:0.5rem">
+            <div class="skeleton-line" style="width:60px"></div>
+            <div class="skeleton-line" style="width:80px"></div>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('dataList').innerHTML = rows;
+    }
+
     async function fetchAllData() {
-      document.getElementById('dataList').innerHTML = '<div class="loading-state">Loading records...</div>';
+      renderSkeleton();
       try {
         const [filesRes, promptsRes, linksRes] = await Promise.all([
           authFetch(`${API_BASE}/files`).then(r => r.json()),
@@ -1295,7 +1449,18 @@
       } catch (err) {
         document.getElementById('dataList').innerHTML =
           `<div class="empty-state">Failed to load data: ${escapeHtml(err.message)}</div>`;
+        showToast('error', 'Gagal memuat data: ' + err.message);
       }
+    }
+
+    async function handleRefresh(btn) {
+      if (btn.classList.contains('spinning')) return;
+      btn.classList.add('spinning');
+      refreshIcons();
+      await Promise.all([fetchAllData(), loadStatus()]);
+      btn.classList.remove('spinning');
+      refreshIcons();
+      showToast('success', 'Data berhasil diperbarui.');
     }
 
     function updateCounts() {
@@ -1510,15 +1675,18 @@
             else if (type === 'LINK')   allData.links   = allData.links.filter(x => String(x.id) !== strId);
             updateCounts();
             loadStatus();
+            showToast('success', `${type.charAt(0) + type.slice(1).toLowerCase()} berhasil dihapus.`);
           } else {
             btn.textContent = 'error';
             btn.style.color = '#f87171';
             setTimeout(() => { btn.textContent = 'delete'; btn.style.color = ''; btn.disabled = false; }, 2000);
+            showToast('error', json.error || 'Gagal menghapus item.');
           }
         })
-        .catch(() => {
+        .catch(err => {
           btn.textContent = 'error';
           setTimeout(() => { btn.textContent = 'delete'; btn.disabled = false; }, 2000);
+          showToast('error', 'Network error: ' + err.message);
         });
     }
 
@@ -1577,40 +1745,77 @@
 
     async function handleUploadSubmit(e) {
       e.preventDefault();
-      const input     = document.getElementById('fileInput');
-      const dest      = document.getElementById('uploadDestination').value;
-      const project   = document.getElementById('uploadProject').value.trim();
-      const submitBtn = document.getElementById('btnUploadSubmit');
+      const input       = document.getElementById('fileInput');
+      const dest        = document.getElementById('uploadDestination').value;
+      const project     = document.getElementById('uploadProject').value.trim();
+      const submitBtn   = document.getElementById('btnUploadSubmit');
+      const progressWrap = document.getElementById('uploadProgressWrap');
+      const progressFill = document.getElementById('uploadProgressFill');
+      const progressLabel = document.getElementById('uploadProgressLabel');
 
       if (!input.files || input.files.length === 0) {
         setFormStatus('uploadStatus', 'error', 'Please choose at least one file.'); return;
       }
 
-      setFormStatus('uploadStatus', '', 'Uploading file(s)...');
+      setFormStatus('uploadStatus', '', '');
       submitBtn.disabled = true;
+      submitBtn.textContent = 'Uploading...';
+      progressWrap.classList.add('visible');
+      progressFill.style.width = '0%';
+      progressLabel.textContent = 'Preparing upload...';
 
+      // Simulate progress with XHR for real progress events
       try {
         const formData = new FormData();
         for (let i = 0; i < input.files.length; i++) formData.append('files', input.files[i]);
         if (dest === 'inbox') formData.append('inbox', 'true');
         if (project) formData.append('project', project);
 
-        const res  = await authFetch(`${API_BASE}/files/upload`, { method: 'POST', body: formData });
-        const json = await res.json();
+        const json = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `${API_BASE}/files/upload`);
+          if (authToken) xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+          const pt = providerToken || loadProviderToken();
+          if (pt) xhr.setRequestHeader('X-Provider-Token', pt);
 
-        if (res.ok && json.success) {
+          xhr.upload.addEventListener('progress', (ev) => {
+            if (ev.lengthComputable) {
+              const pct = Math.round((ev.loaded / ev.total) * 95); // cap at 95 until server responds
+              progressFill.style.width = pct + '%';
+              progressLabel.textContent = `Uploading... ${pct}%`;
+            }
+          });
+          xhr.addEventListener('load', () => {
+            progressFill.style.width = '100%';
+            progressLabel.textContent = 'Processing...';
+            try { resolve(JSON.parse(xhr.responseText)); }
+            catch { reject(new Error('Invalid server response.')); }
+          });
+          xhr.addEventListener('error', () => reject(new Error('Network error during upload.')));
+          xhr.send(formData);
+        });
+
+        if (json.success) {
           const count = Array.isArray(json.data) ? json.data.length : 1;
-          setFormStatus('uploadStatus', 'success', `Upload complete. (${count} file(s) saved)`);
+          showToast('success', `${count} file berhasil diupload.`);
+          setFormStatus('uploadStatus', 'success', `${count} file(s) uploaded.`);
           input.value = ''; handleFileSelected(input);
           document.getElementById('uploadProject').value = '';
           await fetchAllData(); await loadStatus(); setFilter('files');
         } else {
           setFormStatus('uploadStatus', 'error', json.error || 'Upload failed.');
+          showToast('error', json.error || 'Upload gagal.');
         }
       } catch (err) {
         setFormStatus('uploadStatus', 'error', 'Error: ' + err.message);
+        showToast('error', 'Upload error: ' + err.message);
       } finally {
         submitBtn.disabled = false;
+        submitBtn.textContent = 'Upload File';
+        setTimeout(() => {
+          progressWrap.classList.remove('visible');
+          progressFill.style.width = '0%';
+        }, 1200);
       }
     }
 
@@ -1626,6 +1831,7 @@
 
       setFormStatus('noteStatus', '', 'Saving note...');
       submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
 
       try {
         const res  = await authFetch(`${API_BASE}/prompts`, {
@@ -1636,18 +1842,22 @@
         const json = await res.json();
 
         if (res.ok && json.success) {
-          setFormStatus('noteStatus', 'success', 'Note saved successfully.');
+          showToast('success', `Note "${title}" berhasil disimpan.`);
+          setFormStatus('noteStatus', 'success', 'Saved.');
           document.getElementById('noteTitle').value   = '';
           document.getElementById('noteContent').value = '';
           document.getElementById('noteTags').value    = '';
           await fetchAllData(); await loadStatus(); setFilter('prompts');
         } else {
           setFormStatus('noteStatus', 'error', json.error || 'Failed to save note.');
+          showToast('error', json.error || 'Gagal menyimpan note.');
         }
       } catch (err) {
         setFormStatus('noteStatus', 'error', 'Error: ' + err.message);
+        showToast('error', 'Error: ' + err.message);
       } finally {
         submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Note';
       }
     }
 
@@ -1675,6 +1885,7 @@
 
       setFormStatus('linkStatus', '', 'Saving link...');
       submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
 
       try {
         const res  = await authFetch(`${API_BASE}/links`, {
@@ -1685,18 +1896,22 @@
         const json = await res.json();
 
         if (res.ok && json.success) {
-          setFormStatus('linkStatus', 'success', 'Link saved successfully.');
+          showToast('success', `Link berhasil disimpan.`);
+          setFormStatus('linkStatus', 'success', 'Saved.');
           document.getElementById('linkUrl').value   = '';
           document.getElementById('linkTitle').value = '';
           document.getElementById('linkDesc').value  = '';
           await fetchAllData(); await loadStatus(); setFilter('links');
         } else {
           setFormStatus('linkStatus', 'error', json.error || 'Failed to save link.');
+          showToast('error', json.error || 'Gagal menyimpan link.');
         }
       } catch (err) {
         setFormStatus('linkStatus', 'error', 'Error: ' + err.message);
+        showToast('error', 'Error: ' + err.message);
       } finally {
         submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Link';
       }
     }
 
@@ -1780,13 +1995,13 @@
             btn.textContent = originalText;
             btn.style.color = '';
           }, 2500);
-          alert('Analysis notice: ' + (json.error || 'Server error occurred during analysis.'));
+          showToast('warn', 'Analisis gagal: ' + (json.error || 'Server error.'));
         }
       } catch (err) {
         btn.textContent = 'error';
         btn.classList.remove('analyzing');
         setTimeout(() => { btn.textContent = originalText; }, 2000);
-        alert('Network error: ' + err.message);
+        showToast('error', 'Network error: ' + err.message);
       }
     }
 
@@ -1983,6 +2198,35 @@
       refreshIcons();
     }
 
+    // ── Toast System ───────────────────────────────────────────────────────────
+    function showToast(type, message, duration = 4000) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const icons = {
+        success: '<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+        error:   '<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+        info:    '<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+        warn:    '<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        ${icons[type] || icons.info}
+        <span class="toast-msg">${escapeHtml(message)}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Close">&times;</button>
+      `;
+      container.appendChild(toast);
+
+      const dismiss = () => {
+        if (!toast.isConnected) return;
+        toast.classList.add('hiding');
+        setTimeout(() => toast.remove(), 220);
+      };
+      setTimeout(dismiss, duration);
+    }
+
     // ── Init ───────────────────────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
       refreshIcons();
@@ -1990,6 +2234,22 @@
       checkAuthOnLoad();
       window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closePreview();
+        // Press '/' to focus search (when not in an input)
+        if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+          const searchEl = document.getElementById('searchInput');
+          if (searchEl && document.getElementById('dashboard').classList.contains('visible')) {
+            e.preventDefault();
+            searchEl.focus();
+            searchEl.select();
+          }
+        }
+        // Press 'r' to refresh (when not in an input)
+        if ((e.key === 'r' || e.key === 'R') && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+          const btn = document.getElementById('btnRefresh');
+          if (btn && document.getElementById('dashboard').classList.contains('visible')) {
+            handleRefresh(btn);
+          }
+        }
       });
     });
   </script>
@@ -2017,6 +2277,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" role="region" aria-label="Notifications" aria-live="polite"></div>
 </body>
 </html>
 
