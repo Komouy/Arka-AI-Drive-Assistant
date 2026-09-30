@@ -1,6 +1,7 @@
 import { db } from '../database/db.js';
 import os from 'node:os';
 import { APP } from '../config/env.js';
+import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
 import { getFileTypeCategory } from '../utils/fileTypes.js';
 import { fail, ok } from '../utils/http.js';
 
@@ -17,8 +18,78 @@ const BREAKDOWN_LABELS = {
 
 export const systemController = {
   // Get ARKA system status and storage analytics
-  getStatus: (req, res) => {
+  getStatus: async (req, res) => {
     try {
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+
+        const [
+          { data: allFiles, error: filesErr },
+          { count: folderCount },
+          { count: promptCount },
+          { count: linkCount }
+        ] = await Promise.all([
+          supabase.from('files').select('mime_type, original_name, size, is_inbox, is_trash'),
+          supabase.from('folders').select('*', { count: 'exact', head: true }),
+          supabase.from('prompts').select('*', { count: 'exact', head: true }),
+          supabase.from('links').select('*', { count: 'exact', head: true })
+        ]);
+
+        if (filesErr) return fail(res, filesErr);
+
+        const files = allFiles || [];
+        let totalFiles = 0;
+        let totalBytes = 0;
+        let inboxFiles = 0;
+        let inboxBytes = 0;
+        let trashCount = 0;
+
+        const breakdown = Object.fromEntries(
+          Object.values(BREAKDOWN_LABELS).map(label => [label, { count: 0, bytes: 0 }])
+        );
+
+        for (const file of files) {
+          const size = Number(file.size) || 0;
+          if (file.is_trash) {
+            trashCount += 1;
+            continue;
+          }
+          totalFiles += 1;
+          totalBytes += size;
+          if (file.is_inbox) {
+            inboxFiles += 1;
+            inboxBytes += size;
+          }
+
+          const label = BREAKDOWN_LABELS[getFileTypeCategory(file.mime_type, file.original_name)] || 'Others';
+          breakdown[label].count += 1;
+          breakdown[label].bytes += size;
+        }
+
+        return ok(res, {
+          data: {
+            app: APP.name,
+            version: APP.version,
+            platform: os.platform(),
+            nodeVersion: process.version,
+            uptimeSeconds: Math.floor(process.uptime()),
+            database: 'supabase',
+            stats: {
+              totalFiles,
+              totalBytes,
+              inboxFiles,
+              inboxBytes,
+              folders: folderCount || 0,
+              prompts: promptCount || 0,
+              links: linkCount || 0,
+              trash: trashCount
+            },
+            breakdown
+          }
+        });
+      }
+
+      // SQLite Fallback
       const totalsRow = db.prepare('SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as totalBytes FROM files WHERE is_trash = 0').get();
       const inboxRow = db.prepare('SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as inboxBytes FROM files WHERE is_inbox = 1 AND is_trash = 0').get();
       const trashRow = db.prepare('SELECT COUNT(*) as count FROM files WHERE is_trash = 1').get();
@@ -26,7 +97,6 @@ export const systemController = {
       const promptCountRow = db.prepare('SELECT COUNT(*) as count FROM prompts').get();
       const linkCountRow = db.prepare('SELECT COUNT(*) as count FROM links').get();
 
-      // Category breakdown (single source of truth: utils/fileTypes)
       const breakdown = Object.fromEntries(
         Object.values(BREAKDOWN_LABELS).map(label => [label, { count: 0, bytes: 0 }])
       );
@@ -45,6 +115,7 @@ export const systemController = {
           platform: os.platform(),
           nodeVersion: process.version,
           uptimeSeconds: Math.floor(process.uptime()),
+          database: 'sqlite',
           stats: {
             totalFiles: totalsRow.count,
             totalBytes: totalsRow.totalBytes,

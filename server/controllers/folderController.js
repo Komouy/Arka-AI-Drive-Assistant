@@ -2,6 +2,7 @@ import { db } from '../database/db.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import { STORAGE_DIR, INBOX_DIR } from '../config/env.js';
+import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
 import { resolveTargetFolder, getFolderSubtreeIds, getFolderPath, splitFolderPath } from '../utils/folders.js';
 import { fail, badRequest, notFound, ok } from '../utils/http.js';
 
@@ -14,8 +15,48 @@ function getFolderRow(id) {
 
 export const folderController = {
   // Get all folders (flat with parent references + child counts)
-  getAll: (req, res) => {
+  getAll: async (req, res) => {
     try {
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const { data: folders, error: fErr } = await supabase.from('folders').select('*').order('name', { ascending: true });
+        if (fErr) return fail(res, fErr);
+
+        const { data: files } = await supabase.from('files').select('folder_id').eq('is_trash', false);
+        const fileCountMap = {};
+        for (const f of (files || [])) {
+          if (f.folder_id) fileCountMap[f.folder_id] = (fileCountMap[f.folder_id] || 0) + 1;
+        }
+
+        const folderMap = new Map((folders || []).map(f => [f.id, f]));
+        const subCountMap = {};
+        for (const f of (folders || [])) {
+          if (f.parent_id) subCountMap[f.parent_id] = (subCountMap[f.parent_id] || 0) + 1;
+        }
+
+        function buildPath(folderId) {
+          const parts = [];
+          let curr = folderMap.get(folderId);
+          const seen = new Set();
+          while (curr && !seen.has(curr.id)) {
+            seen.add(curr.id);
+            parts.unshift(curr.name);
+            curr = curr.parent_id ? folderMap.get(curr.parent_id) : null;
+          }
+          return parts.join('/');
+        }
+
+        const data = (folders || []).map(folder => ({
+          ...folder,
+          file_count: fileCountMap[folder.id] || 0,
+          subfolder_count: subCountMap[folder.id] || 0,
+          path: buildPath(folder.id)
+        }));
+
+        return ok(res, { count: data.length, data });
+      }
+
+      // SQLite Fallback
       const folders = db.prepare(`
         SELECT f.*, 
           (SELECT COUNT(*) FROM files WHERE folder_id = f.id AND is_trash = 0) as file_count,
@@ -32,12 +73,77 @@ export const folderController = {
   },
 
   // Create folder (supports parent_id or nested path like "Instagram/Mobile App")
-  create: (req, res) => {
+  create: async (req, res) => {
     try {
       const { name, parent_id = null, color = DEFAULT_COLOR, icon = DEFAULT_ICON, path_str } = req.body;
 
-      // Nested path → reuse the same resolver as upload/triage (case-insensitive,
-      // auto-creates missing segments)
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+
+        // Handle nested path segments if path_str is provided
+        if (path_str && typeof path_str === 'string') {
+          const segments = splitFolderPath(path_str);
+          if (segments.length === 0) return badRequest(res, 'Invalid folder path provided');
+
+          let currentParentId = parent_id || null;
+          let lastFolder = null;
+
+          for (const segment of segments) {
+            let query = supabase.from('folders').select('*').ilike('name', segment);
+            if (currentParentId) {
+              query = query.eq('parent_id', currentParentId);
+            } else {
+              query = query.is('parent_id', null);
+            }
+            const { data: existing } = await query.maybeSingle();
+
+            if (existing) {
+              currentParentId = existing.id;
+              lastFolder = existing;
+            } else {
+              const { data: inserted, error: insErr } = await supabase.from('folders').insert({
+                name: segment,
+                parent_id: currentParentId,
+                color,
+                icon
+              }).select().single();
+              if (insErr) return fail(res, insErr);
+              currentParentId = inserted.id;
+              lastFolder = inserted;
+            }
+          }
+
+          return ok(res, { data: lastFolder }, 201);
+        }
+
+        const folderName = String(name || '').trim();
+        if (!folderName) return badRequest(res, 'Folder name is required');
+
+        // Check for duplicates with same name and same parent
+        let dupQuery = supabase.from('folders').select('*').ilike('name', folderName);
+        if (parent_id) {
+          dupQuery = dupQuery.eq('parent_id', parent_id);
+        } else {
+          dupQuery = dupQuery.is('parent_id', null);
+        }
+        const { data: duplicate } = await dupQuery.maybeSingle();
+
+        if (duplicate) {
+          return ok(res, { data: duplicate, existing: true });
+        }
+
+        const { data: created, error: crErr } = await supabase.from('folders').insert({
+          name: folderName,
+          parent_id: parent_id || null,
+          color,
+          icon
+        }).select().single();
+
+        if (crErr) return fail(res, crErr);
+        return ok(res, { data: created }, 201);
+      }
+
+      // SQLite Fallback
       if (path_str && typeof path_str === 'string') {
         if (splitFolderPath(path_str).length === 0) {
           return badRequest(res, 'Invalid folder path provided');
@@ -62,7 +168,6 @@ export const folderController = {
         if (!getFolderRow(parentId)) return badRequest(res, `Parent folder ID ${parent_id} does not exist`);
       }
 
-      // Reuse an existing folder with the same name instead of creating a duplicate
       const duplicate = parentId === null
         ? db.prepare('SELECT id FROM folders WHERE LOWER(name) = LOWER(?) AND parent_id IS NULL').get(folderName)
         : db.prepare('SELECT id FROM folders WHERE LOWER(name) = LOWER(?) AND parent_id = ?').get(folderName, parentId);
@@ -81,11 +186,36 @@ export const folderController = {
   },
 
   // Update folder (rename, move parent, change color)
-  update: (req, res) => {
+  update: async (req, res) => {
     try {
       const { id } = req.params;
       const { name, parent_id, color, icon } = req.body;
 
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const { data: folder, error: fetchErr } = await supabase.from('folders').select('*').eq('id', id).maybeSingle();
+        if (fetchErr) return fail(res, fetchErr);
+        if (!folder) return notFound(res, 'Folder not found');
+
+        const updates = { updated_at: new Date().toISOString() };
+        if (name !== undefined) {
+          const newName = String(name).trim();
+          if (!newName) return badRequest(res, 'Folder name cannot be empty');
+          updates.name = newName;
+        }
+        if (color !== undefined) updates.color = color;
+        if (icon !== undefined) updates.icon = icon;
+        if (parent_id !== undefined) {
+          if (parent_id === id) return badRequest(res, 'A folder cannot be its own parent');
+          updates.parent_id = parent_id || null;
+        }
+
+        const { data: updated, error: updErr } = await supabase.from('folders').update(updates).eq('id', id).select().maybeSingle();
+        if (updErr) return fail(res, updErr);
+        return ok(res, { data: updated });
+      }
+
+      // SQLite Fallback
       const folder = getFolderRow(id);
       if (!folder) return notFound(res, 'Folder not found');
       const folderId = Number(id);
@@ -107,7 +237,6 @@ export const folderController = {
           if (!getFolderRow(newParentId)) {
             return badRequest(res, `Parent folder ID ${newParentId} does not exist`);
           }
-          // Prevent cycles: the new parent must not live inside this folder
           if (getFolderSubtreeIds(folderId).includes(newParentId)) {
             return badRequest(res, 'Cannot move a folder into one of its own subfolders');
           }
@@ -127,10 +256,28 @@ export const folderController = {
     }
   },
 
-  // Delete folder safely (files are preserved in the Inbox)
-  delete: (req, res) => {
+  // Delete folder safely
+  delete: async (req, res) => {
     try {
       const { id } = req.params;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const { data: folder, error: fetchErr } = await supabase.from('folders').select('*').eq('id', id).maybeSingle();
+        if (fetchErr) return fail(res, fetchErr);
+        if (!folder) return notFound(res, 'Folder not found');
+
+        // Move files in this folder to inbox
+        await supabase.from('files').update({ folder_id: null, is_inbox: true, updated_at: new Date().toISOString() }).eq('folder_id', id);
+
+        // Delete the folder
+        const { error: delErr } = await supabase.from('folders').delete().eq('id', id);
+        if (delErr) return fail(res, delErr);
+
+        return ok(res, { message: `Folder "${folder.name}" deleted. Files moved to Inbox.` });
+      }
+
+      // SQLite Fallback
       const folder = getFolderRow(id);
       if (!folder) return notFound(res, 'Folder not found');
 
@@ -140,7 +287,6 @@ export const folderController = {
 
       const files = db.prepare(`SELECT * FROM files WHERE folder_id IN (${placeholders})`).all(...allFolderIds);
 
-      // Move the physical files into the inbox staging folder
       for (const file of files) {
         try {
           const oldPhysical = path.resolve(STORAGE_DIR, file.path);
@@ -154,10 +300,8 @@ export const folderController = {
         }
       }
 
-      // Reassign files to the Inbox and drop the folder tree in one transaction.
-      // node:sqlite has no .transaction() helper, so the BEGIN/COMMIT pair is explicit.
       const updateFile = db.prepare(`
-        UPDATE files
+        UPDATE files 
         SET folder_id = NULL, is_inbox = 1, path = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `);

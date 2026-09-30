@@ -1,4 +1,5 @@
 import { db } from '../database/db.js';
+import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
 import { likePattern, ESCAPE_LIKE } from '../utils/search.js';
 import { fail, badRequest, notFound, ok } from '../utils/http.js';
 
@@ -40,9 +41,44 @@ async function fetchPageTitle(rawUrl, timeoutMs = 2500) {
 
 export const linkController = {
   // List all links with filters
-  getAll: (req, res) => {
+  getAll: async (req, res) => {
     try {
       const { category, search, favorites } = req.query;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        let query = supabase.from('links').select('*');
+
+        if (category) {
+          query = query.eq('category', category);
+        }
+        if (favorites === 'true') {
+          query = query.eq('is_favorite', true);
+        }
+        if (search) {
+          const s = String(search).trim();
+          query = query.or(`url.ilike.%${s}%,title.ilike.%${s}%,description.ilike.%${s}%,domain.ilike.%${s}%`);
+        }
+
+        query = query.order('created_at', { ascending: false });
+        const { data: links, error } = await query;
+        if (error) return fail(res, error);
+
+        // Categories summary
+        const { data: allLinks } = await supabase.from('links').select('category');
+        const catMap = {};
+        for (const l of (allLinks || [])) {
+          const c = l.category || 'General';
+          catMap[c] = (catMap[c] || 0) + 1;
+        }
+        const categories = Object.entries(catMap)
+          .map(([cat, count]) => ({ category: cat, count }))
+          .sort((a, b) => a.category.localeCompare(b.category));
+
+        return ok(res, { count: (links || []).length, data: links || [], categories });
+      }
+
+      // SQLite Fallback
       let query = 'SELECT * FROM links WHERE 1=1';
       const params = [];
 
@@ -62,7 +98,6 @@ export const linkController = {
       query += ' ORDER BY created_at DESC';
       const links = db.prepare(query).all(...params);
 
-      // Categories summary
       const categories = db.prepare(`
         SELECT category, COUNT(*) as count 
         FROM links 
@@ -77,9 +112,18 @@ export const linkController = {
   },
 
   // Get link by ID
-  getById: (req, res) => {
+  getById: async (req, res) => {
     try {
       const { id } = req.params;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const { data: link, error } = await supabase.from('links').select('*').eq('id', id).maybeSingle();
+        if (error) return fail(res, error);
+        if (!link) return notFound(res, 'Link not found');
+        return ok(res, { data: link });
+      }
+
       const link = db.prepare('SELECT * FROM links WHERE id = ?').get(Number(id));
       if (!link) return notFound(res, 'Link not found');
       return ok(res, { data: link });
@@ -110,6 +154,23 @@ export const linkController = {
         cleanTitle = fetchedTitle || domain || cleanUrl;
       }
 
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const tagsVal = Array.isArray(tags) ? tags : String(tags || '').split(',').map(t => t.trim()).filter(Boolean);
+
+        const { data: created, error } = await supabase.from('links').insert({
+          url: cleanUrl,
+          title: cleanTitle,
+          description: String(description || '').trim(),
+          category: String(category || 'General').trim(),
+          tags: tagsVal,
+          domain
+        }).select().single();
+
+        if (error) return fail(res, error);
+        return ok(res, { data: created, message: 'Link successfully saved & categorized' }, 201);
+      }
+
       const info = db.prepare(`
         INSERT INTO links (url, title, description, category, tags, domain)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -130,10 +191,34 @@ export const linkController = {
   },
 
   // Update link
-  update: (req, res) => {
+  update: async (req, res) => {
     try {
       const { id } = req.params;
       const { url, title, description, category, tags, is_favorite } = req.body;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const updates = { updated_at: new Date().toISOString() };
+
+        if (url !== undefined) {
+          let newUrl = String(url).trim();
+          if (!/^https?:\/\//i.test(newUrl)) newUrl = 'https://' + newUrl;
+          updates.url = newUrl;
+          updates.domain = extractDomain(newUrl);
+        }
+        if (title !== undefined) updates.title = String(title).trim();
+        if (description !== undefined) updates.description = String(description).trim();
+        if (category !== undefined) updates.category = String(category).trim();
+        if (tags !== undefined) {
+          updates.tags = Array.isArray(tags) ? tags : String(tags || '').split(',').map(t => t.trim()).filter(Boolean);
+        }
+        if (is_favorite !== undefined) updates.is_favorite = Boolean(is_favorite);
+
+        const { data: updated, error } = await supabase.from('links').update(updates).eq('id', id).select().maybeSingle();
+        if (error) return fail(res, error);
+        if (!updated) return notFound(res, 'Link not found');
+        return ok(res, { data: updated });
+      }
 
       const link = db.prepare('SELECT * FROM links WHERE id = ?').get(Number(id));
       if (!link) return notFound(res, 'Link not found');
@@ -163,9 +248,18 @@ export const linkController = {
   },
 
   // Delete link
-  delete: (req, res) => {
+  delete: async (req, res) => {
     try {
       const { id } = req.params;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const { error, count } = await supabase.from('links').delete({ count: 'exact' }).eq('id', id);
+        if (error) return fail(res, error);
+        if (count === 0) return notFound(res, 'Link not found');
+        return ok(res, { message: 'Link deleted successfully' });
+      }
+
       const info = db.prepare('DELETE FROM links WHERE id = ?').run(Number(id));
       if (info.changes === 0) return notFound(res, 'Link not found');
       return ok(res, { message: 'Link deleted successfully' });

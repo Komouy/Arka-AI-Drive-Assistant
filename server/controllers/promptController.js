@@ -1,12 +1,48 @@
 import { db } from '../database/db.js';
+import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
 import { likePattern, ESCAPE_LIKE } from '../utils/search.js';
 import { fail, badRequest, notFound, ok } from '../utils/http.js';
 
 export const promptController = {
   // List all prompts with optional filter
-  getAll: (req, res) => {
+  getAll: async (req, res) => {
     try {
       const { category, search, favorites } = req.query;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        let query = supabase.from('prompts').select('*');
+
+        if (category) {
+          query = query.eq('category', category);
+        }
+        if (favorites === 'true') {
+          query = query.eq('is_favorite', true);
+        }
+        if (search) {
+          const s = String(search).trim();
+          query = query.or(`title.ilike.%${s}%,content.ilike.%${s}%`);
+        }
+
+        query = query.order('created_at', { ascending: false });
+        const { data: prompts, error } = await query;
+        if (error) return fail(res, error);
+
+        // Get categories summary
+        const { data: allPrompts } = await supabase.from('prompts').select('category');
+        const catMap = {};
+        for (const p of (allPrompts || [])) {
+          const c = p.category || 'General';
+          catMap[c] = (catMap[c] || 0) + 1;
+        }
+        const categories = Object.entries(catMap)
+          .map(([cat, count]) => ({ category: cat, count }))
+          .sort((a, b) => a.category.localeCompare(b.category));
+
+        return ok(res, { count: (prompts || []).length, data: prompts || [], categories });
+      }
+
+      // SQLite Fallback
       let query = 'SELECT * FROM prompts WHERE 1=1';
       const params = [];
 
@@ -26,7 +62,6 @@ export const promptController = {
       query += ' ORDER BY created_at DESC';
       const prompts = db.prepare(query).all(...params);
 
-      // Get categories summary
       const categories = db.prepare(`
         SELECT category, COUNT(*) as count 
         FROM prompts 
@@ -41,7 +76,7 @@ export const promptController = {
   },
 
   // Create prompt
-  create: (req, res) => {
+  create: async (req, res) => {
     try {
       const { title, content, category = 'General', tags = '' } = req.body;
 
@@ -49,6 +84,21 @@ export const promptController = {
       const cleanContent = String(content || '').trim();
       if (!cleanTitle) return badRequest(res, 'Title is required');
       if (!cleanContent) return badRequest(res, 'Content is required');
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const tagsVal = Array.isArray(tags) ? tags : String(tags || '').split(',').map(t => t.trim()).filter(Boolean);
+
+        const { data: prompt, error } = await supabase.from('prompts').insert({
+          title: cleanTitle,
+          content: cleanContent,
+          category: String(category || 'General').trim(),
+          tags: tagsVal
+        }).select().single();
+
+        if (error) return fail(res, error);
+        return ok(res, { data: prompt }, 201);
+      }
 
       const info = db.prepare('INSERT INTO prompts (title, content, category, tags) VALUES (?, ?, ?, ?)')
         .run(cleanTitle, cleanContent, String(category || 'General').trim(), String(tags || '').trim());
@@ -61,10 +111,36 @@ export const promptController = {
   },
 
   // Update prompt
-  update: (req, res) => {
+  update: async (req, res) => {
     try {
       const { id } = req.params;
       const { title, content, category, tags, is_favorite } = req.body;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const updates = { updated_at: new Date().toISOString() };
+
+        if (title !== undefined) {
+          const cleanTitle = String(title).trim();
+          if (!cleanTitle) return badRequest(res, 'Title cannot be empty');
+          updates.title = cleanTitle;
+        }
+        if (content !== undefined) {
+          const cleanContent = String(content).trim();
+          if (!cleanContent) return badRequest(res, 'Content cannot be empty');
+          updates.content = cleanContent;
+        }
+        if (category !== undefined) updates.category = String(category).trim();
+        if (tags !== undefined) {
+          updates.tags = Array.isArray(tags) ? tags : String(tags || '').split(',').map(t => t.trim()).filter(Boolean);
+        }
+        if (is_favorite !== undefined) updates.is_favorite = Boolean(is_favorite);
+
+        const { data: updated, error } = await supabase.from('prompts').update(updates).eq('id', id).select().maybeSingle();
+        if (error) return fail(res, error);
+        if (!updated) return notFound(res, 'Prompt not found');
+        return ok(res, { data: updated });
+      }
 
       const prompt = db.prepare('SELECT * FROM prompts WHERE id = ?').get(Number(id));
       if (!prompt) return notFound(res, 'Prompt not found');
@@ -92,12 +168,19 @@ export const promptController = {
   },
 
   // Delete prompt
-  delete: (req, res) => {
+  delete: async (req, res) => {
     try {
       const { id } = req.params;
-      const info = db.prepare('DELETE FROM prompts WHERE id = ?').run(Number(id));
 
-      // Never report success for a prompt that does not exist
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const { error, count } = await supabase.from('prompts').delete({ count: 'exact' }).eq('id', id);
+        if (error) return fail(res, error);
+        if (count === 0) return notFound(res, `Prompt ID ${id} not found`);
+        return ok(res, { message: 'Prompt deleted', id });
+      }
+
+      const info = db.prepare('DELETE FROM prompts WHERE id = ?').run(Number(id));
       if (!info.changes) return notFound(res, `Prompt ID ${id} not found`);
 
       return ok(res, { message: 'Prompt deleted', id: Number(id) });

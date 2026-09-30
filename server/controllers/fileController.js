@@ -2,6 +2,7 @@ import { db } from '../database/db.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import { UPLOADS_DIR, INBOX_DIR, STORAGE_DIR } from '../config/env.js';
+import { isSupabaseConfigured, getSupabaseClient, BUCKET_NAME } from '../config/supabase.js';
 import { getFileTypeCategory, resolveMimeType } from '../utils/fileTypes.js';
 import { resolveTargetFolder } from '../utils/folders.js';
 import { likePattern, ESCAPE_LIKE } from '../utils/search.js';
@@ -16,11 +17,8 @@ function normalizeLimit(value, fallback = 200, max = 1000) {
 
 /**
  * Run AI analysis for an uploaded file and persist the result.
- *
- * A failed analysis is **never** stored as if it succeeded (the old behaviour
- * wrote placeholder metadata with `ai_analyzed = 1`, hiding provider outages).
  */
-async function triggerAIAnalysis(fileId, filePath, mimeType, filename) {
+async function triggerAIAnalysis(fileId, filePath, mimeType, filename, fileBuffer = null) {
   try {
     const { analyzeFile } = await import('../ai/analyzer.js');
     const metadata = await analyzeFile(filePath, mimeType, filename);
@@ -30,7 +28,11 @@ async function triggerAIAnalysis(fileId, filePath, mimeType, filename) {
       return metadata;
     }
 
-    saveMetadata(fileId, metadata);
+    if (isSupabaseConfigured()) {
+      await saveMetadataSupabase(fileId, metadata);
+    } else {
+      saveMetadata(fileId, metadata);
+    }
     console.log(`[ARKA AI] 💾 Metadata saved for file ID ${fileId} (provider: ${metadata.provider})`);
     return metadata;
   } catch (err) {
@@ -39,7 +41,36 @@ async function triggerAIAnalysis(fileId, filePath, mimeType, filename) {
   }
 }
 
-/** Upsert AI metadata for a file. */
+/** Upsert AI metadata in Supabase. */
+export async function saveMetadataSupabase(fileId, metadata) {
+  const supabase = getSupabaseClient();
+  const tags = Array.isArray(metadata.tags)
+    ? metadata.tags
+    : String(metadata.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+  const topic = metadata.topic || metadata.category || '';
+
+  const { data: existing } = await supabase.from('file_metadata').select('id').eq('file_id', fileId).maybeSingle();
+  if (existing) {
+    await supabase.from('file_metadata').update({
+      description: metadata.description || '',
+      category: topic,
+      project: metadata.project || '',
+      tags,
+      ai_analyzed: true
+    }).eq('file_id', fileId);
+  } else {
+    await supabase.from('file_metadata').insert({
+      file_id: fileId,
+      description: metadata.description || '',
+      category: topic,
+      project: metadata.project || '',
+      tags,
+      ai_analyzed: true
+    });
+  }
+}
+
+/** Upsert AI metadata in SQLite. */
 export function saveMetadata(fileId, metadata) {
   const tags = Array.isArray(metadata.tags) ? metadata.tags.join(',') : String(metadata.tags || '');
   const topic = metadata.topic || metadata.category || '';
@@ -59,28 +90,27 @@ export function saveMetadata(fileId, metadata) {
   }
 }
 
-// Path helpers shared by every controller action
-const storageRoot = STORAGE_DIR;
-
 export { getFileTypeCategory };
 
 export function formatFileRecord(file) {
-  const relPath = String(file?.path || '').replace(/\\/g, '/');
+  const relPath = String(file?.path || file?.storage_path || '').replace(/\\/g, '/');
   return {
     ...file,
     typeCategory: getFileTypeCategory(file?.mime_type, file?.original_name),
-    publicUrl: `/storage/${relPath}`
+    publicUrl: file?.public_url || `/storage/${relPath}`
   };
 }
 
 /** Resolve the physical path of a stored file, guarding against path traversal. */
 function physicalPathOf(file) {
-  const resolved = path.resolve(storageRoot, file.path);
+  const storageRoot = STORAGE_DIR;
+  const p = file.path || file.storage_path;
+  const resolved = path.resolve(storageRoot, p);
   if (!resolved.startsWith(storageRoot)) throw new Error('Invalid file path');
   return resolved;
 }
 
-/** Delete the physical file of a record (missing files are not an error). */
+/** Delete the physical file of a record. */
 function removePhysicalFile(file) {
   try {
     const physicalPath = physicalPathOf(file);
@@ -96,10 +126,66 @@ function removePhysicalFile(file) {
 
 export const fileController = {
   // Get files with filters
-  getAll: (req, res) => {
+  getAll: async (req, res) => {
     try {
       const { folder_id, inbox, favorites, trash, search, type, limit = 200 } = req.query;
 
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        let query = supabase
+          .from('files')
+          .select('*, folders(name), file_metadata(description, category, project, tags, ai_analyzed)');
+
+        if (trash === 'true') {
+          query = query.eq('is_trash', true);
+        } else {
+          query = query.eq('is_trash', false);
+
+          if (inbox === 'true') {
+            query = query.eq('is_inbox', true);
+          } else if (favorites === 'true') {
+            query = query.eq('is_favorite', true);
+          } else if (folder_id !== undefined && !search) {
+            if (folder_id === 'null' || folder_id === '') {
+              query = query.is('folder_id', null).eq('is_inbox', false);
+            } else {
+              query = query.eq('folder_id', folder_id);
+            }
+          }
+        }
+
+        if (search) {
+          const s = String(search).trim();
+          query = query.ilike('original_name', `%${s}%`);
+        }
+
+        query = query.order('created_at', { ascending: false }).limit(normalizeLimit(limit));
+        const { data: files, error } = await query;
+        if (error) return fail(res, error);
+
+        let enriched = (files || []).map(f => {
+          const meta = Array.isArray(f.file_metadata) ? f.file_metadata[0] : f.file_metadata;
+          return {
+            ...f,
+            folder_name: f.folders?.name || null,
+            description: meta?.description || null,
+            category: meta?.category || null,
+            project: meta?.project || null,
+            tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
+            ai_analyzed: meta?.ai_analyzed ? 1 : 0,
+            typeCategory: getFileTypeCategory(f.mime_type, f.original_name),
+            publicUrl: f.public_url || `/storage/${f.storage_path}`
+          };
+        });
+
+        if (type && type !== 'All') {
+          enriched = enriched.filter(f => f.typeCategory.toLowerCase() === String(type).toLowerCase());
+        }
+
+        return ok(res, { count: enriched.length, data: enriched });
+      }
+
+      // SQLite Fallback
       let query = `
         SELECT f.*, 
                fl.name as folder_name,
@@ -153,9 +239,44 @@ export const fileController = {
   },
 
   // Get file by ID or lookup by filename
-  getById: (req, res) => {
+  getById: async (req, res) => {
     try {
       const { id } = req.params;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        let query = supabase
+          .from('files')
+          .select('*, folders(name), file_metadata(description, category, project, tags, ai_analyzed)');
+
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id).trim());
+        if (isUuid) {
+          query = query.eq('id', id);
+        } else {
+          query = query.or(`original_name.eq.${id},stored_name.eq.${id}`).order('created_at', { ascending: false }).limit(1);
+        }
+
+        const { data: result, error } = await query.maybeSingle();
+        if (error) return fail(res, error);
+        if (!result) return notFound(res, `File "${id}" not found`);
+
+        const meta = Array.isArray(result.file_metadata) ? result.file_metadata[0] : result.file_metadata;
+        const fileObj = {
+          ...result,
+          folder_name: result.folders?.name || null,
+          description: meta?.description || null,
+          category: meta?.category || null,
+          project: meta?.project || null,
+          tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
+          ai_analyzed: meta?.ai_analyzed ? 1 : 0,
+          typeCategory: getFileTypeCategory(result.mime_type, result.original_name),
+          publicUrl: result.public_url || `/storage/${result.storage_path}`
+        };
+
+        return ok(res, { data: fileObj });
+      }
+
+      // SQLite Fallback
       const baseSelect = `
         SELECT f.*, fl.name as folder_name,
                m.description, m.category, m.project, m.tags, m.ai_analyzed
@@ -177,7 +298,7 @@ export const fileController = {
   },
 
   // Upload files with intelligent target resolution
-  upload: (req, res) => {
+  upload: async (req, res) => {
     try {
       const uploadedFiles = req.files || (req.file ? [req.file] : []);
       if (!Array.isArray(uploadedFiles) || uploadedFiles.length === 0) {
@@ -189,9 +310,99 @@ export const fileController = {
       const inbox = req.body.inbox || req.query.inbox;
       const toInbox = inbox === 'true' || inbox === true;
 
-      // Explicit inbox uploads stay in the staging area, everything else must
-      // resolve to a real folder — an unknown --project is an error, not a silent
-      // fallback into the inbox.
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        let targetFolderId = null;
+
+        if (!toInbox) {
+          if (folderIdInput) {
+            targetFolderId = folderIdInput;
+          } else if (project) {
+            const { data: foundFolder } = await supabase.from('folders').select('id').ilike('name', project).maybeSingle();
+            if (foundFolder) {
+              targetFolderId = foundFolder.id;
+            } else {
+              const { data: newF } = await supabase.from('folders').insert({ name: project }).select().single();
+              if (newF) targetFolderId = newF.id;
+            }
+          }
+        }
+
+        const savedRecords = [];
+
+        for (const f of uploadedFiles) {
+          const fileBuffer = f.buffer || (f.path && fs.existsSync(f.path) ? fs.readFileSync(f.path) : null);
+          const ext = path.extname(f.originalname);
+          const cleanName = path.basename(f.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
+          const storedName = `${cleanName}-${Date.now()}-${Math.round(Math.random() * 1e5)}${ext}`;
+          const storagePath = `${toInbox ? 'inbox' : 'uploads'}/${storedName}`;
+
+          // Upload to Supabase Storage Bucket
+          if (fileBuffer) {
+            const { error: upErr } = await supabase.storage
+              .from(BUCKET_NAME)
+              .upload(storagePath, fileBuffer, {
+                contentType: f.mimetype || 'application/octet-stream',
+                upsert: true
+              });
+
+            if (upErr) {
+              console.error('[Supabase Storage Upload Error]', upErr);
+            }
+          }
+
+          // Get public URL
+          const { data: pubData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
+          const publicUrl = pubData?.publicUrl || null;
+
+          // Insert row into Supabase 'files' table
+          const { data: inserted, error: insErr } = await supabase.from('files').insert({
+            folder_id: targetFolderId,
+            original_name: f.originalname,
+            stored_name: storedName,
+            mime_type: resolveMimeType(f.mimetype, f.originalname),
+            size: f.size,
+            storage_path: storagePath,
+            public_url: publicUrl,
+            is_inbox: toInbox,
+            is_favorite: false,
+            is_trash: false
+          }).select('*, folders(name)').single();
+
+          if (insErr) {
+            console.error('[Supabase File Insert Error]', insErr);
+            continue;
+          }
+
+          const record = {
+            ...inserted,
+            folder_name: inserted.folders?.name || null,
+            publicUrl: inserted.public_url || publicUrl,
+            typeCategory: getFileTypeCategory(inserted.mime_type, inserted.original_name)
+          };
+          savedRecords.push({ ...record, physicalPath: f.path || null });
+        }
+
+        res.status(201).json({
+          success: true,
+          message: `Successfully uploaded ${savedRecords.length} file(s) to cloud`,
+          data: savedRecords.map(({ physicalPath, ...rest }) => rest)
+        });
+
+        // Trigger AI analysis asynchronously
+        for (const record of savedRecords) {
+          const { id, physicalPath, mime_type, original_name } = record;
+          if (physicalPath && fs.existsSync(physicalPath)) {
+            setImmediate(() => {
+              triggerAIAnalysis(id, physicalPath, mime_type, original_name)
+                .catch(err => console.warn(`[ARKA AI] Analysis error for ID ${id}: ${err.message}`));
+            });
+          }
+        }
+        return;
+      }
+
+      // SQLite Fallback
       let targetFolderId = toInbox ? null : resolveTargetFolder(folderIdInput, project);
       if (!toInbox && project && !targetFolderId) {
         return badRequest(res, `Destination folder "${project}" could not be resolved`);
@@ -236,7 +447,6 @@ export const fileController = {
         data: savedRecords.map(({ physicalPath, ...rest }) => rest)
       });
 
-      // ── Async AI analysis (non-blocking, runs after the response is sent) ───
       for (const record of savedRecords) {
         const { id, physicalPath, mime_type, original_name } = record;
         setImmediate(() => {
@@ -254,6 +464,68 @@ export const fileController = {
   analyze: async (req, res) => {
     try {
       const { id } = req.params;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const { data: file, error: fErr } = await supabase.from('files').select('*').eq('id', id).maybeSingle();
+        if (fErr) return fail(res, fErr);
+        if (!file) return notFound(res, 'File not found');
+
+        let tempPath = null;
+        try {
+          // Download file content from Supabase storage for local analysis
+          const { data: blob, error: dlErr } = await supabase.storage.from(BUCKET_NAME).download(file.storage_path);
+          if (dlErr || !blob) {
+            return res.status(502).json({ success: false, error: 'Could not fetch file from storage for analysis' });
+          }
+
+          const arrayBuffer = await blob.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const tmpDir = path.join(STORAGE_DIR, 'tmp');
+          if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+          tempPath = path.join(tmpDir, file.stored_name);
+          fs.writeFileSync(tempPath, buffer);
+
+          const { analyzeFile } = await import('../ai/analyzer.js');
+          const metadata = await analyzeFile(tempPath, file.mime_type, file.original_name);
+
+          if (!metadata.ok) {
+            return res.status(502).json({
+              success: false,
+              error: metadata.error || 'AI analysis failed',
+              metadata
+            });
+          }
+
+          await saveMetadataSupabase(id, metadata);
+
+          const { data: updated } = await supabase
+            .from('files')
+            .select('*, folders(name), file_metadata(description, category, project, tags, ai_analyzed)')
+            .eq('id', id)
+            .single();
+
+          const meta = Array.isArray(updated.file_metadata) ? updated.file_metadata[0] : updated.file_metadata;
+          const enriched = {
+            ...updated,
+            folder_name: updated.folders?.name || null,
+            description: meta?.description || null,
+            category: meta?.category || null,
+            project: meta?.project || null,
+            tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
+            ai_analyzed: meta?.ai_analyzed ? 1 : 0,
+            publicUrl: updated.public_url || `/storage/${updated.storage_path}`
+          };
+
+          return ok(res, { metadata, data: enriched });
+        } finally {
+          if (tempPath && fs.existsSync(tempPath)) {
+            try { fs.unlinkSync(tempPath); } catch {}
+          }
+        }
+      }
+
+      // SQLite Fallback
       const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(id));
       if (!file) return notFound(res, 'File not found');
 
@@ -263,7 +535,6 @@ export const fileController = {
       const { analyzeFile } = await import('../ai/analyzer.js');
       const metadata = await analyzeFile(physPath, file.mime_type, file.original_name);
 
-      // Never pretend the file was analysed when every provider failed
       if (!metadata.ok) {
         return res.status(502).json({
           success: false,
@@ -289,19 +560,45 @@ export const fileController = {
   },
 
   // Update file (rename, move, favorite, trash/restore)
-  update: (req, res) => {
+  update: async (req, res) => {
     try {
       const { id } = req.params;
       const { original_name, folder_id, is_favorite, is_inbox, is_trash } = req.body;
 
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const updates = { updated_at: new Date().toISOString() };
+
+        if (original_name !== undefined) {
+          const newName = String(original_name).trim();
+          if (!newName) return badRequest(res, 'File name cannot be empty');
+          updates.original_name = newName;
+        }
+        if (folder_id !== undefined) updates.folder_id = folder_id || null;
+        if (is_favorite !== undefined) updates.is_favorite = Boolean(is_favorite);
+        if (is_inbox !== undefined) updates.is_inbox = Boolean(is_inbox);
+        if (is_trash !== undefined) updates.is_trash = Boolean(is_trash);
+
+        const { data: updated, error } = await supabase
+          .from('files')
+          .update(updates)
+          .eq('id', id)
+          .select('*, folders(name)')
+          .maybeSingle();
+
+        if (error) return fail(res, error);
+        if (!updated) return notFound(res, 'File not found');
+
+        return ok(res, { data: formatFileRecord(updated) });
+      }
+
+      // SQLite Fallback
       const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(id));
       if (!file) return notFound(res, 'File not found');
 
       const newName = original_name !== undefined ? String(original_name).trim() : file.original_name;
       if (!newName) return badRequest(res, 'File name cannot be empty');
 
-      // A folder id must point at a folder that really exists, otherwise the file
-      // would silently disappear from every listing.
       let newFolderId = file.folder_id;
       if (folder_id !== undefined) {
         if (!folder_id) {
@@ -317,7 +614,6 @@ export const fileController = {
       const newInbox = is_inbox !== undefined ? (is_inbox ? 1 : 0) : file.is_inbox;
       const newTrash = is_trash !== undefined ? (is_trash ? 1 : 0) : file.is_trash;
 
-      // Keep the physical file inside the matching storage subdirectory
       let newStoredPath = file.path;
       const oldPhysical = physicalPathOf(file);
       const desiredDir = newInbox === 1 ? INBOX_DIR : UPLOADS_DIR;
@@ -343,22 +639,41 @@ export const fileController = {
   },
 
   // Delete file (soft-delete to trash or permanent removal)
-  delete: (req, res) => {
+  delete: async (req, res) => {
     try {
       const { id } = req.params;
       const { permanent } = req.query;
 
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const { data: file, error: fErr } = await supabase.from('files').select('*').eq('id', id).maybeSingle();
+        if (fErr) return fail(res, fErr);
+        if (!file) return notFound(res, 'File not found');
+
+        if (permanent === 'true' || file.is_trash) {
+          // Remove from Supabase Storage
+          if (file.storage_path) {
+            await supabase.storage.from(BUCKET_NAME).remove([file.storage_path]);
+          }
+          await supabase.from('files').delete().eq('id', id);
+          return ok(res, { message: `File "${file.original_name}" permanently deleted.` });
+        }
+
+        // Soft delete
+        await supabase.from('files').update({ is_trash: true, updated_at: new Date().toISOString() }).eq('id', id);
+        return ok(res, { message: `File "${file.original_name}" moved to trash.` });
+      }
+
+      // SQLite Fallback
       const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(id));
       if (!file) return notFound(res, 'File not found');
 
-      // Explicit --permanent, or the file is already in the trash → remove for good
       if (permanent === 'true' || file.is_trash === 1) {
         removePhysicalFile(file);
-        db.prepare('DELETE FROM files WHERE id = ?').run(Number(id)); // metadata cascades
+        db.prepare('DELETE FROM files WHERE id = ?').run(Number(id));
         return ok(res, { message: `File "${file.original_name}" permanently deleted.` });
       }
 
-      // Soft delete: move to trash
       db.prepare('UPDATE files SET is_trash = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(Number(id));
       return ok(res, { message: `File "${file.original_name}" moved to trash.` });
     } catch (err) {
@@ -367,8 +682,26 @@ export const fileController = {
   },
 
   // Empty all trash
-  emptyTrash: (req, res) => {
+  emptyTrash: async (req, res) => {
     try {
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const { data: trashFiles } = await supabase.from('files').select('id, storage_path').eq('is_trash', true);
+
+        const files = trashFiles || [];
+        const paths = files.map(f => f.storage_path).filter(Boolean);
+        if (paths.length > 0) {
+          await supabase.storage.from(BUCKET_NAME).remove(paths);
+        }
+        await supabase.from('files').delete().eq('is_trash', true);
+
+        return ok(res, {
+          message: `Emptied ${files.length} file(s) from cloud trash.`,
+          count: files.length
+        });
+      }
+
+      // SQLite Fallback
       const trashFiles = db.prepare('SELECT * FROM files WHERE is_trash = 1').all();
 
       let removedFromDisk = 0;
@@ -376,7 +709,7 @@ export const fileController = {
         if (removePhysicalFile(file)) removedFromDisk++;
       }
 
-      db.prepare('DELETE FROM files WHERE is_trash = 1').run(); // metadata cascades
+      db.prepare('DELETE FROM files WHERE is_trash = 1').run();
 
       return ok(res, {
         message: `Emptied ${trashFiles.length} file(s) from trash.`,
@@ -389,9 +722,40 @@ export const fileController = {
   },
 
   // Download file
-  download: (req, res) => {
+  download: async (req, res) => {
     try {
       const { id } = req.params;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        let query = supabase.from('files').select('*');
+
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id).trim());
+        if (isUuid) {
+          query = query.eq('id', id);
+        } else {
+          query = query.or(`original_name.eq.${id},stored_name.eq.${id}`).order('created_at', { ascending: false }).limit(1);
+        }
+
+        const { data: file, error } = await query.maybeSingle();
+        if (error || !file) return notFound(res, `File "${id}" not found`);
+
+        if (file.public_url) {
+          return res.redirect(file.public_url);
+        }
+
+        // Fallback: download blob and stream
+        const { data: blob, error: dlErr } = await supabase.storage.from(BUCKET_NAME).download(file.storage_path);
+        if (dlErr || !blob) return notFound(res, 'File content not found in storage');
+
+        const arrayBuffer = await blob.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
+        res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+        return res.send(buffer);
+      }
+
+      // SQLite Fallback
       const numericId = Number(id);
       const file = Number.isInteger(numericId) && String(id).trim() !== ''
         ? db.prepare('SELECT * FROM files WHERE id = ?').get(numericId)
