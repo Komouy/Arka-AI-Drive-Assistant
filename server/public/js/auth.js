@@ -40,12 +40,12 @@ function updateUserUI(user) {
   const hasDrive = Boolean(pt);
 
   badge.innerHTML = `
-    <div class="flex items-center gap-2 px-2.5 py-1 bg-zinc-900 border border-zinc-800 rounded-md text-xs font-mono text-zinc-300">
-      ${avatar ? `<img src="${escapeHtml(avatar)}" alt="Avatar" class="w-4 h-4 rounded-full object-cover" referrerpolicy="no-referrer">` : '<i data-lucide="user" class="w-3.5 h-3.5 text-zinc-400"></i>'}
-      <span class="font-medium max-w-[140px] truncate text-zinc-200">${escapeHtml(name)}</span>
+    <div class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md text-xs font-mono text-zinc-700 dark:text-zinc-300">
+      ${avatar ? `<img src="${escapeHtml(avatar)}" alt="Avatar" class="w-4 h-4 rounded-full object-cover flex-shrink-0" referrerpolicy="no-referrer">` : '<i data-lucide="user" class="w-3.5 h-3.5 text-zinc-400 flex-shrink-0"></i>'}
+      <span class="font-medium max-w-[70px] sm:max-w-[140px] truncate text-zinc-800 dark:text-zinc-200">${escapeHtml(name)}</span>
       ${hasDrive 
-        ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" title="File disimpan di Google Drive pribadi"><i data-lucide="hard-drive" class="w-3 h-3"></i> Drive</span>`
-        : `<button type="button" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-zinc-800 hover:bg-zinc-750 text-zinc-300 border border-zinc-700 transition-colors" onclick="handleGoogleLogin()" title="Hubungkan Google Drive"><i data-lucide="link" class="w-3 h-3 text-amber-400"></i> Hubungkan Drive</button>`
+        ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex-shrink-0" title="File disimpan di Google Drive pribadi"><i data-lucide="hard-drive" class="w-3 h-3"></i><span class="hidden sm:inline"> Drive</span></span>`
+        : `<button type="button" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 transition-colors flex-shrink-0 shadow-sm" onclick="handleGoogleLogin()" title="Hubungkan Google Drive"><i data-lucide="link" class="w-3 h-3 text-amber-500 dark:text-amber-400"></i><span class="hidden sm:inline"> Hubungkan Drive</span><span class="sm:hidden"> Hubungkan</span></button>`
       }
     </div>
   `;

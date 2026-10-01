@@ -25,6 +25,47 @@ let isProcessingAutoQueue = false;
 let currentPreviewIndex = -1;
 let currentPreviewList = [];
 
+// ── Theme Management (Light & Dark Mode) ───────────────────────────────────
+const THEME_KEY = 'arka_theme';
+
+function initTheme() {
+  const savedTheme = localStorage.getItem(THEME_KEY);
+  if (savedTheme === 'light') {
+    document.documentElement.classList.remove('dark');
+  } else if (savedTheme === 'dark') {
+    document.documentElement.classList.add('dark');
+  } else {
+    // Brand signature default: dark mode
+    document.documentElement.classList.add('dark');
+  }
+  updateThemeIcon();
+}
+
+function toggleTheme() {
+  const isDark = document.documentElement.classList.toggle('dark');
+  const newTheme = isDark ? 'dark' : 'light';
+  try {
+    localStorage.setItem(THEME_KEY, newTheme);
+  } catch {}
+  updateThemeIcon();
+  if (typeof render === 'function') render();
+  showToast('info', `Mode tema: ${isDark ? 'Gelap (Dark)' : 'Terang (Light)'}`);
+}
+
+function updateThemeIcon() {
+  const isDark = document.documentElement.classList.contains('dark');
+  const btns = [document.getElementById('btnThemeToggle'), document.getElementById('loginThemeToggle')];
+  btns.forEach(btn => {
+    if (btn) {
+      btn.innerHTML = isDark
+        ? '<i data-lucide="sun" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400"></i>'
+        : '<i data-lucide="moon" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-600"></i>';
+      btn.title = isDark ? 'Beralih ke Mode Terang (Light)' : 'Beralih ke Mode Gelap (Dark)';
+    }
+  });
+  refreshIcons();
+}
+
 // ── Refresh Lucide Icons Helper ──────────────────────────────────────────────
 function refreshIcons() {
   if (typeof lucide !== 'undefined' && lucide.createIcons) {
@@ -110,14 +151,14 @@ function showToast(type, message, duration = 3500) {
   const isWarn = type === 'warn';
 
   const iconName = isErr ? 'alert-circle' : isWarn ? 'alert-triangle' : 'check-circle-2';
-  const borderCol = isErr ? 'border-red-500/40 text-red-300' : isWarn ? 'border-amber-500/40 text-amber-300' : 'border-emerald-500/40 text-emerald-300';
-  const bgCol = 'bg-zinc-900/95';
+  const borderCol = isErr ? 'border-red-500/40 text-red-600 dark:text-red-300' : isWarn ? 'border-amber-500/40 text-amber-600 dark:text-amber-300' : 'border-emerald-500/40 text-emerald-600 dark:text-emerald-300';
+  const bgCol = 'bg-white/95 dark:bg-zinc-900/95';
 
-  toast.className = `flex items-center gap-2.5 px-4 py-2.5 rounded-lg border shadow-2xl backdrop-blur-md text-xs font-mono ${bgCol} ${borderCol} transition-all duration-300 transform translate-y-3 opacity-0`;
+  toast.className = `flex items-center gap-2.5 px-4 py-2.5 rounded-lg border shadow-xl dark:shadow-2xl backdrop-blur-md text-xs font-mono text-zinc-800 dark:text-zinc-200 ${bgCol} ${borderCol} transition-all duration-300 transform translate-y-3 opacity-0`;
   toast.innerHTML = `
     <i data-lucide="${iconName}" class="w-4 h-4 flex-shrink-0"></i>
     <span class="flex-1">${escapeHtml(message)}</span>
-    <button type="button" class="ml-2 text-zinc-500 hover:text-zinc-200" onclick="this.parentElement.remove()">
+    <button type="button" class="ml-2 text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200" onclick="this.parentElement.remove()">
       <i data-lucide="x" class="w-3.5 h-3.5"></i>
     </button>
   `;

@@ -61,15 +61,15 @@ function renderUploadPreviews() {
     }
 
     return `
-      <div class="relative bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-md overflow-hidden flex flex-col group transition-all" title="${escapeHtml(file.name)} (${formatBytes(file.size)})">
-        <button type="button" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 hover:bg-red-500 border border-white/20 text-white flex items-center justify-center text-xs transition-transform hover:scale-110 z-10" onclick="removeUploadFile(${idx}, event)" title="Batalkan file ini">
-          <i data-lucide="x" class="w-3 h-3"></i>
+      <div class="relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-md overflow-hidden flex flex-col group transition-all" title="${escapeHtml(file.name)} (${formatBytes(file.size)})">
+        <button type="button" class="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/80 hover:bg-red-500 border border-white/20 text-white flex items-center justify-center text-xs transition-transform active:scale-95 z-10" onclick="removeUploadFile(${idx}, event)" title="Batalkan file ini">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
         </button>
-        <div class="relative h-20 w-full bg-zinc-950 flex items-center justify-center overflow-hidden">
+        <div class="relative h-20 w-full bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center overflow-hidden">
           ${thumbHtml}
         </div>
-        <div class="p-2 flex flex-col gap-0.5 bg-zinc-900">
-          <span class="text-xs font-medium text-zinc-200 truncate">${escapeHtml(file.name)}</span>
+        <div class="p-2 flex flex-col gap-0.5 bg-white dark:bg-zinc-900">
+          <span class="text-xs font-medium text-zinc-800 dark:text-zinc-200 truncate">${escapeHtml(file.name)}</span>
           <span class="text-[11px] font-mono text-zinc-500">${formatBytes(file.size)}</span>
         </div>
       </div>
@@ -225,16 +225,21 @@ function setupClipboardPaste() {
 
 // ── Creation Panel Tab Switcher ──────────────────────────────────────────────
 function switchCreateTab(tab) {
+  const activeClasses = ['bg-white', 'dark:bg-zinc-800', 'text-zinc-900', 'dark:text-zinc-100', 'border-zinc-300', 'dark:border-zinc-700', 'shadow-xs'];
+  const inactiveClasses = ['text-zinc-600', 'dark:text-zinc-400', 'border-transparent'];
+
   ['upload', 'note', 'link'].forEach(t => {
     const form = document.getElementById(`${t}Form`);
     const btn  = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}Btn`);
     if (form) form.classList.toggle('hidden', t !== tab);
     if (btn) {
-      btn.classList.toggle('bg-zinc-800', t === tab);
-      btn.classList.toggle('text-zinc-100', t === tab);
-      btn.classList.toggle('border-zinc-700', t === tab);
-      btn.classList.toggle('text-zinc-400', t !== tab);
-      btn.classList.toggle('border-transparent', t !== tab);
+      if (t === tab) {
+        btn.classList.add(...activeClasses);
+        btn.classList.remove(...inactiveClasses);
+      } else {
+        btn.classList.remove(...activeClasses);
+        btn.classList.add(...inactiveClasses);
+      }
     }
   });
   const body = document.getElementById('createPanelBody');

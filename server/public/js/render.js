@@ -146,11 +146,11 @@ function renderFolderChips() {
   container.innerHTML = `
     <div class="flex items-center gap-1.5 overflow-x-auto py-1 text-xs font-mono scrollbar-none">
       <span class="text-zinc-500 flex items-center gap-1 text-[11px] uppercase mr-1"><i data-lucide="folder" class="w-3 h-3"></i> Folder:</span>
-      <button type="button" class="px-2.5 py-1 rounded text-xs transition-colors ${!currentFolderFilter ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 font-medium' : 'bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 border border-transparent'}" onclick="setFolderFilter(null)">
+      <button type="button" class="px-2.5 py-1 rounded text-xs transition-colors ${!currentFolderFilter ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700 shadow-sm font-medium' : 'bg-zinc-200/70 dark:bg-zinc-900/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent'}" onclick="setFolderFilter(null)">
         Semua Folder
       </button>
       ${folders.map(fName => `
-        <button type="button" class="px-2.5 py-1 rounded text-xs transition-colors ${currentFolderFilter === fName ? 'bg-zinc-800 text-emerald-400 border border-emerald-500/40 font-medium' : 'bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 border border-zinc-800'}" onclick="setFolderFilter('${escapeHtml(fName)}')">
+        <button type="button" class="px-2.5 py-1 rounded text-xs transition-colors ${currentFolderFilter === fName ? 'bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 shadow-sm font-medium' : 'bg-zinc-200/70 dark:bg-zinc-900/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent'}" onclick="setFolderFilter('${escapeHtml(fName)}')">
           ${escapeHtml(fName)}
         </button>
       `).join('')}
@@ -172,11 +172,15 @@ function setFilter(type) {
     const btn = document.getElementById(`filter${t.charAt(0).toUpperCase() + t.slice(1)}`);
     if (btn) {
       const isActive = t === type;
-      btn.classList.toggle('bg-zinc-800', isActive);
-      btn.classList.toggle('text-zinc-100', isActive);
-      btn.classList.toggle('border-zinc-700', isActive);
+      btn.classList.toggle('bg-white', isActive);
+      btn.classList.toggle('dark:bg-zinc-800', isActive);
+      btn.classList.toggle('text-zinc-900', isActive);
+      btn.classList.toggle('dark:text-zinc-100', isActive);
+      btn.classList.toggle('border-zinc-300', isActive);
+      btn.classList.toggle('dark:border-zinc-700', isActive);
       btn.classList.toggle('shadow-sm', isActive);
-      btn.classList.toggle('text-zinc-400', !isActive);
+      btn.classList.toggle('text-zinc-600', !isActive);
+      btn.classList.toggle('dark:text-zinc-400', !isActive);
       btn.classList.toggle('border-transparent', !isActive);
     }
   });
@@ -241,10 +245,10 @@ function render() {
     if (imageFiles.length === 0) {
       container.innerHTML = `
         <div class="py-16 text-center text-zinc-500 font-sans flex flex-col items-center justify-center gap-2">
-          <div class="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 mb-1">
+          <div class="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 mb-1">
             <i data-lucide="image" class="w-6 h-6"></i>
           </div>
-          <div class="font-medium text-zinc-300 text-sm">${searchQuery ? 'Tidak ada file gambar yang cocok.' : 'Belum ada gambar yang diunggah'}</div>
+          <div class="font-medium text-zinc-800 dark:text-zinc-300 text-sm">${searchQuery ? 'Tidak ada file gambar yang cocok.' : 'Belum ada gambar yang diunggah'}</div>
           <div class="text-xs text-zinc-500 max-w-sm">File gambar (.png, .jpg, .webp, .svg, dll.) akan otomatis tampil dengan pratinjau langsung di sini.</div>
         </div>
       `;
@@ -253,7 +257,7 @@ function render() {
     }
 
     container.innerHTML = `
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
+      <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 p-2.5 sm:p-4">
         ${imageFiles.map(f => {
           const safeId = escapeHtml(String(f.id));
           const safeTitle = escapeHtml(f.original_name || 'Tanpa Judul');
@@ -265,13 +269,13 @@ function render() {
 
           let aiBadge = '';
           if (f.ai_analyzed) {
-            aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/25"><i data-lucide="sparkles" class="w-3 h-3"></i> AI</span>';
+            aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="sparkles" class="w-3 h-3"></i> AI</span>';
           }
 
           let suggestBtns = '';
           if (f.suggested_name && f.suggested_name !== f.original_name) {
             suggestBtns = `
-              <button class="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 transition-colors inline-flex items-center gap-1"
+              <button class="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30 transition-colors inline-flex items-center gap-1"
                       title="Ganti nama AI: ${escapeHtml(f.suggested_name)}"
                       data-id="${safeId}" data-value="${escapeHtml(f.suggested_name)}" onclick="handleApplyRename(this)">
                 <i data-lucide="save-pen" class="w-3 h-3"></i> <span>Ganti Nama</span>
@@ -283,36 +287,36 @@ function render() {
           }
 
           return `
-            <div class="group bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg overflow-hidden flex flex-col transition-all duration-200 hover:-translate-y-0.5 shadow-sm" id="row-FILE-${safeId}">
-              <div class="relative h-44 w-full bg-zinc-950 overflow-hidden cursor-pointer flex items-center justify-center" onclick="openPreview('FILE', '${safeId}')" title="Buka pratinjau: ${safeTitle}">
+            <div class="group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-lg overflow-hidden flex flex-col transition-all duration-200 hover:-translate-y-0.5 shadow-sm" id="row-FILE-${safeId}">
+              <div class="relative h-32 sm:h-44 w-full bg-zinc-100 dark:bg-zinc-950 overflow-hidden cursor-pointer flex items-center justify-center" onclick="openPreview('FILE', '${safeId}')" title="Buka pratinjau: ${safeTitle}">
                 <img src="${viewUrl}" alt="${safeTitle}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='/placeholder-image.svg';">
-                <span class="absolute top-2 left-2 text-[10px] font-mono font-semibold uppercase bg-black/80 text-zinc-200 px-1.5 py-0.5 rounded backdrop-blur-sm border border-white/10">${escapeHtml(ext.toUpperCase() || 'IMG')}</span>
-                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-2.5">
-                  <span class="text-xs text-white font-mono flex items-center gap-1"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i> Perbesar</span>
-                  <span class="text-[10px] font-mono text-zinc-300">${formatDate(f.created_at)}</span>
+                <span class="absolute top-1.5 left-1.5 text-[9px] sm:text-[10px] font-mono font-semibold uppercase bg-black/80 text-zinc-200 px-1.5 py-0.5 rounded backdrop-blur-sm border border-white/10">${escapeHtml(ext.toUpperCase() || 'IMG')}</span>
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-2 sm:p-2.5">
+                  <span class="text-[11px] sm:text-xs text-white font-mono flex items-center gap-1"><i data-lucide="maximize-2" class="w-3 sm:w-3.5 h-3 sm:h-3.5"></i> <span class="hidden xs:inline sm:inline">Perbesar</span></span>
+                  <span class="text-[9px] sm:text-[10px] font-mono text-zinc-300">${formatDate(f.created_at)}</span>
                 </div>
               </div>
-              <div class="p-3 flex flex-col justify-between flex-1 gap-2">
+              <div class="p-2 sm:p-3 flex flex-col justify-between flex-1 gap-1.5 sm:gap-2">
                 <div>
-                  <div class="text-xs font-semibold text-zinc-200 line-clamp-1 truncate" title="${safeTitle}">${safeTitle}</div>
-                  <div class="flex items-center justify-between text-[11px] font-mono text-zinc-500 mt-1">
-                    <span class="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700/60 max-w-[120px] truncate"><i data-lucide="folder" class="w-2.5 h-2.5 inline mr-0.5"></i>${escapeHtml(category)}</span>
+                  <div class="text-xs font-semibold text-zinc-800 dark:text-zinc-200 line-clamp-1 truncate" title="${safeTitle}">${safeTitle}</div>
+                  <div class="flex items-center justify-between text-[10px] sm:text-[11px] font-mono text-zinc-500 mt-1">
+                    <span class="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700/60 max-w-[70px] sm:max-w-[120px] truncate"><i data-lucide="folder" class="w-2.5 h-2.5 inline mr-0.5"></i>${escapeHtml(category)}</span>
                     <span>${formatBytes(f.size)}</span>
                   </div>
                 </div>
                 ${(aiBadge || suggestBtns) ? `
-                  <div class="flex items-center gap-1.5 flex-wrap pt-1 border-t border-zinc-800/60">
+                  <div class="flex items-center gap-1 sm:gap-1.5 flex-wrap pt-1 border-t border-zinc-100 dark:border-zinc-800/60">
                     ${aiBadge}
                     ${suggestBtns}
                   </div>
                 ` : ''}
-                <div class="flex items-center justify-between gap-1.5 pt-2 border-t border-zinc-800">
-                  <a href="${downloadUrl}" class="px-2 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800 transition-colors inline-flex items-center gap-1" title="Unduh gambar asli" target="_blank" rel="noopener noreferrer">
+                <div class="flex items-center justify-between gap-1 pt-1.5 sm:pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                  <a href="${downloadUrl}" class="px-2 py-1 rounded text-[11px] sm:text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" title="Unduh gambar asli" target="_blank" rel="noopener noreferrer">
                     <i data-lucide="download" class="w-3 h-3"></i> <span>Unduh</span>
                   </a>
                   <button
                     id="${deleteId}"
-                    class="px-2 py-1 rounded text-xs font-mono text-zinc-500 hover:text-red-400 hover:bg-red-500/10 border border-zinc-800 hover:border-red-500/30 transition-colors inline-flex items-center gap-1"
+                    class="px-2 py-1 rounded text-[11px] sm:text-xs font-mono text-zinc-500 hover:text-red-500 dark:hover:text-red-400 bg-zinc-100 hover:bg-red-50 dark:bg-zinc-800/60 dark:hover:bg-red-500/10 border border-zinc-200 dark:border-zinc-800 hover:border-red-300 dark:hover:border-red-500/30 transition-colors inline-flex items-center gap-1"
                     data-type="FILE"
                     data-id="${safeId}"
                     data-btnid="${deleteId}"
@@ -415,9 +419,9 @@ function render() {
   if (combined.length === 0) {
     container.innerHTML = `
       <div class="py-16 text-center text-zinc-500 font-sans flex flex-col items-center justify-center gap-1">
-        <i data-lucide="inbox" class="w-8 h-8 text-zinc-600 mb-1"></i>
-        <div class="text-sm font-medium text-zinc-400">Tidak ada item ditemukan</div>
-        <div class="text-xs text-zinc-600">${searchQuery ? 'Coba gunakan kata kunci pencarian yang lain.' : 'Mulai dengan mengunggah file atau membuat catatan baru.'}</div>
+        <i data-lucide="inbox" class="w-8 h-8 text-zinc-400 dark:text-zinc-600 mb-1"></i>
+        <div class="text-sm font-medium text-zinc-700 dark:text-zinc-400">Tidak ada item ditemukan</div>
+        <div class="text-xs text-zinc-500 dark:text-zinc-600">${searchQuery ? 'Coba gunakan kata kunci pencarian yang lain.' : 'Mulai dengan mengunggah file atau membuat catatan baru.'}</div>
       </div>
     `;
     refreshIcons();
@@ -435,21 +439,21 @@ function render() {
 
     if (item.type === 'PROMPT') {
       actionBtn = `
-        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800 transition-colors inline-flex items-center gap-1" onclick="handleCopyPrompt('${safeId}', this)"><i data-lucide="copy" class="w-3 h-3"></i> <span>salin</span></button>
-        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800 transition-colors inline-flex items-center gap-1" onclick="openPreview('PROMPT', '${safeId}')"><i data-lucide="eye" class="w-3 h-3"></i> <span>pratinjau</span></button>
+        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" onclick="handleCopyPrompt('${safeId}', this)"><i data-lucide="copy" class="w-3 h-3"></i> <span>salin</span></button>
+        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" onclick="openPreview('PROMPT', '${safeId}')"><i data-lucide="eye" class="w-3 h-3"></i> <span>pratinjau</span></button>
       `;
     } else if (item.type === 'FILE') {
       const downloadUrl = `/api/files/${safeId}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
       const isAnalyzed = !!(item.raw?.ai_analyzed);
       if (isAnalyzed) {
-        aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/25"><i data-lucide="sparkles" class="w-2.5 h-2.5"></i> AI</span>';
+        aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="sparkles" class="w-2.5 h-2.5"></i> AI</span>';
       } else {
-        aiBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/25 pulse-badge" id="badge-FILE-${safeId}"><i data-lucide="loader" class="w-2.5 h-2.5 spin"></i> Menganalisis...</span>`;
+        aiBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/25 pulse-badge" id="badge-FILE-${safeId}"><i data-lucide="loader" class="w-2.5 h-2.5 spin"></i> Menganalisis...</span>`;
       }
 
       if (isImageFile(item.raw)) {
         const viewUrl = item.raw?.public_url || item.raw?.publicUrl || downloadUrl;
-        miniThumbHtml = `<img src="${viewUrl}" class="w-8 h-8 rounded object-cover border border-zinc-700/80 flex-shrink-0 cursor-pointer hover:scale-110 transition-transform" onclick="openPreview('FILE', '${safeId}')" title="Klik pratinjau" loading="lazy" onerror="this.style.display='none'">`;
+        miniThumbHtml = `<img src="${viewUrl}" class="w-8 h-8 rounded object-cover border border-zinc-300 dark:border-zinc-700/80 flex-shrink-0 cursor-pointer hover:scale-110 transition-transform" onclick="openPreview('FILE', '${safeId}')" title="Klik pratinjau" loading="lazy" onerror="this.style.display='none'">`;
       }
 
       let suggestBtns = '';
@@ -460,7 +464,7 @@ function render() {
 
       if (suggName && suggName !== rawObj.original_name) {
         suggestBtns += `
-          <button class="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 transition-colors inline-flex items-center gap-1"
+          <button class="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30 transition-colors inline-flex items-center gap-1"
                   title="Ganti nama AI: ${escapeHtml(suggName)}"
                   data-id="${safeId}" data-value="${escapeHtml(suggName)}" onclick="handleApplyRename(this)">
             <i data-lucide="save-pen" class="w-3 h-3"></i> <span>Ganti Nama AI</span>
@@ -473,48 +477,48 @@ function render() {
 
       actionBtn = `
         ${suggestBtns}
-        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800 transition-colors inline-flex items-center gap-1" onclick="openPreview('FILE', '${safeId}')"><i data-lucide="eye" class="w-3 h-3"></i> <span>pratinjau</span></button>
-        <a href="${downloadUrl}" class="px-2 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800 transition-colors inline-flex items-center gap-1" target="_blank" rel="noopener noreferrer"><i data-lucide="download" class="w-3 h-3"></i> <span>unduh</span></a>
+        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" onclick="openPreview('FILE', '${safeId}')"><i data-lucide="eye" class="w-3 h-3"></i> <span>pratinjau</span></button>
+        <a href="${downloadUrl}" class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" target="_blank" rel="noopener noreferrer"><i data-lucide="download" class="w-3 h-3"></i> <span>unduh</span></a>
       `;
     } else if (item.type === 'LINK') {
       const safeUrl = escapeHtml(item.url || '');
       const isLinkAnalyzed = !!(item.desc && item.desc !== item.url && item.raw?.tags && (Array.isArray(item.raw.tags) ? item.raw.tags.length > 0 : String(item.raw.tags).trim().length > 0));
       if (isLinkAnalyzed) {
-        aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/25"><i data-lucide="sparkles" class="w-2.5 h-2.5"></i> AI</span>';
+        aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="sparkles" class="w-2.5 h-2.5"></i> AI</span>';
       }
       actionBtn = `
-        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800 transition-colors inline-flex items-center gap-1" onclick="openPreview('LINK', '${safeId}')"><i data-lucide="eye" class="w-3 h-3"></i> <span>pratinjau</span></button>
-        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800 transition-colors inline-flex items-center gap-1" onclick="handleCopyLink('${safeId}', this)"><i data-lucide="copy" class="w-3 h-3"></i> <span>salin URL</span></button>
-        <a href="${safeUrl}" class="px-2 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800 transition-colors inline-flex items-center gap-1" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link" class="w-3 h-3"></i> <span>buka</span></a>
+        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" onclick="openPreview('LINK', '${safeId}')"><i data-lucide="eye" class="w-3 h-3"></i> <span>pratinjau</span></button>
+        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" onclick="handleCopyLink('${safeId}', this)"><i data-lucide="copy" class="w-3 h-3"></i> <span>salin URL</span></button>
+        <a href="${safeUrl}" class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link" class="w-3 h-3"></i> <span>buka</span></a>
       `;
     } else if (item.type === 'TRASH') {
       actionBtn = `
-        <button class="px-2 py-1 rounded text-xs font-mono text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/30 transition-colors inline-flex items-center gap-1" onclick="handleRestore('${safeId}', this)"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> <span>kembalikan</span></button>
-        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800 transition-colors inline-flex items-center gap-1" onclick="openPreview('TRASH', '${safeId}')"><i data-lucide="eye" class="w-3 h-3"></i> <span>pratinjau</span></button>
+        <button class="px-2 py-1 rounded text-xs font-mono text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/30 transition-colors inline-flex items-center gap-1" onclick="handleRestore('${safeId}', this)"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> <span>kembalikan</span></button>
+        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" onclick="openPreview('TRASH', '${safeId}')"><i data-lucide="eye" class="w-3 h-3"></i> <span>pratinjau</span></button>
       `;
     }
 
     const titleHtml = item.url
-      ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="hover:underline text-zinc-200">${safeTitle}</a>`
-      : `<span class="text-zinc-200">${safeTitle}</span>`;
+      ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="hover:underline text-zinc-900 dark:text-zinc-200">${safeTitle}</a>`
+      : `<span class="text-zinc-900 dark:text-zinc-200">${safeTitle}</span>`;
     const deleteLabel = item.type === 'TRASH' ? 'hapus permanen' : 'hapus';
 
     return `
-      <div class="px-4 py-3.5 border-b border-zinc-800 hover:bg-zinc-900/60 transition-colors flex flex-col gap-1.5" id="row-${item.type}-${safeId}">
-        <div class="flex items-center justify-between gap-3 flex-wrap">
-          <div class="flex items-center gap-2.5 flex-wrap min-w-0 flex-1">
+      <div class="px-3 sm:px-4 py-3 sm:py-3.5 border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors flex flex-col gap-1.5" id="row-${item.type}-${safeId}">
+        <div class="flex items-start sm:items-center justify-between gap-2 sm:gap-3 flex-col sm:flex-row">
+          <div class="flex items-center gap-2 flex-wrap min-w-0 flex-1 w-full sm:w-auto">
             ${miniThumbHtml}
-            <span class="text-[11px] font-mono text-zinc-500 flex-shrink-0">#${safeId.length > 8 ? safeId.slice(0, 8) + '...' : safeId}</span>
-            <span class="text-sm font-medium text-zinc-200 truncate max-w-md">${titleHtml}</span>
-            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/60">${item.type === 'TRASH' ? 'SAMPAH' : item.type}</span>
-            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700/40">${escapeHtml(item.category)}</span>
+            <span class="text-[10px] sm:text-[11px] font-mono text-zinc-400 dark:text-zinc-500 flex-shrink-0">#${safeId.length > 8 ? safeId.slice(0, 8) + '...' : safeId}</span>
+            <span class="text-xs sm:text-sm font-medium text-zinc-900 dark:text-zinc-200 truncate max-w-[200px] sm:max-w-md">${titleHtml}</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60 flex-shrink-0">${item.type === 'TRASH' ? 'SAMPAH' : item.type}</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700/40 flex-shrink-0 max-w-[80px] sm:max-w-none truncate">${escapeHtml(item.category)}</span>
             ${aiBadge}
           </div>
-          <div class="flex items-center gap-1.5 flex-shrink-0">
+          <div class="flex items-center gap-1.5 flex-wrap flex-shrink-0 self-end sm:self-auto pt-1 sm:pt-0">
             ${actionBtn}
             <button
               id="${deleteId}"
-              class="px-2 py-1 rounded text-xs font-mono text-zinc-500 hover:text-red-400 hover:bg-red-500/10 border border-zinc-800 hover:border-red-500/30 transition-colors inline-flex items-center gap-1"
+              class="px-2 py-1 rounded text-xs font-mono text-zinc-500 hover:text-red-500 dark:hover:text-red-400 bg-zinc-100 hover:bg-red-50 dark:bg-zinc-800/60 dark:hover:bg-red-500/10 border border-zinc-200 dark:border-zinc-800 hover:border-red-300 dark:hover:border-red-500/30 transition-colors inline-flex items-center gap-1"
               data-type="${item.type}"
               data-id="${safeId}"
               data-btnid="${deleteId}"
@@ -522,11 +526,11 @@ function render() {
             ><i data-lucide="trash-2" class="w-3 h-3"></i> <span>${deleteLabel}</span></button>
           </div>
         </div>
-        ${item.desc ? `<div class="text-xs text-zinc-400 ${item.type === 'PROMPT' ? 'font-mono bg-zinc-950 p-2 rounded border border-zinc-800' : ''} line-clamp-2">${escapeHtml(item.desc)}</div>` : ''}
-        <div class="flex items-center gap-3 text-[11px] font-mono text-zinc-500">
+        ${item.desc ? `<div class="text-xs text-zinc-600 dark:text-zinc-400 ${item.type === 'PROMPT' ? 'font-mono bg-zinc-50 dark:bg-zinc-950 p-2 rounded border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200' : ''} line-clamp-2">${escapeHtml(item.desc)}</div>` : ''}
+        <div class="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] font-mono text-zinc-500 flex-wrap">
           <span>${formatDate(item.date)}</span>
           ${item.metaRight ? `<span>• ${escapeHtml(item.metaRight)}</span>` : ''}
-          ${item.subInfo ? `<span class="truncate">• ${escapeHtml(item.subInfo)}</span>` : ''}
+          ${item.subInfo ? `<span class="truncate max-w-[180px] sm:max-w-none">• ${escapeHtml(item.subInfo)}</span>` : ''}
         </div>
       </div>
     `;

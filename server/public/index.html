@@ -6,6 +6,18 @@
   <title>ARKA — AI Drive Assistant</title>
   <link rel="icon" type="image/png" href="/arka-white-logo.png">
 
+  <!-- Instant Theme Initializer (Anti-FOUC) -->
+  <script>
+    try {
+      var savedTheme = localStorage.getItem('arka_theme');
+      if (savedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+      } else {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) {}
+  </script>
+
   <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,7 +66,7 @@
   <!-- Custom Styles for Graph Canvas, Previews, & Scrollbars -->
   <link rel="stylesheet" href="/css/style.css">
 </head>
-<body class="bg-arka-950 text-zinc-100 min-h-screen font-sans selection:bg-zinc-800 selection:text-white antialiased">
+<body class="bg-zinc-100 text-zinc-900 dark:bg-arka-950 dark:text-zinc-100 min-h-screen font-sans selection:bg-zinc-300 dark:selection:bg-zinc-800 selection:text-zinc-900 dark:selection:text-white antialiased transition-colors duration-150">
 
   <!-- ── Global Drag & Drop Overlay ────────────────────────────────────────── -->
   <div id="globalDragOverlay" class="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] hidden items-center justify-center pointer-events-none transition-opacity">
@@ -68,22 +80,28 @@
   </div>
 
   <!-- ── Toast Notifications Container ─────────────────────────────────────── -->
-  <div id="toastContainer" class="fixed bottom-5 right-5 z-[9998] flex flex-col gap-2 pointer-events-auto max-w-sm w-full"></div>
+  <div id="toastContainer" class="fixed bottom-4 right-3 left-3 sm:left-auto sm:right-5 sm:bottom-5 z-[9998] flex flex-col gap-2 pointer-events-none max-w-sm sm:w-full"></div>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════ -->
   <!-- ── 1. LOGIN SCREEN ──────────────────────────────────────────────────────── -->
   <!-- ═══════════════════════════════════════════════════════════════════════════ -->
-  <div id="loginScreen" class="flex min-h-screen items-center justify-center p-4">
-    <div class="w-full max-w-md bg-arka-900 border border-zinc-800 rounded-xl p-8 shadow-2xl">
-      <div class="flex flex-col items-center mb-8 text-center">
-        <img src="/arka-white-logo.png" alt="ARKA Logo" class="h-10 w-auto mb-3 object-contain">
-        <h1 class="text-xl font-bold tracking-tight text-white">ARKA Assistant</h1>
-        <p class="text-xs text-zinc-400 mt-1">Ruang kerja dan asisten drive cerdas pribadi</p>
+  <div id="loginScreen" class="flex min-h-screen items-center justify-center p-3 sm:p-4 bg-zinc-100 dark:bg-arka-950 transition-colors duration-150 relative">
+    <div class="absolute top-4 right-4 sm:top-6 sm:right-6">
+      <button type="button" onclick="toggleTheme()" title="Ganti Mode Tema"
+              class="p-2 rounded-lg bg-white hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors">
+        <i data-lucide="sun" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
+      </button>
+    </div>
+    <div class="w-full max-w-md bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 sm:p-8 shadow-xl dark:shadow-2xl">
+      <div class="flex flex-col items-center mb-6 sm:mb-8 text-center">
+        <img src="/arka-white-logo.png" alt="ARKA Logo" class="h-9 sm:h-10 w-auto mb-2.5 sm:mb-3 object-contain invert dark:invert-0 transition-[filter]">
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">ARKA Assistant</h1>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Ruang kerja dan asisten drive cerdas pribadi</p>
       </div>
 
       <!-- Google OAuth Login Button -->
       <button type="button" id="btnGoogleLogin" onclick="handleGoogleLogin()"
-              class="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-zinc-800 hover:bg-zinc-750 text-white text-sm font-medium rounded-lg border border-zinc-700 transition-all duration-150 mb-5">
+              class="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 text-zinc-800 dark:text-white text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 transition-all duration-150 mb-5">
         <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -94,25 +112,25 @@
       </button>
 
       <div class="relative flex items-center justify-center my-5">
-        <div class="border-t border-zinc-800 w-full"></div>
-        <span class="bg-arka-900 px-3 text-[11px] font-mono text-zinc-500 uppercase">atau</span>
+        <div class="border-t border-zinc-200 dark:border-zinc-800 w-full"></div>
+        <span class="bg-white dark:bg-arka-900 px-3 text-[11px] font-mono text-zinc-400 dark:text-zinc-500 uppercase">atau</span>
       </div>
 
       <!-- Password Login Form -->
       <form onsubmit="handleLogin(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-mono text-zinc-400 mb-1.5 uppercase tracking-wider" for="loginUsername">Nama Pengguna</label>
+          <label class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider" for="loginUsername">Nama Pengguna</label>
           <input type="text" id="loginUsername" required autocomplete="username"
-                 class="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors">
+                 class="w-full px-3.5 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors">
         </div>
         <div>
-          <label class="block text-xs font-mono text-zinc-400 mb-1.5 uppercase tracking-wider" for="loginPassword">Kata Sandi</label>
+          <label class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider" for="loginPassword">Kata Sandi</label>
           <input type="password" id="loginPassword" required autocomplete="current-password"
-                 class="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors">
+                 class="w-full px-3.5 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors">
         </div>
-        <div id="loginError" class="hidden text-xs text-red-400 font-mono bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg"></div>
+        <div id="loginError" class="hidden text-xs text-red-500 dark:text-red-400 font-mono bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg"></div>
         <button type="submit" id="loginBtn"
-                class="w-full py-2.5 px-4 bg-zinc-200 hover:bg-white text-zinc-950 text-sm font-semibold rounded-lg transition-colors">
+                class="w-full py-2.5 px-4 bg-zinc-900 hover:bg-black dark:bg-zinc-200 dark:hover:bg-white text-white dark:text-zinc-950 text-sm font-semibold rounded-lg shadow-sm transition-colors">
           Masuk dengan Kata Sandi
         </button>
       </form>
@@ -124,36 +142,42 @@
   <!-- ═══════════════════════════════════════════════════════════════════════════ -->
   <div id="dashboard" class="hidden min-h-screen flex flex-col">
     <!-- Top Navigation Bar -->
-    <header class="sticky top-0 z-40 bg-arka-950/80 backdrop-blur-md border-b border-zinc-800">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+    <header class="sticky top-0 z-40 bg-white/80 dark:bg-arka-950/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 transition-colors">
+      <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
         <!-- Logo & Brand -->
-        <div class="flex items-center gap-3">
-          <img src="/arka-white-logo.png" alt="ARKA Logo" class="h-7 w-auto object-contain">
+        <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <img src="/arka-white-logo.png" alt="ARKA Logo" class="h-6 sm:h-7 w-auto object-contain invert dark:invert-0 transition-[filter]">
           <div class="flex flex-col">
-            <span class="text-sm font-bold text-white tracking-tight leading-none">ARKA</span>
-            <span class="text-[10px] font-mono text-zinc-500">Drive Workspace</span>
+            <span class="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white tracking-tight leading-none">ARKA</span>
+            <span class="text-[9px] sm:text-[10px] font-mono text-zinc-500">Drive Workspace</span>
           </div>
         </div>
 
-        <!-- Header Actions: User Badge, Status, Refresh, Logout -->
-        <div class="flex items-center gap-3">
+        <!-- Header Actions: User Badge, Status, Theme Toggle, Refresh, Logout -->
+        <div class="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
           <div id="userProfileBadge" class="hidden items-center"></div>
 
           <!-- Server Status Indicator -->
-          <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400">
-            <span id="statusIndicator" class="w-2 h-2 rounded-full bg-zinc-600 transition-colors"></span>
+          <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[11px] font-mono text-zinc-600 dark:text-zinc-400">
+            <span id="statusIndicator" class="w-2 h-2 rounded-full bg-zinc-400 dark:bg-zinc-600 transition-colors"></span>
             <span id="statusText">memeriksa...</span>
           </div>
 
+          <!-- Theme Toggle Button -->
+          <button type="button" id="btnThemeToggle" onclick="toggleTheme()" title="Ganti Mode Tema"
+                  class="p-1.5 sm:p-2 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 transition-colors">
+            <i data-lucide="sun" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 dark:text-amber-400"></i>
+          </button>
+
           <!-- Refresh Button -->
           <button type="button" id="btnRefresh" onclick="handleRefresh(this)" title="Muat ulang data (R)"
-                  class="p-2 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition-colors">
-            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                  class="p-1.5 sm:p-2 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 transition-colors">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
           </button>
 
           <!-- Logout Button -->
           <button type="button" onclick="handleLogout()" title="Keluar dari akun"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-red-400 border border-zinc-800 transition-colors text-xs font-mono">
+                  class="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-700 hover:text-red-600 dark:text-zinc-300 dark:hover:text-red-400 border border-zinc-200 dark:border-zinc-800 transition-colors text-xs font-mono">
             <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
             <span class="hidden sm:inline">Keluar</span>
           </button>
@@ -162,37 +186,37 @@
     </header>
 
     <!-- Main Content Area -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex-1 w-full space-y-4 sm:space-y-6">
 
       <!-- Stats Summary Strip -->
-      <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="bg-arka-900 border border-zinc-800 rounded-lg p-3.5 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-xs text-zinc-400 font-mono">
-            <i data-lucide="file" class="w-3.5 h-3.5 text-blue-400"></i>
+      <section class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+        <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 sm:p-3.5 flex flex-col justify-between shadow-xs">
+          <div class="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+            <i data-lucide="file" class="w-3.5 h-3.5 text-blue-500 dark:text-blue-400"></i>
             <span>File</span>
           </div>
-          <div id="statFiles" class="text-xl font-bold font-mono text-zinc-100 mt-2">0</div>
+          <div id="statFiles" class="text-lg sm:text-xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-1.5 sm:mt-2 truncate">0</div>
         </div>
-        <div class="bg-arka-900 border border-zinc-800 rounded-lg p-3.5 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-xs text-zinc-400 font-mono">
-            <i data-lucide="terminal" class="w-3.5 h-3.5 text-purple-400"></i>
+        <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 sm:p-3.5 flex flex-col justify-between shadow-xs">
+          <div class="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+            <i data-lucide="terminal" class="w-3.5 h-3.5 text-purple-500 dark:text-purple-400"></i>
             <span>Prompt & Catatan</span>
           </div>
-          <div id="statPrompts" class="text-xl font-bold font-mono text-zinc-100 mt-2">0</div>
+          <div id="statPrompts" class="text-lg sm:text-xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-1.5 sm:mt-2 truncate">0</div>
         </div>
-        <div class="bg-arka-900 border border-zinc-800 rounded-lg p-3.5 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-xs text-zinc-400 font-mono">
-            <i data-lucide="globe" class="w-3.5 h-3.5 text-amber-400"></i>
+        <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 sm:p-3.5 flex flex-col justify-between shadow-xs">
+          <div class="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+            <i data-lucide="globe" class="w-3.5 h-3.5 text-amber-500 dark:text-amber-400"></i>
             <span>Tautan</span>
           </div>
-          <div id="statLinks" class="text-xl font-bold font-mono text-zinc-100 mt-2">0</div>
+          <div id="statLinks" class="text-lg sm:text-xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-1.5 sm:mt-2 truncate">0</div>
         </div>
-        <div class="bg-arka-900 border border-zinc-800 rounded-lg p-3.5 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-xs text-zinc-400 font-mono">
-            <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-emerald-400"></i>
+        <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 sm:p-3.5 flex flex-col justify-between shadow-xs">
+          <div class="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+            <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400"></i>
             <span>Penyimpanan</span>
           </div>
-          <div id="statStorage" class="text-xl font-bold font-mono text-zinc-100 mt-2">0 B</div>
+          <div id="statStorage" class="text-lg sm:text-xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-1.5 sm:mt-2 truncate">0 B</div>
         </div>
       </section>
 
@@ -202,76 +226,79 @@
       </div>
 
       <!-- Quick Action / Creation Panel -->
-      <section class="bg-arka-900 border border-zinc-800 rounded-xl overflow-hidden shadow-sm">
-        <div class="flex items-center justify-between p-2.5 sm:px-4 bg-zinc-950/70 border-b border-zinc-800">
-          <div class="flex items-center gap-1">
+      <section class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xs">
+        <div class="flex items-center justify-between p-2 sm:px-4 bg-zinc-50/80 dark:bg-zinc-950/70 border-b border-zinc-200 dark:border-zinc-800 gap-1">
+          <div class="flex items-center gap-1 overflow-x-auto scrollbar-none flex-nowrap py-0.5">
             <button type="button" id="tabUploadBtn" onclick="switchCreateTab('upload')"
-                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-100 border border-zinc-700 transition-colors">
+                    class="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700 shadow-xs transition-colors whitespace-nowrap shrink-0">
               <i data-lucide="upload" class="w-3.5 h-3.5"></i>
               <span>Unggah File</span>
             </button>
             <button type="button" id="tabNoteBtn" onclick="switchCreateTab('note')"
-                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-transparent transition-colors">
+                    class="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap shrink-0">
               <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
               <span>Catatan / Prompt</span>
             </button>
             <button type="button" id="tabLinkBtn" onclick="switchCreateTab('link')"
-                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-transparent transition-colors">
+                    class="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap shrink-0">
               <i data-lucide="link" class="w-3.5 h-3.5"></i>
               <span>Tambah Tautan</span>
             </button>
           </div>
-          <button type="button" id="panelToggleBtn" onclick="toggleCreatePanel()" class="text-xs font-mono text-zinc-500 hover:text-zinc-300 px-2 py-1">
+          <button type="button" id="panelToggleBtn" onclick="toggleCreatePanel()" class="text-xs font-mono text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 px-2 py-1 shrink-0">
             tutup [-]
           </button>
         </div>
 
-        <div id="createPanelBody" class="p-4 sm:p-5">
+        <div id="createPanelBody" class="p-3.5 sm:p-5">
           <!-- 1. Upload Form -->
-          <form id="uploadForm" onsubmit="handleUploadSubmit(event)" class="space-y-4">
+          <form id="uploadForm" onsubmit="handleUploadSubmit(event)" class="space-y-3 sm:space-y-4">
             <!-- Drop Zone Area -->
             <div id="dropZone" onclick="document.getElementById('fileInput').click()"
-                 class="border border-dashed border-zinc-700 hover:border-zinc-500 bg-zinc-950/50 hover:bg-zinc-950 rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2">
+                 class="border border-dashed border-zinc-300 hover:border-zinc-500 dark:border-zinc-700 dark:hover:border-zinc-500 bg-zinc-50/50 hover:bg-zinc-50 dark:bg-zinc-950/50 dark:hover:bg-zinc-950 rounded-xl p-5 sm:p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2">
               <input type="file" id="fileInput" name="files" multiple class="hidden" onchange="handleFileSelected(this)">
-              <div class="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">
+              <div class="w-10 h-10 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 shadow-xs">
                 <i data-lucide="upload-cloud" class="w-5 h-5"></i>
               </div>
-              <div id="dropZoneTitle" class="text-sm font-medium text-zinc-200">Letakkan file di sini atau klik untuk memilih</div>
-              <div class="text-xs text-zinc-500 font-mono">Mendukung multi-file (maks 500 MB) • Anda juga bisa tekan <kbd class="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px]">Ctrl+V</kbd> untuk paste gambar</div>
-              <div id="selectedFilesList" class="hidden text-xs font-mono text-emerald-400 mt-2"></div>
+              <div id="dropZoneTitle" class="text-xs sm:text-sm font-medium text-zinc-800 dark:text-zinc-200">Ketuk untuk memilih file atau letakkan di sini</div>
+              <div class="text-[11px] sm:text-xs text-zinc-500 font-mono">
+                <span>Mendukung multi-file (maks 500 MB)</span>
+                <span class="hidden sm:inline">• Tekan <kbd class="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 text-[10px]">Ctrl+V</kbd> untuk paste gambar</span>
+              </div>
+              <div id="selectedFilesList" class="hidden text-xs font-mono text-emerald-600 dark:text-emerald-400 mt-2"></div>
             </div>
 
             <!-- Upload Live Preview Queue -->
-            <div id="uploadPreviewContainer" class="hidden bg-zinc-950 border border-zinc-800 rounded-lg p-3 space-y-3">
-              <div class="flex items-center justify-between border-b border-zinc-800/80 pb-2">
-                <div class="flex items-center gap-2 text-xs font-mono text-zinc-400">
-                  <i data-lucide="layers" class="w-3.5 h-3.5 text-zinc-400"></i>
+            <div id="uploadPreviewContainer" class="hidden bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 sm:p-3 space-y-2.5 sm:space-y-3">
+              <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800/80 pb-2">
+                <div class="flex items-center gap-2 text-xs font-mono text-zinc-600 dark:text-zinc-400">
+                  <i data-lucide="layers" class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400"></i>
                   <span id="uploadPreviewSummary">0 file dipilih</span>
                 </div>
-                <button type="button" onclick="clearUploadSelection(event)" class="text-xs font-mono text-red-400 hover:text-red-300 flex items-center gap-1">
+                <button type="button" onclick="clearUploadSelection(event)" class="text-xs font-mono text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 flex items-center gap-1">
                   <i data-lucide="trash-2" class="w-3 h-3"></i> <span>Bersihkan</span>
                 </button>
               </div>
-              <div id="uploadPreviewGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5 max-h-56 overflow-y-auto pr-1"></div>
+              <div id="uploadPreviewGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-2.5 max-h-56 overflow-y-auto pr-1"></div>
             </div>
 
             <!-- Optional Folder Destination Input -->
-            <div class="flex flex-col sm:flex-row gap-4 items-end">
+            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-end">
               <div class="w-full sm:flex-1">
-                <label for="uploadProject" class="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">Folder / Proyek (Opsional)</label>
+                <label for="uploadProject" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Folder / Proyek (Opsional)</label>
                 <input type="text" id="uploadProject" list="folderSuggestions" placeholder="contoh: Dokumentasi, Desain, Pekerjaan"
-                       class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-sans text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
+                       class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg text-xs font-sans text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
                 <datalist id="folderSuggestions"></datalist>
               </div>
               <button type="submit" id="btnUploadSubmit"
-                      class="w-full sm:w-auto px-5 py-2 bg-zinc-200 hover:bg-white text-zinc-950 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap">
+                      class="w-full sm:w-auto px-5 py-2.5 sm:py-2 bg-zinc-900 hover:bg-black dark:bg-zinc-200 dark:hover:bg-white text-white dark:text-zinc-950 text-xs font-semibold rounded-lg shadow-sm transition-colors whitespace-nowrap text-center">
                 Unggah File
               </button>
             </div>
 
             <!-- Upload Progress Bar -->
             <div id="uploadProgressWrap" class="hidden space-y-1.5 pt-2">
-              <div class="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+              <div class="w-full h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                 <div id="uploadProgressFill" class="h-full bg-emerald-500 transition-all duration-150" style="width:0%;"></div>
               </div>
               <div id="uploadProgressLabel" class="text-[11px] font-mono text-zinc-500">Mengunggah...</div>
@@ -280,32 +307,32 @@
           </form>
 
           <!-- 2. Note / Prompt Form -->
-          <form id="noteForm" onsubmit="handleNoteSubmit(event)" class="hidden space-y-4">
+          <form id="noteForm" onsubmit="handleNoteSubmit(event)" class="hidden space-y-3 sm:space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div class="sm:col-span-2">
-                <label for="noteTitle" class="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">Judul</label>
+                <label for="noteTitle" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Judul</label>
                 <input type="text" id="noteTitle" required placeholder="contoh: Catatan Meeting, Arsitektur Sistem..."
-                       class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
+                       class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
               </div>
               <div>
-                <label for="noteCategory" class="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">Kategori</label>
+                <label for="noteCategory" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Kategori</label>
                 <input type="text" id="noteCategory" value="General" placeholder="General, Ide, Kode"
-                       class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
+                       class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
               </div>
             </div>
             <div>
-              <label for="noteContent" class="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">Konten Catatan / Prompt</label>
+              <label for="noteContent" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Konten Catatan / Prompt</label>
               <textarea id="noteContent" required rows="4" placeholder="Tulis instruksi atau catatan di sini..."
-                        class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500"></textarea>
+                        class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg text-xs font-mono text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500"></textarea>
             </div>
-            <div class="flex flex-col sm:flex-row gap-3 justify-between items-end">
+            <div class="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-end">
               <div class="w-full sm:w-1/2">
-                <label for="noteTags" class="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">Tag (Pisahkan koma)</label>
+                <label for="noteTags" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Tag (Pisahkan koma)</label>
                 <input type="text" id="noteTags" placeholder="backend, referensi, penting"
-                       class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
+                       class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
               </div>
               <button type="submit" id="btnNoteSubmit"
-                      class="w-full sm:w-auto px-5 py-2 bg-zinc-200 hover:bg-white text-zinc-950 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap">
+                      class="w-full sm:w-auto px-5 py-2.5 sm:py-2 bg-zinc-900 hover:bg-black dark:bg-zinc-200 dark:hover:bg-white text-white dark:text-zinc-950 text-xs font-semibold rounded-lg shadow-sm transition-colors whitespace-nowrap text-center">
                 Simpan Catatan
               </button>
             </div>
@@ -313,27 +340,27 @@
           </form>
 
           <!-- 3. Link Form -->
-          <form id="linkForm" onsubmit="handleLinkSubmit(event)" class="hidden space-y-4">
+          <form id="linkForm" onsubmit="handleLinkSubmit(event)" class="hidden space-y-3 sm:space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label for="linkUrl" class="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">URL Tautan</label>
+                <label for="linkUrl" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">URL Tautan</label>
                 <input type="url" id="linkUrl" required placeholder="https://example.com/docs"
-                       class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
+                       class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
               </div>
               <div>
-                <label for="linkTitle" class="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">Judul (Opsional)</label>
+                <label for="linkTitle" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Judul (Opsional)</label>
                 <input type="text" id="linkTitle" placeholder="Terisi otomatis jika kosong"
-                       class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
+                       class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
               </div>
             </div>
-            <div class="flex flex-col sm:flex-row gap-3 justify-between items-end">
+            <div class="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-end">
               <div class="w-full sm:w-2/3">
-                <label for="linkDesc" class="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">Deskripsi / Konteks (Opsional)</label>
+                <label for="linkDesc" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Deskripsi / Konteks (Opsional)</label>
                 <input type="text" id="linkDesc" placeholder="Konteks singkat tentang bookmark ini"
-                       class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
+                       class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500">
               </div>
               <button type="submit" id="btnLinkSubmit"
-                      class="w-full sm:w-auto px-5 py-2 bg-zinc-200 hover:bg-white text-zinc-950 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap">
+                      class="w-full sm:w-auto px-5 py-2.5 sm:py-2 bg-zinc-900 hover:bg-black dark:bg-zinc-200 dark:hover:bg-white text-white dark:text-zinc-950 text-xs font-semibold rounded-lg shadow-sm transition-colors whitespace-nowrap text-center">
                 Simpan Tautan
               </button>
             </div>
@@ -344,47 +371,47 @@
 
       <!-- Filter Controls & Navigation Tabs -->
       <section class="space-y-3">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 flex-wrap">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3">
           <!-- Filter Tabs -->
-          <div class="flex items-center gap-1 p-1 bg-arka-900 border border-zinc-800 rounded-lg overflow-x-auto scrollbar-none">
+          <div class="flex items-center gap-1 p-1 bg-zinc-200/60 dark:bg-arka-900 border border-zinc-300/80 dark:border-zinc-800 rounded-lg overflow-x-auto scrollbar-none w-full md:w-auto flex-nowrap shrink-0">
             <button type="button" id="filterAll" onclick="setFilter('all')"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-800 text-zinc-100 border border-zinc-700 transition-colors whitespace-nowrap">
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700 shadow-xs transition-colors whitespace-nowrap shrink-0">
               <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
               <span>Semua</span>
-              <span id="countAll" class="px-1.5 py-0.2 rounded bg-zinc-950 text-[10px] font-mono text-zinc-400">0</span>
+              <span id="countAll" class="px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-950 text-[10px] font-mono text-zinc-600 dark:text-zinc-400">0</span>
             </button>
             <button type="button" id="filterFiles" onclick="setFilter('files')"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap">
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap shrink-0">
               <i data-lucide="file" class="w-3.5 h-3.5"></i>
               <span>File</span>
-              <span id="countFiles" class="px-1.5 py-0.2 rounded bg-zinc-950 text-[10px] font-mono text-zinc-400">0</span>
+              <span id="countFiles" class="px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-950 text-[10px] font-mono text-zinc-600 dark:text-zinc-400">0</span>
             </button>
             <button type="button" id="filterImages" onclick="setFilter('images')"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap">
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap shrink-0">
               <i data-lucide="image" class="w-3.5 h-3.5"></i>
               <span>Gambar</span>
-              <span id="countImages" class="px-1.5 py-0.2 rounded bg-zinc-950 text-[10px] font-mono text-zinc-400">0</span>
+              <span id="countImages" class="px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-950 text-[10px] font-mono text-zinc-600 dark:text-zinc-400">0</span>
             </button>
             <button type="button" id="filterPrompts" onclick="setFilter('prompts')"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap">
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap shrink-0">
               <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
               <span>Prompt</span>
-              <span id="countPrompts" class="px-1.5 py-0.2 rounded bg-zinc-950 text-[10px] font-mono text-zinc-400">0</span>
+              <span id="countPrompts" class="px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-950 text-[10px] font-mono text-zinc-600 dark:text-zinc-400">0</span>
             </button>
             <button type="button" id="filterLinks" onclick="setFilter('links')"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap">
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap shrink-0">
               <i data-lucide="bookmark" class="w-3.5 h-3.5"></i>
               <span>Tautan</span>
-              <span id="countLinks" class="px-1.5 py-0.2 rounded bg-zinc-950 text-[10px] font-mono text-zinc-400">0</span>
+              <span id="countLinks" class="px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-950 text-[10px] font-mono text-zinc-600 dark:text-zinc-400">0</span>
             </button>
             <button type="button" id="filterTrash" onclick="setFilter('trash')"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap">
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap shrink-0">
               <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
               <span>Sampah</span>
-              <span id="countTrash" class="px-1.5 py-0.2 rounded bg-zinc-950 text-[10px] font-mono text-zinc-400">0</span>
+              <span id="countTrash" class="px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-950 text-[10px] font-mono text-zinc-600 dark:text-zinc-400">0</span>
             </button>
             <button type="button" id="filterGraph" onclick="setFilter('graph')"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap"
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent transition-colors whitespace-nowrap shrink-0"
                     title="Diagram Visual Hub">
               <i data-lucide="network" class="w-3.5 h-3.5"></i>
               <span>Diagram Visual</span>
@@ -392,16 +419,16 @@
           </div>
 
           <!-- Search Input & Trash Action -->
-          <div class="flex items-center gap-2 flex-1 max-w-sm ml-auto">
+          <div class="flex items-center gap-2 w-full md:w-auto md:flex-1 md:max-w-sm md:ml-auto">
             <button type="button" id="btnEmptyTrash" onclick="handleEmptyTrash()"
-                    class="hidden items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-400 hover:text-red-300 bg-red-500/10 border border-red-500/30 whitespace-nowrap">
+                    class="hidden items-center gap-1 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-mono text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 bg-red-500/10 border border-red-500/30 whitespace-nowrap shrink-0">
               <i data-lucide="trash" class="w-3.5 h-3.5"></i>
               <span>Kosongkan</span>
             </button>
             <div class="relative w-full">
-              <i data-lucide="search" class="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+              <i data-lucide="search" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
               <input type="text" id="searchInput" placeholder="Cari berkas... (tekan /)" oninput="handleSearch(this.value)"
-                     class="w-full pl-9 pr-3 py-1.5 bg-arka-900 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors">
+                     class="w-full pl-9 pr-3 py-2 sm:py-1.5 bg-white dark:bg-arka-900 border border-zinc-300 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-500 dark:focus:border-zinc-600 transition-colors">
             </div>
           </div>
         </div>
@@ -411,41 +438,41 @@
       </section>
 
       <!-- Data List / Image Gallery Container -->
-      <section class="data-table-container bg-arka-900 border border-zinc-800 rounded-xl overflow-hidden shadow-sm min-h-[300px]">
+      <section class="data-table-container bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xs min-h-[300px]">
         <div id="dataList" class="flex flex-col">
           <div class="p-8 text-center text-xs font-mono text-zinc-500">Memuat data...</div>
         </div>
       </section>
 
       <!-- Interactive Graph Canvas Container -->
-      <section id="graphContainer" class="hidden flex-col h-[700px] bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden relative shadow-sm">
-        <div class="flex items-center justify-between p-3 bg-zinc-900 border-b border-zinc-800 flex-wrap gap-2 z-10">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-mono font-semibold text-zinc-200 flex items-center gap-1.5">
-              <i data-lucide="network" class="w-4 h-4 text-emerald-400"></i> Visual Graph Hub
+      <section id="graphContainer" class="hidden flex-col h-[520px] sm:h-[700px] bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden relative shadow-xs">
+        <div class="flex items-center justify-between p-2.5 sm:p-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex-wrap gap-2 z-10">
+          <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <span class="text-xs font-mono font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+              <i data-lucide="network" class="w-4 h-4 text-emerald-500 dark:text-emerald-400"></i> <span class="hidden xs:inline">Visual Graph Hub</span>
             </span>
-            <div class="flex items-center gap-1 bg-zinc-950 p-1 rounded-md border border-zinc-800 text-[11px] font-mono">
-              <button type="button" id="graphModeRelations" onclick="setGraphMode('relations')" class="px-2 py-0.5 rounded bg-zinc-800 text-white">Relasi Drive</button>
-              <button type="button" id="graphModeSchema" onclick="setGraphMode('schema')" class="px-2 py-0.5 rounded text-zinc-400 hover:text-white">Skema Database</button>
+            <div class="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-950 p-1 rounded-md border border-zinc-200 dark:border-zinc-800 text-[10px] sm:text-[11px] font-mono">
+              <button type="button" id="graphModeRelations" onclick="setGraphMode('relations')" class="px-2 py-0.5 rounded bg-zinc-900 text-white dark:bg-zinc-800">Relasi Drive</button>
+              <button type="button" id="graphModeSchema" onclick="setGraphMode('schema')" class="px-2 py-0.5 rounded text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">Skema DB</button>
             </div>
             <span id="graphStats" class="text-xs font-mono text-zinc-500">0 node</span>
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <input type="text" id="graphSearchInput" placeholder="Cari node..." oninput="handleGraphSearch(this.value)"
-                   class="px-2.5 py-1 rounded bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-600 w-32">
-            <button type="button" onclick="autoLayoutGraph()" class="px-2 py-1 rounded bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-xs font-mono text-zinc-300" title="Tata Ulang">
+                   class="px-2 py-1 rounded bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-xs font-mono text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500 w-24 sm:w-32">
+            <button type="button" onclick="autoLayoutGraph()" class="p-1.5 sm:px-2 sm:py-1 rounded bg-zinc-100 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-xs font-mono text-zinc-700 dark:text-zinc-300" title="Tata Ulang">
               <i data-lucide="layout" class="w-3.5 h-3.5 inline"></i>
             </button>
-            <button type="button" onclick="resetGraphView()" class="px-2 py-1 rounded bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-xs font-mono text-zinc-300" title="Pusatkan">
+            <button type="button" onclick="resetGraphView()" class="p-1.5 sm:px-2 sm:py-1 rounded bg-zinc-100 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-xs font-mono text-zinc-700 dark:text-zinc-300" title="Pusatkan">
               <i data-lucide="crosshair" class="w-3.5 h-3.5 inline"></i>
             </button>
-            <div class="flex items-center gap-1 bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-xs font-mono text-zinc-400">
+            <div class="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded px-1.5 py-0.5 text-xs font-mono text-zinc-600 dark:text-zinc-400">
               <button type="button" onclick="zoomGraph(-0.15)"><i data-lucide="zoom-out" class="w-3 h-3"></i></button>
-              <span id="graphZoomLevel" class="text-[11px] w-9 text-center">100%</span>
+              <span id="graphZoomLevel" class="text-[10px] sm:text-[11px] w-8 sm:w-9 text-center">100%</span>
               <button type="button" onclick="zoomGraph(0.15)"><i data-lucide="zoom-in" class="w-3 h-3"></i></button>
             </div>
-            <button type="button" onclick="toggleGraphFullscreen()" class="p-1 rounded bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300" title="Layar Penuh">
+            <button type="button" onclick="toggleGraphFullscreen()" class="p-1.5 rounded bg-zinc-100 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300" title="Layar Penuh">
               <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
             </button>
           </div>
@@ -456,8 +483,8 @@
             <svg class="graph-svg-layer" id="graphSvgLayer"></svg>
             <div class="graph-nodes-layer" id="graphNodesLayer"></div>
           </div>
-          <div class="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-zinc-900/90 border border-zinc-800 text-[11px] font-mono text-zinc-400 backdrop-blur-sm pointer-events-none">
-            Geser canvas untuk pan • Scroll untuk zoom • Drag node untuk memindahkan
+          <div class="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 text-[10px] sm:text-[11px] font-mono text-zinc-600 dark:text-zinc-400 backdrop-blur-sm pointer-events-none text-center whitespace-nowrap shadow-xs">
+            Geser canvas untuk pan • Pinch / scroll zoom
           </div>
         </div>
       </section>
@@ -467,101 +494,101 @@
 
   <!-- ── Floating AI Assistant Trigger Button ──────────────────────────────── -->
   <button id="aiChatBtn" onclick="toggleAiChat()" title="Buka Arka Assistant (Ctrl+K)"
-          class="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-zinc-100 hover:bg-white text-zinc-950 shadow-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-zinc-300">
+          class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 shadow-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-zinc-700 dark:border-zinc-300">
     <i data-lucide="sparkles" class="w-5 h-5"></i>
   </button>
 
   <!-- ── Fullscreen / Overlay AI Assistant ─────────────────────────────────── -->
-  <div id="aiChatOverlay" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex-col justify-between p-4 sm:p-6 transition-all">
-    <div class="flex items-center justify-between max-w-4xl mx-auto w-full pb-4 border-b border-zinc-800">
-      <div class="flex items-center gap-2.5">
-        <img src="/arka-white-logo.png" alt="ARKA" class="w-6 h-6 object-contain">
-        <span class="text-sm font-bold text-white">Arka Assistant</span>
-        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">Groq / Gemini AI</span>
+  <div id="aiChatOverlay" class="fixed inset-0 z-50 bg-white/95 dark:bg-black/85 backdrop-blur-md hidden flex-col justify-between p-3 sm:p-6 transition-all pb-safe">
+    <div class="flex items-center justify-between max-w-4xl mx-auto w-full pb-3 sm:pb-4 border-b border-zinc-200 dark:border-zinc-800">
+      <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
+        <img src="/arka-white-logo.png" alt="ARKA" class="w-5 h-5 sm:w-6 sm:h-6 object-contain flex-shrink-0 invert dark:invert-0 transition-[filter]">
+        <span class="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white truncate">Arka Assistant</span>
+        <span class="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">Groq / Gemini AI</span>
       </div>
-      <div class="flex items-center gap-2">
-        <button type="button" onclick="resetAiChat()" class="px-2.5 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 text-xs font-mono transition-colors flex items-center gap-1">
-          <i data-lucide="rotate-ccw" class="w-3 h-3"></i> <span>Reset</span>
+      <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+        <button type="button" onclick="resetAiChat()" class="px-2 sm:px-2.5 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-800 text-xs font-mono transition-colors flex items-center gap-1">
+          <i data-lucide="rotate-ccw" class="w-3 h-3"></i> <span class="hidden xs:inline sm:inline">Reset</span>
         </button>
-        <button type="button" onclick="toggleAiChat()" class="px-2.5 py-1 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 text-xs font-mono transition-colors flex items-center gap-1">
-          <i data-lucide="x" class="w-3.5 h-3.5"></i> <span>Esc</span>
+        <button type="button" onclick="toggleAiChat()" class="px-2 sm:px-2.5 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 text-xs font-mono transition-colors flex items-center gap-1">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i> <span class="hidden xs:inline sm:inline">Tutup</span>
         </button>
       </div>
     </div>
 
     <!-- Message Area -->
-    <div id="aiMessagesScroll" class="flex-1 overflow-y-auto max-w-4xl mx-auto w-full py-6 space-y-4">
-      <div id="aiChatMessages" class="space-y-4"></div>
+    <div id="aiMessagesScroll" class="flex-1 overflow-y-auto max-w-4xl mx-auto w-full py-4 sm:py-6 space-y-3 sm:space-y-4">
+      <div id="aiChatMessages" class="space-y-3 sm:space-y-4"></div>
     </div>
 
     <!-- Input Box & Suggestions -->
-    <div class="max-w-3xl mx-auto w-full space-y-3">
-      <div class="ai-hero-suggestions flex items-center justify-center gap-2 flex-wrap">
-        <button type="button" onclick="sendAiSuggestion(this)" class="px-3 py-1 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-400 hover:text-zinc-200 transition-colors">
-          Rangkum semua file yang ada di Drive
+    <div class="max-w-3xl mx-auto w-full space-y-2 sm:space-y-3">
+      <div class="ai-hero-suggestions flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto sm:flex-wrap scrollbar-none pb-1">
+        <button type="button" onclick="sendAiSuggestion(this)" class="px-2.5 sm:px-3 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-[11px] sm:text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0">
+          Rangkum semua file di Drive
         </button>
-        <button type="button" onclick="sendAiSuggestion(this)" class="px-3 py-1 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-400 hover:text-zinc-200 transition-colors">
-          Cari file yang belum dirapikan
+        <button type="button" onclick="sendAiSuggestion(this)" class="px-2.5 sm:px-3 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-[11px] sm:text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0">
+          Cari file belum dirapikan
         </button>
-        <button type="button" onclick="sendAiSuggestion(this)" class="px-3 py-1 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-400 hover:text-zinc-200 transition-colors">
-          Bagaimana cara menghubungkan Google Drive?
+        <button type="button" onclick="sendAiSuggestion(this)" class="px-2.5 sm:px-3 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-[11px] sm:text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0">
+          Hubungkan Google Drive?
         </button>
       </div>
 
-      <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-2 shadow-2xl focus-within:border-zinc-600 transition-colors">
+      <div class="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-1.5 sm:p-2 shadow-xl focus-within:border-zinc-400 dark:focus-within:border-zinc-600 transition-colors">
         <textarea id="aiChatInput" rows="1" placeholder="Tanyakan apa saja kepada Arka Assistant..." onkeydown="aiChatKeydown(event)" oninput="aiChatAutoResize(this)"
-                  class="flex-1 bg-transparent border-none outline-none text-sm text-zinc-100 placeholder-zinc-500 px-3 resize-none max-h-28"></textarea>
+                  class="flex-1 bg-transparent border-none outline-none text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 px-2 sm:px-3 resize-none max-h-24 sm:max-h-28"></textarea>
         <button type="button" id="aiChatSendBtn" onclick="sendAiMessage()" disabled
-                class="w-8 h-8 rounded-xl bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-600 text-zinc-950 flex items-center justify-center transition-colors flex-shrink-0">
+                class="w-8 h-8 rounded-xl bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white disabled:bg-zinc-200 disabled:text-zinc-400 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 dark:text-zinc-950 flex items-center justify-center transition-colors flex-shrink-0">
           <i data-lucide="arrow-up" class="w-4 h-4"></i>
         </button>
       </div>
-      <div class="text-[11px] font-mono text-zinc-500 text-center">Tekan Enter untuk mengirim • Shift+Enter untuk baris baru</div>
+      <div class="text-[10px] sm:text-[11px] font-mono text-zinc-500 text-center hidden sm:block">Tekan Enter untuk mengirim • Shift+Enter untuk baris baru</div>
     </div>
   </div>
 
   <!-- ── Multi-Format Preview Modal Backdrop & Window ──────────────────────── -->
-  <div id="previewModalBackdrop" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
-    <div class="modal-window bg-arka-900 border border-zinc-800 rounded-xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden transition-all">
+  <div id="previewModalBackdrop" class="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-md hidden items-center justify-center p-2 sm:p-4">
+    <div class="modal-window bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl w-full max-w-4xl max-h-[96vh] sm:max-h-[92vh] flex flex-col shadow-2xl overflow-hidden transition-all">
       <!-- Modal Header -->
-      <div class="flex items-center justify-between p-3.5 bg-zinc-950 border-b border-zinc-800 gap-3">
-        <div class="flex items-center gap-2 min-w-0 flex-1">
-          <span id="previewModalTypeBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">FILE</span>
-          <span id="previewModalCategoryBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700/60">root</span>
-          <h3 id="previewModalTitle" class="text-sm font-semibold text-zinc-100 truncate">Pratinjau</h3>
+      <div class="flex items-center justify-between p-2.5 sm:p-3.5 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 gap-2 sm:gap-3">
+        <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+          <span id="previewModalTypeBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700 flex-shrink-0">FILE</span>
+          <span id="previewModalCategoryBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-700/60 flex-shrink-0 max-w-[80px] sm:max-w-none truncate">root</span>
+          <h3 id="previewModalTitle" class="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">Pratinjau</h3>
         </div>
 
         <!-- Next / Prev Navigation Controls (Kenyamanan UX) -->
-        <div class="hidden items-center gap-1.5 font-mono text-xs text-zinc-400 bg-zinc-900 px-2 py-1 rounded-md border border-zinc-800">
-          <button type="button" onclick="navigatePreview(-1)" title="Sebelumnya (←)" class="hover:text-white p-0.5">
+        <div class="hidden flex items-center gap-1 sm:gap-1.5 font-mono text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900 px-1.5 sm:px-2 py-1 rounded-md border border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+          <button type="button" onclick="navigatePreview(-1)" title="Sebelumnya (←)" class="hover:text-zinc-900 dark:hover:text-white p-1 sm:p-0.5">
             <i data-lucide="chevron-left" class="w-4 h-4"></i>
           </button>
-          <span id="previewNavIndicator" class="text-[11px] text-zinc-400 px-1">1 / 1</span>
-          <button type="button" onclick="navigatePreview(1)" title="Berikutnya (→)" class="hover:text-white p-0.5">
+          <span id="previewNavIndicator" class="text-[10px] sm:text-[11px] text-zinc-600 dark:text-zinc-400 px-0.5 sm:px-1">1 / 1</span>
+          <button type="button" onclick="navigatePreview(1)" title="Berikutnya (→)" class="hover:text-zinc-900 dark:hover:text-white p-1 sm:p-0.5">
             <i data-lucide="chevron-right" class="w-4 h-4"></i>
           </button>
         </div>
 
-        <div class="flex items-center gap-1.5 flex-shrink-0">
+        <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
           <button type="button" id="previewModalExpandBtn" onclick="togglePreviewExpand()" title="Perbesar Layar"
-                  class="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 transition-colors">
+                  class="p-1.5 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-800 transition-colors">
             <i data-lucide="maximize-2" class="w-4 h-4"></i>
           </button>
           <button type="button" onclick="closePreview()" title="Tutup (Esc)"
-                  class="p-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition-colors">
+                  class="p-1.5 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 transition-colors">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
       </div>
 
       <!-- Modal Body -->
-      <div class="p-4 overflow-y-auto space-y-4 flex-1">
+      <div class="p-3 sm:p-4 overflow-y-auto space-y-3 sm:space-y-4 flex-1">
         <div id="previewViewerContainer"></div>
         <div id="previewMetaContainer"></div>
       </div>
 
       <!-- Modal Footer -->
-      <div id="previewFooterActions" class="p-3 bg-zinc-950 border-t border-zinc-800 flex items-center justify-end gap-2"></div>
+      <div id="previewFooterActions" class="p-2.5 sm:p-3 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-end gap-2 flex-wrap"></div>
     </div>
   </div>
 

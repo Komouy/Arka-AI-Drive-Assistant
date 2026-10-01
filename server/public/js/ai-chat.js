@@ -68,11 +68,11 @@ function escapeHtmlAi(text) {
 function formatAiResponse(text) {
   if (!text) return '';
   let safe = escapeHtmlAi(text);
-  safe = safe.replace(/```(?:[a-zA-Z0-9_\-]+)?\n?([\s\S]*?)```/g, '<pre class="bg-zinc-950 p-2.5 rounded border border-zinc-800 text-xs font-mono my-2 overflow-x-auto text-zinc-200"><code>$1</code></pre>');
-  safe = safe.replace(/`([^`]+)`/g, '<code class="bg-zinc-800 text-amber-300 px-1.5 py-0.5 rounded text-xs font-mono">$1</code>');
-  safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-zinc-100">$1</strong>');
-  safe = safe.replace(/(?:^|\n)[-*]\s+(.+)/g, '<li class="ml-4 list-disc text-zinc-300">$1</li>');
-  safe = safe.replace(/(<li class="ml-4 list-disc text-zinc-300">[\s\S]+?<\/li>)/g, '<ul class="my-1 space-y-0.5">$1</ul>');
+  safe = safe.replace(/```(?:[a-zA-Z0-9_\-]+)?\n?([\s\S]*?)```/g, '<pre class="bg-zinc-100 dark:bg-zinc-950 p-2.5 rounded border border-zinc-200 dark:border-zinc-800 text-xs font-mono my-2 overflow-x-auto text-zinc-800 dark:text-zinc-200"><code>$1</code></pre>');
+  safe = safe.replace(/`([^`]+)`/g, '<code class="bg-zinc-200 dark:bg-zinc-800 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded text-xs font-mono">$1</code>');
+  safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-zinc-900 dark:text-zinc-100">$1</strong>');
+  safe = safe.replace(/(?:^|\n)[-*]\s+(.+)/g, '<li class="ml-4 list-disc text-zinc-700 dark:text-zinc-300">$1</li>');
+  safe = safe.replace(/(<li class="ml-4 list-disc text-zinc-700 dark:text-zinc-300">[\s\S]+?<\/li>)/g, '<ul class="my-1 space-y-0.5">$1</ul>');
   safe = safe.replace(/<\/ul>\s*<ul class="my-1 space-y-0.5">/g, '');
   safe = safe.replace(/\n/g, '<br>');
   safe = safe.replace(/<\/ul><br>/g, '</ul>');
@@ -95,12 +95,12 @@ function addAiMessage(role, text) {
   msgEl.className = `flex gap-3 items-start ${isUser ? 'flex-row-reverse' : ''} fade-in-fast`;
 
   const avatar = isUser
-    ? `<div class="w-8 h-8 rounded-full bg-zinc-700 text-white flex items-center justify-center font-mono text-xs font-semibold flex-shrink-0">U</div>`
-    : `<div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0"><img src="/arka-white-logo.png" alt="ARKA" class="w-4 h-4 object-contain"></div>`;
+    ? `<div class="w-8 h-8 rounded-full bg-zinc-800 dark:bg-zinc-700 text-white flex items-center justify-center font-mono text-xs font-semibold flex-shrink-0">U</div>`
+    : `<div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0"><img src="/arka-white-logo.png" alt="ARKA" class="w-4 h-4 object-contain invert dark:invert-0"></div>`;
 
   const bubble = isUser
-    ? `<div class="bg-zinc-800 text-zinc-100 px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm max-w-lg leading-relaxed shadow-sm">${escapeHtmlAi(text).replace(/\n/g, '<br>')}</div>`
-    : `<div class="bg-zinc-900 border border-zinc-800 text-zinc-200 px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm max-w-xl leading-relaxed shadow-sm prose-invert">${formatAiResponse(text)}</div>`;
+    ? `<div class="bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm max-w-lg leading-relaxed shadow-sm">${escapeHtmlAi(text).replace(/\n/g, '<br>')}</div>`
+    : `<div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm max-w-xl leading-relaxed shadow-sm">${formatAiResponse(text)}</div>`;
 
   msgEl.innerHTML = `${avatar}${bubble}`;
   container.appendChild(msgEl);
@@ -122,9 +122,9 @@ function addAiTyping() {
   el.id = 'aiTypingIndicator';
   el.innerHTML = `
     <div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-      <img src="/arka-white-logo.png" alt="ARKA" class="w-4 h-4 object-contain">
+      <img src="/arka-white-logo.png" alt="ARKA" class="w-4 h-4 object-contain invert dark:invert-0">
     </div>
-    <div class="bg-zinc-900 border border-zinc-800 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1.5 text-zinc-400">
+    <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400">
       <span class="w-2 h-2 rounded-full bg-amber-400/80 animate-bounce"></span>
       <span class="w-2 h-2 rounded-full bg-amber-400/80 animate-bounce [animation-delay:0.2s]"></span>
       <span class="w-2 h-2 rounded-full bg-amber-400/80 animate-bounce [animation-delay:0.4s]"></span>

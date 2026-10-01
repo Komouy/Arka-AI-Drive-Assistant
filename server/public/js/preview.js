@@ -82,14 +82,14 @@ function renderSpreadsheetPreview(buffer, container, fileName) {
     }
 
     const tabsHtml = wb.SheetNames.map((name, idx) => `
-      <button type="button" class="px-2.5 py-1 rounded text-xs font-mono transition-colors ${idx === 0 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}" data-idx="${idx}">
+      <button type="button" class="px-2.5 py-1 rounded text-xs font-mono transition-colors ${idx === 0 ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 font-semibold' : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-700'}" data-idx="${idx}">
         ${escapeHtml(name)}
       </button>
     `).join('');
 
     container.innerHTML = `
-      <div class="w-full flex flex-col h-full bg-zinc-950 min-h-[360px] rounded overflow-hidden border border-zinc-800">
-        <div class="flex items-center justify-between gap-3 p-2 bg-zinc-900 border-b border-zinc-800 flex-wrap">
+      <div class="w-full flex flex-col h-full bg-white dark:bg-zinc-950 min-h-[360px] rounded overflow-hidden border border-zinc-200 dark:border-zinc-800">
+        <div class="flex items-center justify-between gap-3 p-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex-wrap">
           <div class="flex items-center gap-1.5 overflow-x-auto excel-sheet-tabs">
             ${tabsHtml}
           </div>
@@ -102,9 +102,9 @@ function renderSpreadsheetPreview(buffer, container, fileName) {
     container.querySelectorAll('.excel-sheet-tabs button').forEach(btn => {
       btn.addEventListener('click', () => {
         container.querySelectorAll('.excel-sheet-tabs button').forEach(b => {
-          b.className = 'px-2.5 py-1 rounded text-xs font-mono bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors';
+          b.className = 'px-2.5 py-1 rounded text-xs font-mono bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-700 transition-colors';
         });
-        btn.className = 'px-2.5 py-1 rounded text-xs font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold';
+        btn.className = 'px-2.5 py-1 rounded text-xs font-mono bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 font-semibold';
         activeSheetIdx = parseInt(btn.dataset.idx, 10);
         renderActiveSheet();
       });
@@ -112,7 +112,7 @@ function renderSpreadsheetPreview(buffer, container, fileName) {
 
     renderActiveSheet();
   } catch (err) {
-    container.innerHTML = `<div class="p-8 text-center text-red-400 font-mono text-xs">Gagal merender spreadsheet: ${escapeHtml(err.message)}</div>`;
+    container.innerHTML = `<div class="p-8 text-center text-red-500 dark:text-red-400 font-mono text-xs">Gagal merender spreadsheet: ${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -121,8 +121,8 @@ async function renderDocxPreview(buffer, container, fileName) {
     if (typeof mammoth === 'undefined') throw new Error('Mesin pembaca Word belum termuat.');
     const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
     container.innerHTML = `
-      <div class="w-full flex flex-col h-full bg-zinc-950 rounded border border-zinc-800 overflow-hidden">
-        <div class="overflow-y-auto max-h-[500px] p-6 flex justify-center bg-zinc-950">
+      <div class="w-full flex flex-col h-full bg-zinc-100 dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        <div class="overflow-y-auto max-h-[500px] p-2 sm:p-6 flex justify-center bg-zinc-100 dark:bg-zinc-950">
           <div class="docx-paper">
             ${result.value || '<p class="text-zinc-500">Dokumen kosong.</p>'}
           </div>
@@ -130,7 +130,7 @@ async function renderDocxPreview(buffer, container, fileName) {
       </div>
     `;
   } catch (err) {
-    container.innerHTML = `<div class="p-8 text-center text-red-400 font-mono text-xs">Gagal merender dokumen Word: ${escapeHtml(err.message)}</div>`;
+    container.innerHTML = `<div class="p-8 text-center text-red-500 dark:text-red-400 font-mono text-xs">Gagal merender dokumen Word: ${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -143,11 +143,11 @@ async function renderTextCodePreview(url, container, fileName, ext) {
 
     if (isMd && typeof marked !== 'undefined') {
       container.innerHTML = `
-        <div class="w-full flex flex-col h-full bg-zinc-950 rounded border border-zinc-800 overflow-hidden">
-          <div class="flex items-center justify-between p-2 bg-zinc-900 border-b border-zinc-800">
-            <span class="text-xs font-mono text-zinc-400">Pratinjau Markdown</span>
+        <div class="w-full flex flex-col h-full bg-white dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+          <div class="flex items-center justify-between p-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+            <span class="text-xs font-mono text-zinc-600 dark:text-zinc-400">Pratinjau Markdown</span>
           </div>
-          <div class="overflow-y-auto max-h-[500px] p-6 bg-zinc-950 prose prose-invert prose-zinc max-w-none text-zinc-200 font-sans leading-relaxed">
+          <div class="overflow-y-auto max-h-[500px] p-3 sm:p-6 bg-white dark:bg-zinc-950 prose prose-zinc dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200 font-sans leading-relaxed">
             ${marked.parse(text)}
           </div>
         </div>
@@ -158,13 +158,13 @@ async function renderTextCodePreview(url, container, fileName, ext) {
     const lines = text.split('\n');
     const lineNums = lines.map((_, i) => i + 1).join('\n');
     container.innerHTML = `
-      <div class="w-full flex overflow-auto max-h-[500px] bg-zinc-950 rounded border border-zinc-800 font-mono text-xs">
-        <div class="code-line-numbers select-none text-zinc-600 text-right p-3 bg-zinc-900/60 border-r border-zinc-800 min-w-[40px] leading-relaxed whitespace-pre">${lineNums}</div>
-        <pre class="flex-1 p-3 text-zinc-200 whitespace-pre overflow-x-auto leading-relaxed m-0">${escapeHtml(text)}</pre>
+      <div class="w-full flex overflow-auto max-h-[500px] bg-white dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800 font-mono text-xs">
+        <div class="code-line-numbers select-none text-zinc-500 dark:text-zinc-600 text-right p-2 sm:p-3 bg-zinc-50 dark:bg-zinc-900/60 border-r border-zinc-200 dark:border-zinc-800 min-w-[36px] sm:min-w-[40px] leading-relaxed whitespace-pre">${lineNums}</div>
+        <pre class="flex-1 p-2 sm:p-3 text-zinc-800 dark:text-zinc-200 whitespace-pre overflow-x-auto leading-relaxed m-0 bg-white dark:bg-zinc-950">${escapeHtml(text)}</pre>
       </div>
     `;
   } catch (err) {
-    container.innerHTML = `<div class="p-8 text-center text-red-400 font-mono text-xs">Gagal membaca kode: ${escapeHtml(err.message)}</div>`;
+    container.innerHTML = `<div class="p-8 text-center text-red-500 dark:text-red-400 font-mono text-xs">Gagal membaca kode: ${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -178,24 +178,24 @@ async function renderZipPreview(buffer, container, fileName) {
     });
 
     const rows = files.map(f => `
-      <div class="flex items-center justify-between px-3 py-1.5 rounded hover:bg-zinc-800 font-mono text-xs text-zinc-300">
+      <div class="flex items-center justify-between px-3 py-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 font-mono text-xs text-zinc-700 dark:text-zinc-300">
         <span class="flex items-center gap-2 truncate">
-          <i data-lucide="${f.dir ? 'folder' : 'file'}" class="w-3.5 h-3.5 ${f.dir ? 'text-amber-400' : 'text-zinc-400'}"></i>
+          <i data-lucide="${f.dir ? 'folder' : 'file'}" class="w-3.5 h-3.5 ${f.dir ? 'text-amber-500 dark:text-amber-400' : 'text-zinc-500 dark:text-zinc-400'}"></i>
           <span class="truncate">${escapeHtml(f.name)}</span>
         </span>
-        <span class="text-[11px] text-zinc-500">${f.date ? formatDate(f.date) : ''}</span>
+        <span class="text-[11px] text-zinc-400 dark:text-zinc-500">${f.date ? formatDate(f.date) : ''}</span>
       </div>
     `).join('');
 
     container.innerHTML = `
-      <div class="w-full flex flex-col h-full bg-zinc-950 rounded border border-zinc-800 overflow-hidden">
-        <div class="p-2 bg-zinc-900 border-b border-zinc-800 text-xs font-mono text-zinc-400">${files.length} berkas dalam arsip ZIP</div>
+      <div class="w-full flex flex-col h-full bg-white dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        <div class="p-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-xs font-mono text-zinc-600 dark:text-zinc-400">${files.length} berkas dalam arsip ZIP</div>
         <div class="overflow-y-auto max-h-[460px] p-2 flex flex-col gap-0.5">${rows || '<div class="p-4 text-center text-zinc-500">Arsip kosong</div>'}</div>
       </div>
     `;
     refreshIcons();
   } catch (err) {
-    container.innerHTML = `<div class="p-8 text-center text-red-400 font-mono text-xs">Gagal membaca arsip ZIP: ${escapeHtml(err.message)}</div>`;
+    container.innerHTML = `<div class="p-8 text-center text-red-500 dark:text-red-400 font-mono text-xs">Gagal membaca arsip ZIP: ${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -248,9 +248,9 @@ function openPreview(type, id, buildList = true) {
     typeBadge.textContent = 'PROMPT';
     categoryBadge.textContent = item.category || 'General';
 
-    viewerContainer.innerHTML = `<pre class="font-mono text-xs p-4 bg-zinc-950 rounded border border-zinc-800 text-zinc-200 whitespace-pre-wrap max-h-96 overflow-y-auto leading-relaxed">${escapeHtml(item.content)}</pre>`;
+    viewerContainer.innerHTML = `<pre class="font-mono text-xs p-4 bg-zinc-50 dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap max-h-96 overflow-y-auto leading-relaxed">${escapeHtml(item.content)}</pre>`;
     footerActions.innerHTML = `
-      <button class="px-3 py-1.5 rounded text-xs font-mono bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-colors inline-flex items-center gap-1.5" onclick="handleCopyPrompt('${escapeHtml(String(item.id))}', this)"><i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Salin Prompt</span></button>
+      <button class="px-3 py-1.5 rounded text-xs font-mono bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 transition-colors inline-flex items-center gap-1.5" onclick="handleCopyPrompt('${escapeHtml(String(item.id))}', this)"><i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Salin Prompt</span></button>
     `;
   } else if (type === 'LINK') {
     const item = allData.links.find(l => String(l.id) === String(id));
@@ -262,14 +262,14 @@ function openPreview(type, id, buildList = true) {
 
     const safeUrl = escapeHtml(item.url || '');
     viewerContainer.innerHTML = `
-      <div class="w-full flex flex-col h-[400px] rounded border border-zinc-800 overflow-hidden bg-white">
+      <div class="w-full flex flex-col h-[400px] rounded border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white">
         <iframe class="w-full h-full border-none" src="${safeUrl}" sandbox="allow-scripts allow-same-origin" loading="lazy"></iframe>
       </div>
       <div class="text-[11px] font-mono text-zinc-500 text-center mt-1">Jika situs dibatasi di dalam iframe, gunakan tombol Buka Tautan di bawah.</div>
     `;
     footerActions.innerHTML = `
-      <button class="px-3 py-1.5 rounded text-xs font-mono bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-colors inline-flex items-center gap-1.5" onclick="handleCopyLink('${escapeHtml(String(item.id))}', this)"><i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Salin URL</span></button>
-      <a href="${safeUrl}" class="px-3 py-1.5 rounded text-xs font-mono bg-zinc-100 hover:bg-white text-zinc-900 font-medium transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link" class="w-3.5 h-3.5"></i> <span>Buka Asli</span></a>
+      <button class="px-3 py-1.5 rounded text-xs font-mono bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 transition-colors inline-flex items-center gap-1.5" onclick="handleCopyLink('${escapeHtml(String(item.id))}', this)"><i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Salin URL</span></button>
+      <a href="${safeUrl}" class="px-3 py-1.5 rounded text-xs font-mono bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 font-medium transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link" class="w-3.5 h-3.5"></i> <span>Buka Asli</span></a>
     `;
   } else if (type === 'FILE' || type === 'TRASH') {
     const item = allData.files.find(f => String(f.id) === String(id)) || allData.trash.find(f => String(f.id) === String(id));
@@ -297,49 +297,49 @@ function openPreview(type, id, buildList = true) {
 
     if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext)) {
       viewerContainer.innerHTML = `
-        <div class="relative w-full flex items-center justify-center bg-zinc-950 p-2 rounded border border-zinc-800 min-h-[300px] max-h-[500px] overflow-hidden group">
+        <div class="relative w-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 p-2 rounded border border-zinc-200 dark:border-zinc-800 min-h-[300px] max-h-[500px] overflow-hidden group">
           <img src="${viewUrl}" class="max-w-full max-h-[480px] object-contain rounded transition-transform duration-200" alt="${escapeHtml(item.original_name)}">
         </div>
       `;
     } else if (mime.startsWith('video/') || ['mp4', 'webm', 'mov'].includes(ext)) {
       viewerContainer.innerHTML = `<video controls class="w-full max-h-[460px] rounded bg-black" src="${viewUrl}"></video>`;
     } else if (mime.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) {
-      viewerContainer.innerHTML = `<div class="p-8 w-full flex items-center justify-center bg-zinc-950 rounded border border-zinc-800"><audio controls class="w-full max-w-md" src="${viewUrl}"></audio></div>`;
+      viewerContainer.innerHTML = `<div class="p-8 w-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800"><audio controls class="w-full max-w-md" src="${viewUrl}"></audio></div>`;
     } else if (isPdf) {
-      viewerContainer.innerHTML = `<iframe class="w-full h-[520px] rounded border border-zinc-800 bg-white" src="${viewUrl}"></iframe>`;
+      viewerContainer.innerHTML = `<iframe class="w-full h-[520px] rounded border border-zinc-200 dark:border-zinc-800 bg-white" src="${viewUrl}"></iframe>`;
     } else if (isSpreadsheet) {
-      viewerContainer.innerHTML = `<div class="p-12 text-center text-zinc-400 font-mono text-xs flex items-center justify-center gap-2"><i data-lucide="loader" class="w-4 h-4 spin text-emerald-400"></i> Membaca spreadsheet...</div>`;
+      viewerContainer.innerHTML = `<div class="p-12 text-center text-zinc-500 dark:text-zinc-400 font-mono text-xs flex items-center justify-center gap-2"><i data-lucide="loader" class="w-4 h-4 spin text-emerald-500 dark:text-emerald-400"></i> Membaca spreadsheet...</div>`;
       authFetch(downloadUrl)
         .then(res => res.arrayBuffer())
         .then(buf => renderSpreadsheetPreview(buf, viewerContainer, item.original_name))
-        .catch(err => { viewerContainer.innerHTML = `<div class="p-8 text-center text-red-400 font-mono text-xs">${escapeHtml(err.message)}</div>`; });
+        .catch(err => { viewerContainer.innerHTML = `<div class="p-8 text-center text-red-500 dark:text-red-400 font-mono text-xs">${escapeHtml(err.message)}</div>`; });
     } else if (isDocx) {
-      viewerContainer.innerHTML = `<div class="p-12 text-center text-zinc-400 font-mono text-xs flex items-center justify-center gap-2"><i data-lucide="loader" class="w-4 h-4 spin text-blue-400"></i> Membaca dokumen Word...</div>`;
+      viewerContainer.innerHTML = `<div class="p-12 text-center text-zinc-500 dark:text-zinc-400 font-mono text-xs flex items-center justify-center gap-2"><i data-lucide="loader" class="w-4 h-4 spin text-blue-500 dark:text-blue-400"></i> Membaca dokumen Word...</div>`;
       authFetch(downloadUrl)
         .then(res => res.arrayBuffer())
         .then(buf => renderDocxPreview(buf, viewerContainer, item.original_name))
-        .catch(err => { viewerContainer.innerHTML = `<div class="p-8 text-center text-red-400 font-mono text-xs">${escapeHtml(err.message)}</div>`; });
+        .catch(err => { viewerContainer.innerHTML = `<div class="p-8 text-center text-red-500 dark:text-red-400 font-mono text-xs">${escapeHtml(err.message)}</div>`; });
     } else if (isMarkdown || isCodeText) {
-      viewerContainer.innerHTML = `<div class="p-12 text-center text-zinc-400 font-mono text-xs flex items-center justify-center gap-2"><i data-lucide="loader" class="w-4 h-4 spin text-cyan-400"></i> Membaca kode teks...</div>`;
+      viewerContainer.innerHTML = `<div class="p-12 text-center text-zinc-500 dark:text-zinc-400 font-mono text-xs flex items-center justify-center gap-2"><i data-lucide="loader" class="w-4 h-4 spin text-cyan-500 dark:text-cyan-400"></i> Membaca kode teks...</div>`;
       renderTextCodePreview(downloadUrl, viewerContainer, item.original_name, ext);
     } else if (isZip) {
-      viewerContainer.innerHTML = `<div class="p-12 text-center text-zinc-400 font-mono text-xs flex items-center justify-center gap-2"><i data-lucide="loader" class="w-4 h-4 spin text-purple-400"></i> Membaca arsip ZIP...</div>`;
+      viewerContainer.innerHTML = `<div class="p-12 text-center text-zinc-500 dark:text-zinc-400 font-mono text-xs flex items-center justify-center gap-2"><i data-lucide="loader" class="w-4 h-4 spin text-purple-500 dark:text-purple-400"></i> Membaca arsip ZIP...</div>`;
       authFetch(downloadUrl)
         .then(res => res.arrayBuffer())
         .then(buf => renderZipPreview(buf, viewerContainer, item.original_name))
-        .catch(err => { viewerContainer.innerHTML = `<div class="p-8 text-center text-red-400 font-mono text-xs">${escapeHtml(err.message)}</div>`; });
+        .catch(err => { viewerContainer.innerHTML = `<div class="p-8 text-center text-red-500 dark:text-red-400 font-mono text-xs">${escapeHtml(err.message)}</div>`; });
     } else {
       viewerContainer.innerHTML = `
-        <div class="py-16 text-center text-zinc-500 font-sans flex flex-col items-center justify-center gap-2 bg-zinc-950 rounded border border-zinc-800">
-          <i data-lucide="file" class="w-10 h-10 text-zinc-600"></i>
-          <div class="text-sm font-medium text-zinc-300">${escapeHtml(item.original_name)}</div>
+        <div class="py-16 text-center text-zinc-500 font-sans flex flex-col items-center justify-center gap-2 bg-zinc-50 dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800">
+          <i data-lucide="file" class="w-10 h-10 text-zinc-400 dark:text-zinc-600"></i>
+          <div class="text-sm font-medium text-zinc-750 dark:text-zinc-300">${escapeHtml(item.original_name)}</div>
           <div class="text-xs text-zinc-500">Pratinjau langsung tidak tersedia untuk tipe format ini. Silakan unduh file untuk membukanya.</div>
         </div>
       `;
     }
 
     footerActions.innerHTML = `
-      <a href="${downloadUrl}" class="px-3.5 py-1.5 rounded text-xs font-mono bg-zinc-100 hover:bg-white text-zinc-900 font-medium transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer"><i data-lucide="download" class="w-3.5 h-3.5"></i> <span>Unduh File</span></a>
+      <a href="${downloadUrl}" class="px-3.5 py-1.5 rounded text-xs font-mono bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 font-medium transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer"><i data-lucide="download" class="w-3.5 h-3.5"></i> <span>Unduh File</span></a>
     `;
   }
 
