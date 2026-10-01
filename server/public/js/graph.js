@@ -209,6 +209,8 @@ function buildGraphData() {
   } else {
     const folders = (allData.folders || []);
     const files = (allData.files || []).filter(f => !f.is_trash);
+    const prompts = (allData.prompts || []);
+    const links = (allData.links || []);
 
     let folderColX = 60;
     let fileColX = 380;
@@ -216,7 +218,27 @@ function buildGraphData() {
     let curFolderY = 60;
 
     const folderIds = new Set(folders.map(f => String(f.id)));
-    
+
+    // 1. Root Storage Node (Always guaranteed to exist so canvas is never empty)
+    const rootFiles = files.filter(f => !f.folder_id && !f.is_inbox);
+    nodes.push({
+      id: 'folder_root',
+      nodeType: 'FOLDER',
+      rawId: null,
+      title: 'Root Storage',
+      icon: 'hard-drive',
+      badge: `${rootFiles.length} file`,
+      defaultX: folderColX,
+      defaultY: curFolderY,
+      rows: [
+        { name: 'location', type: 'storage/uploads' },
+        { name: 'total_files', type: `${rootFiles.length}` },
+        { name: 'status', type: 'active' }
+      ]
+    });
+    curFolderY += 200;
+
+    // 2. User Folders
     folders.forEach(f => {
       const filesInFolder = files.filter(file => String(file.folder_id) === String(f.id));
       const folderNodeId = `folder_${f.id}`;
@@ -239,27 +261,8 @@ function buildGraphData() {
       curFolderY += 210;
     });
 
-    const rootFiles = files.filter(f => !f.folder_id && !f.is_inbox);
+    // 3. Inbox Triage Node
     const inboxFiles = files.filter(f => f.is_inbox);
-
-    if (rootFiles.length > 0 || folders.length === 0) {
-      nodes.push({
-        id: 'folder_root',
-        nodeType: 'FOLDER',
-        rawId: null,
-        title: 'Root Storage',
-        icon: 'hard-drive',
-        badge: `${rootFiles.length} file`,
-        defaultX: folderColX,
-        defaultY: curFolderY,
-        rows: [
-          { name: 'location', type: 'storage/uploads' },
-          { name: 'total_files', type: `${rootFiles.length}` }
-        ]
-      });
-      curFolderY += 190;
-    }
-
     if (inboxFiles.length > 0) {
       nodes.push({
         id: 'folder_inbox',
@@ -275,10 +278,50 @@ function buildGraphData() {
           { name: 'total_files', type: `${inboxFiles.length}` }
         ]
       });
+      curFolderY += 190;
     }
 
+    // 4. Prompts Group
+    if (prompts.length > 0) {
+      nodes.push({
+        id: 'group_prompts',
+        nodeType: 'PROMPT',
+        rawId: null,
+        title: 'Prompts & Catatan',
+        icon: 'terminal',
+        badge: `${prompts.length} item`,
+        defaultX: folderColX,
+        defaultY: curFolderY,
+        rows: [
+          { name: 'type', type: 'knowledge' },
+          { name: 'total', type: `${prompts.length}` }
+        ]
+      });
+      curFolderY += 190;
+    }
+
+    // 5. Links Group
+    if (links.length > 0) {
+      nodes.push({
+        id: 'group_links',
+        nodeType: 'LINK',
+        rawId: null,
+        title: 'Tautan Web',
+        icon: 'bookmark',
+        badge: `${links.length} item`,
+        defaultX: folderColX,
+        defaultY: curFolderY,
+        rows: [
+          { name: 'type', type: 'bookmarks' },
+          { name: 'total', type: `${links.length}` }
+        ]
+      });
+      curFolderY += 190;
+    }
+
+    // 6. Files & File AI Nodes
     let curFileY = 60;
-    const displayFiles = files.slice(0, 30);
+    const displayFiles = files.slice(0, 35);
     displayFiles.forEach(f => {
       const fileNodeId = `file_${f.id}`;
       const ext = (f.original_name || '').split('.').pop() || 'file';
@@ -304,7 +347,7 @@ function buildGraphData() {
       let targetFolderNodeId = 'folder_root';
       if (f.folder_id && folderIds.has(String(f.folder_id))) {
         targetFolderNodeId = `folder_${f.folder_id}`;
-      } else if (f.is_inbox) {
+      } else if (f.is_inbox && inboxFiles.length > 0) {
         targetFolderNodeId = 'folder_inbox';
       }
       edges.push({ from: targetFolderNodeId, to: fileNodeId, type: 'relation-folder' });
@@ -331,11 +374,61 @@ function buildGraphData() {
 
       curFileY += 190;
     });
+
+    // 7. Prompts Nodes
+    const displayPrompts = prompts.slice(0, 8);
+    displayPrompts.forEach(p => {
+      const promptNodeId = `prompt_${p.id}`;
+      nodes.push({
+        id: promptNodeId,
+        nodeType: 'PROMPT',
+        rawId: p.id,
+        title: p.title || 'Untitled Prompt',
+        icon: 'terminal',
+        badge: 'PROMPT',
+        defaultX: fileColX,
+        defaultY: curFileY,
+        rows: [
+          { name: 'category', type: p.category || 'General' },
+          { name: 'tags', type: p.tags ? (Array.isArray(p.tags) ? p.tags.join(', ') : p.tags) : '-' }
+        ],
+        canPreview: true
+      });
+      edges.push({ from: 'group_prompts', to: promptNodeId, type: 'relation-meta' });
+      curFileY += 170;
+    });
+
+    // 8. Links Nodes
+    const displayLinks = links.slice(0, 8);
+    displayLinks.forEach(l => {
+      const linkNodeId = `link_${l.id}`;
+      nodes.push({
+        id: linkNodeId,
+        nodeType: 'LINK',
+        rawId: l.id,
+        title: l.title || l.domain || 'Link',
+        icon: 'bookmark',
+        badge: 'LINK',
+        defaultX: fileColX,
+        defaultY: curFileY,
+        rows: [
+          { name: 'domain', type: l.domain || 'web' },
+          { name: 'category', type: l.category || 'General' }
+        ],
+        canPreview: true
+      });
+      edges.push({ from: 'group_links', to: linkNodeId, type: 'relation-folder' });
+      curFileY += 170;
+    });
   }
 
+  // Filter edges to strictly validate that both ends exist in nodes
+  const validNodeIds = new Set(nodes.map(n => n.id));
+  const safeEdges = edges.filter(e => validNodeIds.has(e.from) && validNodeIds.has(e.to));
+
   graphState.nodes = nodes;
-  graphState.edges = edges;
-  return { nodes, edges };
+  graphState.edges = safeEdges;
+  return { nodes, edges: safeEdges };
 }
 
 function renderGraph(reposition = false) {
@@ -423,8 +516,8 @@ function updateGraphSvgWires() {
 
     const fromNodeEl = document.getElementById(`gnode_${edge.from}`);
     const toNodeEl = document.getElementById(`gnode_${edge.to}`);
-    const fromW = fromNodeEl ? fromNodeEl.offsetWidth : 250;
-    const toW = toNodeEl ? toNodeEl.offsetWidth : 250;
+    const fromW = (fromNodeEl && fromNodeEl.offsetWidth > 0) ? fromNodeEl.offsetWidth : 250;
+    const toW = (toNodeEl && toNodeEl.offsetWidth > 0) ? toNodeEl.offsetWidth : 250;
 
     let x1 = fromPos.x + fromW;
     let y1 = fromPos.y + 36;
@@ -471,6 +564,7 @@ function setupGraphInteractions() {
   const viewport = document.getElementById('graphViewport');
   if (!viewport) return;
 
+  // Mouse pan initiation
   viewport.addEventListener('mousedown', (e) => {
     if (e.target.closest('.graph-node')) return;
     graphState.isPanning = true;
@@ -478,6 +572,7 @@ function setupGraphInteractions() {
     graphState.startY = e.clientY - graphState.panY;
   });
 
+  // Mouse dragging & panning movement
   window.addEventListener('mousemove', (e) => {
     if (graphState.isPanning) {
       graphState.panX = e.clientX - graphState.startX;
@@ -505,14 +600,16 @@ function setupGraphInteractions() {
     graphState.dragNodeId = null;
   });
 
+  // Mouse wheel zoom
   viewport.addEventListener('wheel', (e) => {
     e.preventDefault();
     const delta = e.deltaY < 0 ? 0.12 : -0.12;
     zoomGraph(delta);
   }, { passive: false });
 
+  // Mouse node drag handle start
   viewport.addEventListener('mousedown', (e) => {
-    const handle = e.target.closest('[data-drag-handle="true"]');
+    const handle = e.target.closest('[data-drag-handle="true"], .graph-node-header');
     if (!handle) return;
     const node = handle.closest('.graph-node');
     if (!node) return;
@@ -526,5 +623,65 @@ function setupGraphInteractions() {
     graphState.nodeStartX = currentPos.x;
     graphState.nodeStartY = currentPos.y;
     e.stopPropagation();
+  });
+
+  // ── Touch Events for Mobile / Tablet Support ──
+  viewport.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      const handle = e.target.closest('[data-drag-handle="true"], .graph-node-header');
+      if (handle) {
+        const node = handle.closest('.graph-node');
+        if (node) {
+          const nodeId = node.dataset.id;
+          graphState.isDraggingNode = true;
+          graphState.dragNodeId = nodeId;
+          graphState.dragStartX = touch.clientX;
+          graphState.dragStartY = touch.clientY;
+          const currentPos = graphState.positions[nodeId] || { x: node.offsetLeft, y: node.offsetTop };
+          graphState.nodeStartX = currentPos.x;
+          graphState.nodeStartY = currentPos.y;
+          e.stopPropagation();
+          return;
+        }
+      }
+      if (!e.target.closest('.graph-node')) {
+        graphState.isPanning = true;
+        graphState.startX = touch.clientX - graphState.panX;
+        graphState.startY = touch.clientY - graphState.panY;
+      }
+    }
+  }, { passive: false });
+
+  window.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      if (graphState.isPanning) {
+        e.preventDefault();
+        graphState.panX = touch.clientX - graphState.startX;
+        graphState.panY = touch.clientY - graphState.startY;
+        applyGraphTransform();
+      } else if (graphState.isDraggingNode && graphState.dragNodeId) {
+        e.preventDefault();
+        const dx = (touch.clientX - graphState.dragStartX) / graphState.scale;
+        const dy = (touch.clientY - graphState.dragStartY) / graphState.scale;
+        const newX = Math.round(graphState.nodeStartX + dx);
+        const newY = Math.round(graphState.nodeStartY + dy);
+        graphState.positions[graphState.dragNodeId] = { x: newX, y: newY };
+
+        const nodeEl = document.getElementById(`gnode_${graphState.dragNodeId}`);
+        if (nodeEl) {
+          nodeEl.style.left = `${newX}px`;
+          nodeEl.style.top = `${newY}px`;
+        }
+        updateGraphSvgWires();
+      }
+    }
+  }, { passive: false });
+
+  window.addEventListener('touchend', () => {
+    graphState.isPanning = false;
+    graphState.isDraggingNode = false;
+    graphState.dragNodeId = null;
   });
 }

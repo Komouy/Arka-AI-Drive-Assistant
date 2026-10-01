@@ -1,28 +1,35 @@
-// ── ARKA Floating Assistant Overlay Module ──────────────────────────────────
-let aiChatOpen = false;
+// ── ARKA Top Inline AI Assistant Module ──────────────────────────────────────
 let aiChatLoading = false;
-let aiChatHasMessages = false;
+let aiSectionCollapsed = false;
 
-function toggleAiChat() {
-  if (aiChatOpen) {
-    aiChatOpen = false;
-    document.getElementById('aiChatOverlay')?.classList.remove('open');
-    document.getElementById('aiChatBtn')?.classList.remove('active');
-    document.body.classList.remove('ai-overlay-active');
-    return;
+function toggleAiSectionCollapse() {
+  const body = document.getElementById('aiAssistantBody');
+  const icon = document.getElementById('aiCollapseIcon');
+  if (!body) return;
+
+  aiSectionCollapsed = !aiSectionCollapsed;
+  body.classList.toggle('hidden', aiSectionCollapsed);
+  if (icon) {
+    icon.style.transform = aiSectionCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
   }
+}
 
+function focusAiChat() {
   const isDashboardVisible = !document.getElementById('dashboard')?.classList.contains('hidden');
   if (!isDashboardVisible) {
     showToast('warn', 'Silakan masuk terlebih dahulu untuk mengakses Arka Assistant.');
     return;
   }
 
-  aiChatOpen = true;
-  document.getElementById('aiChatOverlay')?.classList.add('open');
-  document.getElementById('aiChatBtn')?.classList.add('active');
-  document.body.classList.add('ai-overlay-active');
-  refreshIcons();
+  const body = document.getElementById('aiAssistantBody');
+  if (aiSectionCollapsed && body) {
+    toggleAiSectionCollapse();
+  }
+
+  const section = document.getElementById('aiAssistantSection');
+  if (section) {
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   setTimeout(() => {
     const input = document.getElementById('aiChatInput');
@@ -33,7 +40,13 @@ function toggleAiChat() {
   }, 150);
 }
 
+// Backward-compatible alias for any keyboard shortcuts or triggers
+function toggleAiChat() {
+  focusAiChat();
+}
+
 function aiChatAutoResize(el) {
+  if (!el) return;
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   const sendBtn = document.getElementById('aiChatSendBtn');
@@ -81,10 +94,9 @@ function formatAiResponse(text) {
 }
 
 function addAiMessage(role, text) {
-  const overlay = document.getElementById('aiChatOverlay');
-  if (overlay && !overlay.classList.contains('has-messages')) {
-    overlay.classList.add('has-messages');
-    aiChatHasMessages = true;
+  const scrollArea = document.getElementById('aiMessagesScroll');
+  if (scrollArea) {
+    scrollArea.classList.remove('hidden');
   }
 
   const container = document.getElementById('aiChatMessages');
@@ -105,7 +117,6 @@ function addAiMessage(role, text) {
   msgEl.innerHTML = `${avatar}${bubble}`;
   container.appendChild(msgEl);
 
-  const scrollArea = document.getElementById('aiMessagesScroll');
   if (scrollArea) {
     scrollArea.scrollTop = scrollArea.scrollHeight;
   }
@@ -115,8 +126,14 @@ function addAiMessage(role, text) {
 }
 
 function addAiTyping() {
+  const scrollArea = document.getElementById('aiMessagesScroll');
+  if (scrollArea) {
+    scrollArea.classList.remove('hidden');
+  }
+
   const container = document.getElementById('aiChatMessages');
   if (!container) return;
+
   const el = document.createElement('div');
   el.className = 'flex gap-3 items-start fade-in-fast';
   el.id = 'aiTypingIndicator';
@@ -132,7 +149,6 @@ function addAiTyping() {
   `;
   container.appendChild(el);
 
-  const scrollArea = document.getElementById('aiMessagesScroll');
   if (scrollArea) {
     scrollArea.scrollTop = scrollArea.scrollHeight;
   }
@@ -184,9 +200,11 @@ async function sendAiMessage() {
 async function resetAiChat() {
   const container = document.getElementById('aiChatMessages');
   if (container) container.innerHTML = '';
-  const overlay = document.getElementById('aiChatOverlay');
-  if (overlay) overlay.classList.remove('has-messages');
-  aiChatHasMessages = false;
+
+  const scrollArea = document.getElementById('aiMessagesScroll');
+  if (scrollArea) {
+    scrollArea.classList.add('hidden');
+  }
 
   const input = document.getElementById('aiChatInput');
   if (input) {

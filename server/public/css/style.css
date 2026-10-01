@@ -59,19 +59,27 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover {
 }
 
 /* ── Interactive Graph Canvas Engine (Supabase ERD Style) ──────────────── */
+#graphContainer,
 .graph-container {
-  display: flex;
+  display: flex !important;
   flex-direction: column;
   height: 720px;
-  background: #09090b;
-  border: 1px solid #27272a;
-  border-radius: 8px;
-  overflow: hidden;
+  min-height: 520px;
+  max-height: 82vh;
   position: relative;
+  overflow: hidden;
+}
+
+#graphContainer.hidden,
+.graph-container.hidden {
+  display: none !important;
 }
 
 .graph-viewport {
-  flex: 1;
+  flex: 1 1 0%;
+  width: 100%;
+  height: 100%;
+  min-height: 460px;
   position: relative;
   overflow: hidden;
   background-color: #08080a;
@@ -100,8 +108,8 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 6000px;
+  height: 6000px;
   pointer-events: none;
   z-index: 1;
 }
@@ -110,10 +118,51 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 6000px;
+  height: 6000px;
   z-index: 2;
   pointer-events: none;
+}
+
+html:not(.dark) .graph-viewport {
+  background-color: #f8fafc;
+  background-image: 
+    radial-gradient(circle, rgba(0, 0, 0, 0.12) 1px, transparent 1px),
+    radial-gradient(circle, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+}
+html:not(.dark) .graph-node {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+html:not(.dark) .graph-node:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+html:not(.dark) .graph-node-header {
+  background: #f1f5f9;
+  border-bottom-color: #e2e8f0;
+}
+html:not(.dark) .graph-node-title {
+  color: #0f172a;
+}
+html:not(.dark) .graph-node-badge {
+  background: #e2e8f0;
+  color: #475569;
+}
+html:not(.dark) .graph-node-body {
+  color: #475569;
+}
+html:not(.dark) .graph-node-footer {
+  background: #f8fafc;
+  border-top-color: #e2e8f0;
+  color: #64748b;
+}
+html:not(.dark) .graph-port-dot.folder {
+  stroke: #ffffff;
+}
+html:not(.dark) .graph-port-dot.meta {
+  stroke: #ffffff;
 }
 
 .graph-wire {

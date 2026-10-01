@@ -188,6 +188,74 @@
     <!-- Main Content Area -->
     <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex-1 w-full space-y-4 sm:space-y-6">
 
+      <!-- ── Top Inline AI Assistant Card (Directly visible without floating button) ── -->
+      <section id="aiAssistantSection" class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xs transition-all">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-3 sm:px-4 bg-zinc-50/80 dark:bg-zinc-950/70 border-b border-zinc-200 dark:border-zinc-800 gap-2">
+          <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="sparkles" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
+            </div>
+            <div class="flex flex-col min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white leading-tight">Arka AI Assistant</span>
+                <span class="text-[9px] sm:text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700">Groq & Gemini</span>
+              </div>
+              <span class="text-[10px] text-zinc-500 truncate hidden xs:inline">Asisten cerdas untuk pencarian, pengorganisasian, dan analisis drive</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            <button type="button" onclick="resetAiChat()" title="Bersihkan percakapan"
+                    class="px-2 sm:px-2.5 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-800 text-xs font-mono transition-colors flex items-center gap-1">
+              <i data-lucide="rotate-ccw" class="w-3 h-3"></i> <span class="hidden sm:inline">Reset</span>
+            </button>
+            <button type="button" id="btnToggleAiCollapse" onclick="toggleAiSectionCollapse()" title="Sembunyikan / Tampilkan"
+                    class="p-1 sm:px-2 sm:py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 text-xs font-mono transition-colors flex items-center gap-1">
+              <i data-lucide="chevron-up" id="aiCollapseIcon" class="w-3.5 h-3.5 transition-transform duration-200"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div id="aiAssistantBody" class="p-3 sm:p-4 space-y-3">
+          <!-- Messages Container -->
+          <div id="aiMessagesScroll" class="overflow-y-auto max-h-72 sm:max-h-80 space-y-3 pr-1 scrollbar-none hidden">
+            <div id="aiChatMessages" class="space-y-3"></div>
+          </div>
+
+          <!-- Suggested Prompts -->
+          <div id="aiSuggestionsWrap" class="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+            <button type="button" onclick="sendAiSuggestion(this)"
+                    class="px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-950 dark:hover:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 text-[11px] sm:text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0">
+              Rangkum semua file di Drive
+            </button>
+            <button type="button" onclick="sendAiSuggestion(this)"
+                    class="px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-950 dark:hover:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 text-[11px] sm:text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0">
+              Cari file belum dirapikan
+            </button>
+            <button type="button" onclick="sendAiSuggestion(this)"
+                    class="px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-950 dark:hover:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 text-[11px] sm:text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0">
+              Bagaimana cara otomatisasi folder?
+            </button>
+          </div>
+
+          <!-- Input Bar -->
+          <div class="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-1.5 sm:p-2 shadow-xs focus-within:border-zinc-500 dark:focus-within:border-zinc-600 transition-colors">
+            <textarea id="aiChatInput" rows="1" placeholder="Tanyakan apa saja kepada Arka Assistant..." onkeydown="aiChatKeydown(event)" oninput="aiChatAutoResize(this)"
+                      class="flex-1 bg-transparent border-none outline-none text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 px-2 sm:px-3 resize-none max-h-24 sm:max-h-28"></textarea>
+            <button type="button" id="aiChatSendBtn" onclick="sendAiMessage()" disabled
+                    class="w-8 h-8 rounded-lg bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white disabled:bg-zinc-200 disabled:text-zinc-400 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 dark:text-zinc-950 flex items-center justify-center transition-colors flex-shrink-0 shadow-xs">
+              <i data-lucide="arrow-up" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div class="text-[10px] sm:text-[11px] font-mono text-zinc-400 dark:text-zinc-500 flex justify-between items-center px-1">
+            <span>Tekan Enter untuk kirim • Shift+Enter baris baru</span>
+            <span id="aiChatStatusHint" class="hidden sm:inline">Siap membantu pengelolaan drive</span>
+          </div>
+        </div>
+      </section>
+
       <!-- Stats Summary Strip -->
       <section class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 sm:p-3.5 flex flex-col justify-between shadow-xs">
@@ -445,8 +513,8 @@
       </section>
 
       <!-- Interactive Graph Canvas Container -->
-      <section id="graphContainer" class="hidden flex-col h-[520px] sm:h-[700px] bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden relative shadow-xs">
-        <div class="flex items-center justify-between p-2.5 sm:p-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex-wrap gap-2 z-10">
+      <section id="graphContainer" class="graph-container hidden flex flex-col h-[540px] sm:h-[720px] bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden relative shadow-xs">
+        <div class="flex items-center justify-between p-2.5 sm:p-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex-wrap gap-2 z-10 shrink-0">
           <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <span class="text-xs font-mono font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
               <i data-lucide="network" class="w-4 h-4 text-emerald-500 dark:text-emerald-400"></i> <span class="hidden xs:inline">Visual Graph Hub</span>
@@ -478,9 +546,9 @@
           </div>
         </div>
 
-        <div class="graph-viewport flex-1 relative overflow-hidden" id="graphViewport">
+        <div class="graph-viewport flex-1 w-full relative overflow-hidden" id="graphViewport">
           <div class="graph-world" id="graphWorld">
-            <svg class="graph-svg-layer" id="graphSvgLayer"></svg>
+            <svg class="graph-svg-layer" id="graphSvgLayer" width="6000" height="6000" viewBox="0 0 6000 6000"></svg>
             <div class="graph-nodes-layer" id="graphNodesLayer"></div>
           </div>
           <div class="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 text-[10px] sm:text-[11px] font-mono text-zinc-600 dark:text-zinc-400 backdrop-blur-sm pointer-events-none text-center whitespace-nowrap shadow-xs">
@@ -492,60 +560,7 @@
     </main>
   </div>
 
-  <!-- ── Floating AI Assistant Trigger Button ──────────────────────────────── -->
-  <button id="aiChatBtn" onclick="toggleAiChat()" title="Buka Arka Assistant (Ctrl+K)"
-          class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 shadow-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-zinc-700 dark:border-zinc-300">
-    <i data-lucide="sparkles" class="w-5 h-5"></i>
-  </button>
 
-  <!-- ── Fullscreen / Overlay AI Assistant ─────────────────────────────────── -->
-  <div id="aiChatOverlay" class="fixed inset-0 z-50 bg-white/95 dark:bg-black/85 backdrop-blur-md hidden flex-col justify-between p-3 sm:p-6 transition-all pb-safe">
-    <div class="flex items-center justify-between max-w-4xl mx-auto w-full pb-3 sm:pb-4 border-b border-zinc-200 dark:border-zinc-800">
-      <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
-        <img src="/arka-white-logo.png" alt="ARKA" class="w-5 h-5 sm:w-6 sm:h-6 object-contain flex-shrink-0 invert dark:invert-0 transition-[filter]">
-        <span class="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white truncate">Arka Assistant</span>
-        <span class="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">Groq / Gemini AI</span>
-      </div>
-      <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-        <button type="button" onclick="resetAiChat()" class="px-2 sm:px-2.5 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-800 text-xs font-mono transition-colors flex items-center gap-1">
-          <i data-lucide="rotate-ccw" class="w-3 h-3"></i> <span class="hidden xs:inline sm:inline">Reset</span>
-        </button>
-        <button type="button" onclick="toggleAiChat()" class="px-2 sm:px-2.5 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 text-xs font-mono transition-colors flex items-center gap-1">
-          <i data-lucide="x" class="w-3.5 h-3.5"></i> <span class="hidden xs:inline sm:inline">Tutup</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Message Area -->
-    <div id="aiMessagesScroll" class="flex-1 overflow-y-auto max-w-4xl mx-auto w-full py-4 sm:py-6 space-y-3 sm:space-y-4">
-      <div id="aiChatMessages" class="space-y-3 sm:space-y-4"></div>
-    </div>
-
-    <!-- Input Box & Suggestions -->
-    <div class="max-w-3xl mx-auto w-full space-y-2 sm:space-y-3">
-      <div class="ai-hero-suggestions flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto sm:flex-wrap scrollbar-none pb-1">
-        <button type="button" onclick="sendAiSuggestion(this)" class="px-2.5 sm:px-3 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-[11px] sm:text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0">
-          Rangkum semua file di Drive
-        </button>
-        <button type="button" onclick="sendAiSuggestion(this)" class="px-2.5 sm:px-3 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-[11px] sm:text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0">
-          Cari file belum dirapikan
-        </button>
-        <button type="button" onclick="sendAiSuggestion(this)" class="px-2.5 sm:px-3 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-[11px] sm:text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors whitespace-nowrap shrink-0">
-          Hubungkan Google Drive?
-        </button>
-      </div>
-
-      <div class="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-1.5 sm:p-2 shadow-xl focus-within:border-zinc-400 dark:focus-within:border-zinc-600 transition-colors">
-        <textarea id="aiChatInput" rows="1" placeholder="Tanyakan apa saja kepada Arka Assistant..." onkeydown="aiChatKeydown(event)" oninput="aiChatAutoResize(this)"
-                  class="flex-1 bg-transparent border-none outline-none text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 px-2 sm:px-3 resize-none max-h-24 sm:max-h-28"></textarea>
-        <button type="button" id="aiChatSendBtn" onclick="sendAiMessage()" disabled
-                class="w-8 h-8 rounded-xl bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white disabled:bg-zinc-200 disabled:text-zinc-400 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 dark:text-zinc-950 flex items-center justify-center transition-colors flex-shrink-0">
-          <i data-lucide="arrow-up" class="w-4 h-4"></i>
-        </button>
-      </div>
-      <div class="text-[10px] sm:text-[11px] font-mono text-zinc-500 text-center hidden sm:block">Tekan Enter untuk mengirim • Shift+Enter untuk baris baru</div>
-    </div>
-  </div>
 
   <!-- ── Multi-Format Preview Modal Backdrop & Window ──────────────────────── -->
   <div id="previewModalBackdrop" class="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-md hidden items-center justify-center p-2 sm:p-4">

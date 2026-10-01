@@ -11,14 +11,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const isTyping = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
     const isModalOpen = !document.getElementById('previewModalBackdrop')?.classList.contains('hidden');
 
-    // 1. ESC: Close modal or AI chat
+    // 1. ESC: Close modal
     if (e.key === 'Escape') {
       if (isModalOpen) {
         closePreview();
-        return;
-      }
-      if (aiChatOpen) {
-        toggleAiChat();
         return;
       }
     }
@@ -37,10 +33,10 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 3. Ctrl+K or Cmd+K: Toggle Arka AI Assistant
+    // 3. Ctrl+K or Cmd+K: Focus Arka AI Assistant
     if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
       e.preventDefault();
-      toggleAiChat();
+      focusAiChat();
       return;
     }
 
@@ -69,14 +65,15 @@ window.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // 6. Number keys (1-6): Quick Tab Switching
+    // 6. Number keys (1-7): Quick Tab Switching
     const tabKeys = {
       '1': 'all',
       '2': 'files',
       '3': 'images',
       '4': 'prompts',
       '5': 'links',
-      '6': 'trash'
+      '6': 'trash',
+      '7': 'graph'
     };
     if (tabKeys[e.key]) {
       const isDashboardVisible = !document.getElementById('dashboard')?.classList.contains('hidden');

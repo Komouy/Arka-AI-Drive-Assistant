@@ -81,7 +81,9 @@ async function fetchAllData() {
     updateCounts();
     renderFolderChips();
     render();
-    if (currentFilter === 'graph' && typeof renderGraph === 'function') renderGraph();
+    if (currentFilter === 'graph' && typeof renderGraph === 'function') {
+      setTimeout(() => renderGraph(true), 50);
+    }
     checkAndTriggerBatchAutoOrganize();
     processAutoAnalysisQueue();
   } catch (err) {
@@ -195,13 +197,21 @@ function setFilter(type) {
 
   if (type === 'graph') {
     if (dataContainer) dataContainer.classList.add('hidden');
-    if (graphContainer) graphContainer.classList.remove('hidden');
+    if (graphContainer) {
+      graphContainer.classList.remove('hidden');
+      graphContainer.classList.add('flex');
+    }
     if (searchBox) searchBox.classList.add('hidden');
     if (folderChips) folderChips.classList.add('hidden');
-    if (typeof renderGraph === 'function') renderGraph();
+    if (typeof renderGraph === 'function') {
+      setTimeout(() => renderGraph(true), 50);
+    }
   } else {
     if (dataContainer) dataContainer.classList.remove('hidden');
-    if (graphContainer) graphContainer.classList.add('hidden');
+    if (graphContainer) {
+      graphContainer.classList.add('hidden');
+      graphContainer.classList.remove('flex');
+    }
     if (searchBox) searchBox.classList.remove('hidden');
     if (folderChips && (type === 'all' || type === 'files' || type === 'images')) {
       renderFolderChips();
