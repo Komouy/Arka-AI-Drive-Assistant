@@ -7,10 +7,9 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "server": "node server/index.js",
     "start": "node server/index.js",
-    "test": "node scripts/test-endpoints.mjs",
-    "diagnose:rename": "node scripts/diagnose-ai-rename.mjs"
+    "dev": "node --watch server/index.js",
+    "test": "node scripts/test-endpoints.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",
