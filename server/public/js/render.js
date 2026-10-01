@@ -477,7 +477,7 @@ function render() {
           <button class="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30 transition-colors inline-flex items-center gap-1"
                   title="Ganti nama AI: ${escapeHtml(suggName)}"
                   data-id="${safeId}" data-value="${escapeHtml(suggName)}" onclick="handleApplyRename(this)">
-            <i data-lucide="pen-line" class="w-3 h-3"></i> <span>Ganti Nama AI</span>
+            <i data-lucide="pen-line" class="w-3 h-3"></i> <span></span>
           </button>
         `;
       }
