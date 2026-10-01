@@ -115,6 +115,17 @@ async function runTests() {
       if (!resTrash.ok) throw new Error(`HTTP ${resTrash.status}`);
     });
 
+    // 8. Auto-Organize All
+    await assert('POST /api/files/auto-organize-all', async () => {
+      const res = await fetch(`${baseUrl}/api/files/auto-organize-all`, {
+        method: 'POST',
+        headers: headers()
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success || typeof json.count !== 'number') throw new Error('Invalid auto-organize response');
+    });
+
     // 8. Prompts CRUD with special search chars
     let promptId = null;
     await assert('POST /api/prompts & Search with special chars', async () => {

@@ -1636,6 +1636,381 @@
       .ai-pill-input-box { padding: 0.45rem 0.65rem 0.45rem 1.1rem; }
       .ai-msg-bubble { max-width: 90%; }
     }
+
+    /* ── Supabase Studio Style Visual Graph Canvas ────────────────────────── */
+    .graph-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 220px);
+      min-height: 620px;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-top: 1rem;
+      user-select: none;
+    }
+    .graph-container.fullscreen {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 9999;
+      border-radius: 0;
+      margin: 0;
+    }
+    .graph-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.65rem 1.25rem;
+      background: rgba(18, 21, 27, 0.95);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+      flex-wrap: wrap;
+    }
+    .graph-toolbar-left, .graph-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .graph-title-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #e6edf3;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .graph-mode-pills {
+      display: inline-flex;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .graph-pill-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 500;
+      padding: 0.3rem 0.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.15s ease;
+    }
+    .graph-pill-btn:hover {
+      color: #fff;
+    }
+    .graph-pill-btn.active {
+      background: #238636;
+      color: #fff;
+      font-weight: 600;
+    }
+    .graph-stats {
+      font-size: 0.75rem;
+      color: #8b949e;
+      font-family: var(--font-mono);
+    }
+    .graph-search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .graph-search-box input {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      padding: 0.35rem 0.65rem 0.35rem 2rem;
+      font-size: 0.8rem;
+      color: #e6edf3;
+      width: 160px;
+      transition: width 0.2s, border-color 0.2s;
+    }
+    .graph-search-box input:focus {
+      width: 220px;
+      border-color: #58a6ff;
+      outline: none;
+    }
+    .graph-search-box i {
+      position: absolute;
+      left: 0.6rem;
+      color: #8b949e;
+      pointer-events: none;
+    }
+    .btn-graph-action {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      color: #e6edf3;
+      font-size: 0.78rem;
+      padding: 0.35rem 0.65rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-graph-action:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .btn-icon-only {
+      padding: 0.35rem 0.5rem;
+    }
+    .graph-zoom-controls {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+    }
+    .graph-zoom-controls .btn-graph-action {
+      background: transparent;
+      border: none;
+    }
+    .graph-zoom-label {
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      min-width: 44px;
+      text-align: center;
+    }
+
+    /* ── Viewport & Canvas World ─────────────────────────────────────────── */
+    .graph-viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+      background-color: #0d1117;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1.2px, transparent 1.2px);
+      background-size: 24px 24px;
+    }
+    .graph-viewport:active {
+      cursor: grabbing;
+    }
+    .graph-world {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 6000px;
+      height: 6000px;
+      transform-origin: 0 0;
+      pointer-events: none;
+    }
+    .graph-svg-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
+    .graph-nodes-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* ── Node Card (Supabase ERD Style) ─────────────────────────────────── */
+    .graph-node {
+      position: absolute;
+      width: 250px;
+      background: rgba(22, 27, 34, 0.96);
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      pointer-events: auto;
+      cursor: default;
+      transition: box-shadow 0.2s, border-color 0.2s, opacity 0.2s;
+      font-family: var(--font-sans);
+      overflow: hidden;
+    }
+    .graph-node:hover {
+      border-color: #58a6ff;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(88, 166, 255, 0.35);
+    }
+    .graph-node.drag-target {
+      border-color: #238636 !important;
+      box-shadow: 0 0 0 2px rgba(35, 134, 54, 0.8), 0 0 20px rgba(35, 134, 54, 0.4) !important;
+    }
+    .graph-node.selected {
+      border-color: #58a6ff;
+      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.5), 0 12px 36px rgba(0,0,0,0.8);
+    }
+    .graph-node.dimmed {
+      opacity: 0.25;
+      pointer-events: none;
+    }
+    .graph-node-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.55rem 0.85rem;
+      background: rgba(33, 38, 45, 0.85);
+      border-bottom: 1px solid #30363d;
+      cursor: move;
+    }
+    .graph-node-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #e6edf3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .graph-node-title i {
+      color: #58a6ff;
+      flex-shrink: 0;
+    }
+    .graph-node-badge {
+      font-size: 0.68rem;
+      font-family: var(--font-mono);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-dim);
+    }
+    .graph-node-body {
+      padding: 0.25rem 0;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .graph-node-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.32rem 0.85rem;
+      font-size: 0.74rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      position: relative;
+      transition: background 0.1s;
+    }
+    .graph-node-row:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .graph-node-row-left {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #c9d1d9;
+    }
+    .graph-diamond {
+      font-size: 0.65rem;
+      color: #8b949e;
+      flex-shrink: 0;
+    }
+    .graph-diamond.pk {
+      color: #e3b341;
+    }
+    .graph-diamond.fk {
+      color: #58a6ff;
+    }
+    .graph-diamond.ai {
+      color: #10b981;
+    }
+    .graph-node-row-type {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: #8b949e;
+      flex-shrink: 0;
+    }
+    .graph-node-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.4rem;
+      padding: 0.4rem 0.75rem;
+      background: rgba(13, 17, 23, 0.6);
+      border-top: 1px solid #30363d;
+    }
+    .graph-node-action-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      border-radius: 4px;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.7rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      transition: background 0.12s, color 0.12s;
+    }
+    .graph-node-action-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    /* ── SVG Connection Wires ────────────────────────────────────────────── */
+    .graph-wire {
+      fill: none;
+      stroke-width: 1.8px;
+      transition: stroke 0.2s, stroke-width 0.2s;
+    }
+    .graph-wire.relation-folder {
+      stroke: #58a6ff;
+    }
+    .graph-wire.relation-meta {
+      stroke: #10b981;
+    }
+    .graph-wire.relation-schema {
+      stroke: #8b949e;
+    }
+    .graph-wire.highlighted {
+      stroke: #f778ba !important;
+      stroke-width: 2.8px !important;
+    }
+    .graph-port-dot {
+      fill: #0d1117;
+      stroke-width: 1.8px;
+      r: 3.5px;
+    }
+    .graph-port-dot.folder { stroke: #58a6ff; }
+    .graph-port-dot.meta { stroke: #10b981; }
+    .graph-port-dot.schema { stroke: #8b949e; }
+
+    .graph-hint-pill {
+      position: absolute;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(22, 27, 34, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
   </style>
 </head>
 <body>
@@ -1863,13 +2238,13 @@
             <span>Sampah</span>
             <span id="countTrash" class="tab-count">0</span>
           </button>
+          <button class="tab-btn" id="filterGraph" onclick="setFilter('graph')" title="Diagram Visual Hub (Supabase ERD Style)">
+            <i data-lucide="network" class="icon"></i>
+            <span>Diagram Visual</span>
+          </button>
         </div>
 
         <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap">
-          <button class="tab-btn btn-smart-triage" id="btnSmartTriage" onclick="handleBatchSmartTriage()" title="Perapian AI Otomatis: Otomatis rapikan semua file ke folder saran AI">
-            <i data-lucide="sparkles" class="icon"></i>
-            <span>Perapian AI Otomatis</span>
-          </button>
           <button class="tab-btn btn-empty-trash" id="btnEmptyTrash" onclick="handleEmptyTrash()" style="display:none;" title="Kosongkan semua file di sampah">
             <i data-lucide="trash" class="icon"></i>
             <span>Kosongkan Sampah</span>
@@ -1886,6 +2261,65 @@
           <div class="loading-state">Memuat data...</div>
         </div>
       </main>
+
+      <!-- Interactive Graph Canvas View (Supabase Studio ERD Style) -->
+      <section id="graphContainer" class="graph-container" style="display:none;">
+        <div class="graph-toolbar">
+          <div class="graph-toolbar-left">
+            <div class="graph-title-badge">
+              <i data-lucide="network" class="icon-sm"></i>
+              <span>Arka Visual Graph Hub</span>
+            </div>
+            <div class="graph-mode-pills">
+              <button class="graph-pill-btn active" id="graphModeRelations" onclick="setGraphMode('relations')">
+                <i data-lucide="folder-tree" class="icon-sm"></i> <span>Data Relasi Drive</span>
+              </button>
+              <button class="graph-pill-btn" id="graphModeSchema" onclick="setGraphMode('schema')">
+                <i data-lucide="database" class="icon-sm"></i> <span>Model Skema Database</span>
+              </button>
+            </div>
+            <div class="graph-stats" id="graphStats">0 node · 0 relasi</div>
+          </div>
+
+          <div class="graph-toolbar-right">
+            <div class="graph-search-box">
+              <i data-lucide="search" class="icon-sm"></i>
+              <input type="text" id="graphSearchInput" placeholder="Cari node / tabel..." oninput="handleGraphSearch(this.value)">
+            </div>
+            <button class="btn-graph-action" onclick="autoLayoutGraph()" title="Tata Letak Otomatis (Re-layout)">
+              <i data-lucide="layout" class="icon-sm"></i> <span>Tata Letak</span>
+            </button>
+            <button class="btn-graph-action" onclick="resetGraphView()" title="Pusatkan Tampilan (Center)">
+              <i data-lucide="crosshair" class="icon-sm"></i> <span>Pusatkan</span>
+            </button>
+            <div class="graph-zoom-controls">
+              <button class="btn-graph-action btn-icon-only" onclick="zoomGraph(-0.15)" title="Perkecil (-)"><i data-lucide="zoom-out" class="icon-sm"></i></button>
+              <span id="graphZoomLevel" class="graph-zoom-label">100%</span>
+              <button class="btn-graph-action btn-icon-only" onclick="zoomGraph(0.15)" title="Perbesar (+)"><i data-lucide="zoom-in" class="icon-sm"></i></button>
+            </div>
+            <button class="btn-graph-action btn-icon-only" onclick="toggleGraphFullscreen()" title="Layar Penuh"><i data-lucide="maximize-2" class="icon-sm"></i></button>
+          </div>
+        </div>
+
+        <div class="graph-viewport" id="graphViewport">
+          <div class="graph-world" id="graphWorld">
+            <svg class="graph-svg-layer" id="graphSvgLayer">
+              <defs>
+                <filter id="glowEffect" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+            </svg>
+            <div class="graph-nodes-layer" id="graphNodesLayer"></div>
+          </div>
+
+          <div class="graph-hint-pill">
+            <i data-lucide="info" class="icon-sm"></i>
+            <span>Geser canvas untuk pan · Scroll untuk zoom · Drag node untuk memindahkan · Dobel-klik file untuk pratinjau</span>
+          </div>
+        </div>
+      </section>
 
     </div><!-- /.container -->
   </div><!-- /#dashboard -->
@@ -2372,11 +2806,44 @@
 
         updateCounts();
         render();
+        if (currentFilter === 'graph') renderGraph();
+        checkAndTriggerBatchAutoOrganize();
         processAutoAnalysisQueue();
       } catch (err) {
         document.getElementById('dataList').innerHTML =
           `<div class="empty-state">Gagal memuat data: ${escapeHtml(err.message)}</div>`;
         showToast('error', 'Gagal memuat data: ' + err.message);
+      }
+    }
+
+    let isAutoOrganizingBatch = false;
+    async function checkAndTriggerBatchAutoOrganize() {
+      if (isAutoOrganizingBatch) return;
+      const unorganized = (allData.files || []).filter(f => 
+        f.suggested_folder && 
+        (!f.folder_name || f.folder_name !== f.suggested_folder) && 
+        !f.is_trash
+      );
+      if (unorganized.length === 0) return;
+
+      isAutoOrganizingBatch = true;
+      try {
+        const res = await authFetch(`${API_BASE}/files/auto-organize-all`, { method: 'POST' });
+        const json = await res.json();
+        if (res.ok && json.success && json.count > 0) {
+          const [filesRes, foldersRes] = await Promise.all([
+            authFetch(`${API_BASE}/files`).then(r => r.json()),
+            authFetch(`${API_BASE}/folders`).then(r => r.json()).catch(() => ({ data: [] }))
+          ]);
+          if (Array.isArray(filesRes.data)) allData.files = filesRes.data;
+          if (Array.isArray(foldersRes.data)) allData.folders = foldersRes.data;
+          render();
+          if (currentFilter === 'graph') renderGraph();
+        }
+      } catch (err) {
+        console.warn('[ARKA AI] Silent batch organize error:', err.message);
+      } finally {
+        isAutoOrganizingBatch = false;
       }
     }
 
@@ -2400,18 +2867,54 @@
       if (countTrashEl) countTrashEl.textContent = allData.trash.length;
     }
 
+    const autoOrganizingIds = new Set();
+    async function triggerSilentAutoOrganize(fileId, folderName) {
+      if (autoOrganizingIds.has(fileId)) return;
+      autoOrganizingIds.add(fileId);
+      try {
+        const res = await authFetch(`${API_BASE}/files/${fileId}/organize`, {
+          method: 'POST',
+          body: JSON.stringify({ project_name: folderName })
+        });
+        if (res.ok) {
+          const file = (allData.files || []).find(f => String(f.id) === String(fileId));
+          if (file) {
+            file.folder_name = folderName;
+            file.is_inbox = false;
+          }
+          render();
+          if (currentFilter === 'graph') renderGraph();
+        }
+      } catch (e) {
+        console.warn('[Silent Auto-Organize]', e.message);
+      }
+    }
+
     // ── Filtering & Search ─────────────────────────────────────────────────────
     function setFilter(type) {
       currentFilter = type;
-      ['all', 'files', 'prompts', 'links', 'trash'].forEach(t => {
+      ['all', 'files', 'prompts', 'links', 'trash', 'graph'].forEach(t => {
         const btn = document.getElementById(`filter${t.charAt(0).toUpperCase() + t.slice(1)}`);
         if (btn) btn.classList.toggle('active', t === type);
       });
       const emptyTrashBtn = document.getElementById('btnEmptyTrash');
       if (emptyTrashBtn) emptyTrashBtn.style.display = type === 'trash' ? 'inline-flex' : 'none';
-      const smartTriageBtn = document.getElementById('btnSmartTriage');
-      if (smartTriageBtn) smartTriageBtn.style.display = type === 'trash' ? 'none' : 'inline-flex';
-      render();
+
+      const dataContainer = document.querySelector('.data-table-container');
+      const graphContainer = document.getElementById('graphContainer');
+      const searchBox = document.querySelector('.controls-bar .search-box');
+
+      if (type === 'graph') {
+        if (dataContainer) dataContainer.style.display = 'none';
+        if (graphContainer) graphContainer.style.display = 'flex';
+        if (searchBox) searchBox.style.display = 'none';
+        renderGraph();
+      } else {
+        if (dataContainer) dataContainer.style.display = 'block';
+        if (graphContainer) graphContainer.style.display = 'none';
+        if (searchBox) searchBox.style.display = 'block';
+        render();
+      }
     }
 
     function handleSearch(val) {
@@ -2540,14 +3043,8 @@
               </button>
             `;
           }
-          if (suggFolder && (!currFolder || currFolder !== suggFolder)) {
-            const folderLabel = suggFolder.length > 14 ? suggFolder.slice(0, 12) + '...' : suggFolder;
-            suggestBtns += `
-              <button class="btn-action btn-ai-folder" title="Pindahkan ke folder: ${escapeHtml(suggFolder)}"
-                      data-id="${safeId}" data-value="${escapeHtml(suggFolder)}" onclick="handleApplyFolder(this)">
-                <i data-lucide="folder-input" class="icon"></i> <span>→ ${escapeHtml(folderLabel)}</span>
-              </button>
-            `;
+          if (suggFolder && (!currFolder || currFolder !== suggFolder) && !rawObj.is_trash) {
+            triggerSilentAutoOrganize(rawObj.id, suggFolder);
           }
 
           actionBtn = `
@@ -3245,7 +3742,589 @@
       showToast('success', `Selesai! ${moved} file berhasil dirapikan ke folder AI.`);
     }
 
+    // ═════════════════════════════════════════════════════════════════════════════
+    // ── SUPABASE STUDIO STYLE VISUAL GRAPH CANVAS ENGINE ─────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════════
+    const graphState = {
+      mode: 'relations', // 'relations' | 'schema'
+      panX: 60,
+      panY: 50,
+      scale: 1.0,
+      isPanning: false,
+      isDraggingNode: false,
+      dragNodeId: null,
+      dragStartX: 0,
+      dragStartY: 0,
+      nodeStartX: 0,
+      nodeStartY: 0,
+      searchQuery: '',
+      positions: {},
+      nodes: [],
+      edges: []
+    };
+
+    function setGraphMode(mode) {
+      graphState.mode = mode;
+      const btnRel = document.getElementById('graphModeRelations');
+      const btnSch = document.getElementById('graphModeSchema');
+      if (btnRel) btnRel.classList.toggle('active', mode === 'relations');
+      if (btnSch) btnSch.classList.toggle('active', mode === 'schema');
+      renderGraph(true);
+    }
+
+    function zoomGraph(delta) {
+      graphState.scale = Math.min(2.5, Math.max(0.3, graphState.scale + delta));
+      applyGraphTransform();
+      const zoomLabel = document.getElementById('graphZoomLevel');
+      if (zoomLabel) zoomLabel.textContent = `${Math.round(graphState.scale * 100)}%`;
+    }
+
+    function resetGraphView() {
+      graphState.panX = 60;
+      graphState.panY = 50;
+      graphState.scale = 1.0;
+      applyGraphTransform();
+      const zoomLabel = document.getElementById('graphZoomLevel');
+      if (zoomLabel) zoomLabel.textContent = '100%';
+    }
+
+    function toggleGraphFullscreen() {
+      const container = document.getElementById('graphContainer');
+      if (!container) return;
+      container.classList.toggle('fullscreen');
+      updateGraphSvgWires();
+    }
+
+    function handleGraphSearch(val) {
+      graphState.searchQuery = String(val || '').trim().toLowerCase();
+      const query = graphState.searchQuery;
+      const nodes = document.querySelectorAll('.graph-node');
+      nodes.forEach(node => {
+        if (!query) {
+          node.classList.remove('dimmed', 'highlighted');
+          return;
+        }
+        const text = node.textContent.toLowerCase();
+        const matches = text.includes(query);
+        node.classList.toggle('dimmed', !matches);
+        node.classList.toggle('highlighted', matches);
+      });
+    }
+
+    function applyGraphTransform() {
+      const world = document.getElementById('graphWorld');
+      if (world) {
+        world.style.transform = `translate(${graphState.panX}px, ${graphState.panY}px) scale(${graphState.scale})`;
+      }
+    }
+
+    function autoLayoutGraph() {
+      graphState.positions = {};
+      renderGraph(true);
+    }
+
+    function buildGraphData() {
+      const nodes = [];
+      const edges = [];
+
+      if (graphState.mode === 'schema') {
+        // Mode 2: Model Skema Database (Exact Supabase ERD Visualizer from user image)
+        nodes.push({
+          id: 'schema_file_metadata',
+          title: 'file_metadata',
+          icon: 'sparkles',
+          badge: 'table',
+          defaultX: 60,
+          defaultY: 80,
+          rows: [
+            { name: 'id', type: 'uuid', isPk: true },
+            { name: 'file_id', type: 'uuid', isFk: true },
+            { name: 'description', type: 'text' },
+            { name: 'category', type: 'text' },
+            { name: 'project', type: 'text' },
+            { name: 'tags', type: 'jsonb' },
+            { name: 'ai_analyzed', type: 'bool', isAi: true },
+            { name: 'created_at', type: 'timestamptz' },
+            { name: 'user_id', type: 'text' },
+            { name: 'suggested_name', type: 'text', isAi: true },
+            { name: 'suggested_folder', type: 'text', isAi: true }
+          ]
+        });
+
+        nodes.push({
+          id: 'schema_files',
+          title: 'files',
+          icon: 'files',
+          badge: 'table',
+          defaultX: 380,
+          defaultY: 60,
+          rows: [
+            { name: 'id', type: 'uuid', isPk: true },
+            { name: 'folder_id', type: 'uuid', isFk: true },
+            { name: 'original_name', type: 'text', isPk: true },
+            { name: 'stored_name', type: 'text', isPk: true },
+            { name: 'mime_type', type: 'text' },
+            { name: 'size', type: 'int8' },
+            { name: 'storage_path', type: 'text', isPk: true },
+            { name: 'public_url', type: 'text' },
+            { name: 'is_inbox', type: 'bool' },
+            { name: 'is_favorite', type: 'bool' },
+            { name: 'is_trash', type: 'bool' },
+            { name: 'created_at', type: 'timestamptz' },
+            { name: 'updated_at', type: 'timestamptz' },
+            { name: 'user_id', type: 'text' },
+            { name: 'gdrive_file_id', type: 'text' },
+            { name: 'gdrive_view_url', type: 'text' },
+            { name: 'storage_provider', type: 'text' }
+          ]
+        });
+
+        nodes.push({
+          id: 'schema_folders',
+          title: 'folders',
+          icon: 'folder',
+          badge: 'table',
+          defaultX: 700,
+          defaultY: 120,
+          rows: [
+            { name: 'id', type: 'uuid', isPk: true },
+            { name: 'name', type: 'text', isPk: true },
+            { name: 'parent_id', type: 'uuid', isFk: true },
+            { name: 'color', type: 'text' },
+            { name: 'icon', type: 'text' },
+            { name: 'created_at', type: 'timestamptz' },
+            { name: 'updated_at', type: 'timestamptz' },
+            { name: 'user_id', type: 'text' }
+          ]
+        });
+
+        nodes.push({
+          id: 'schema_prompts',
+          title: 'prompts',
+          icon: 'terminal',
+          badge: 'table',
+          defaultX: 60,
+          defaultY: 480,
+          rows: [
+            { name: 'id', type: 'uuid', isPk: true },
+            { name: 'title', type: 'text', isPk: true },
+            { name: 'content', type: 'text' },
+            { name: 'category', type: 'text' },
+            { name: 'tags', type: 'jsonb' },
+            { name: 'is_favorite', type: 'bool' },
+            { name: 'created_at', type: 'timestamptz' },
+            { name: 'updated_at', type: 'timestamptz' },
+            { name: 'user_id', type: 'text' }
+          ]
+        });
+
+        nodes.push({
+          id: 'schema_links',
+          title: 'links',
+          icon: 'bookmark',
+          badge: 'table',
+          defaultX: 700,
+          defaultY: 450,
+          rows: [
+            { name: 'id', type: 'uuid', isPk: true },
+            { name: 'url', type: 'text', isPk: true },
+            { name: 'title', type: 'text' },
+            { name: 'description', type: 'text' },
+            { name: 'category', type: 'text' },
+            { name: 'tags', type: 'jsonb' },
+            { name: 'domain', type: 'text' },
+            { name: 'is_favorite', type: 'bool' },
+            { name: 'created_at', type: 'timestamptz' },
+            { name: 'updated_at', type: 'timestamptz' },
+            { name: 'user_id', type: 'text' }
+          ]
+        });
+
+        // Exact foreign key lines
+        edges.push({ from: 'schema_file_metadata', to: 'schema_files', type: 'relation-meta' });
+        edges.push({ from: 'schema_files', to: 'schema_folders', type: 'relation-folder' });
+        edges.push({ from: 'schema_folders', to: 'schema_folders', isLoop: true, type: 'relation-schema' });
+      } else {
+        // Mode 1: Data Relasi Drive (Folder Nodes -> File Nodes -> AI Metadata Nodes)
+        const folders = (allData.folders || []);
+        const files = (allData.files || []).filter(f => !f.is_trash);
+
+        const folderMap = new Map();
+        folders.forEach(f => folderMap.set(String(f.id), f));
+
+        const rootFiles = files.filter(f => !f.folder_id && !f.is_inbox);
+        const inboxFiles = files.filter(f => f.is_inbox);
+
+        let folderColX = 60;
+        let fileColX = 380;
+        let metaColX = 700;
+
+        let curFolderY = 60;
+        const folderIds = new Set(folders.map(f => String(f.id)));
+        
+        folders.forEach(f => {
+          const filesInFolder = files.filter(file => String(file.folder_id) === String(f.id));
+          const folderNodeId = `folder_${f.id}`;
+          nodes.push({
+            id: folderNodeId,
+            nodeType: 'FOLDER',
+            rawId: f.id,
+            title: f.name,
+            icon: 'folder',
+            badge: `${filesInFolder.length} file`,
+            defaultX: folderColX,
+            defaultY: curFolderY,
+            rows: [
+              { name: 'id', type: 'uuid', isPk: true },
+              { name: 'name', type: f.name },
+              { name: 'path', type: f.path || f.name },
+              { name: 'total_files', type: `${filesInFolder.length}` }
+            ]
+          });
+          curFolderY += 210;
+        });
+
+        if (rootFiles.length > 0 || folders.length === 0) {
+          nodes.push({
+            id: 'folder_root',
+            nodeType: 'FOLDER',
+            rawId: null,
+            title: 'Root Storage',
+            icon: 'hard-drive',
+            badge: `${rootFiles.length} file`,
+            defaultX: folderColX,
+            defaultY: curFolderY,
+            rows: [
+              { name: 'location', type: 'storage/uploads' },
+              { name: 'total_files', type: `${rootFiles.length}` }
+            ]
+          });
+          curFolderY += 190;
+        }
+
+        if (inboxFiles.length > 0) {
+          nodes.push({
+            id: 'folder_inbox',
+            nodeType: 'FOLDER',
+            rawId: 'inbox',
+            title: 'Inbox Triage',
+            icon: 'inbox',
+            badge: `${inboxFiles.length} file`,
+            defaultX: folderColX,
+            defaultY: curFolderY,
+            rows: [
+              { name: 'status', type: 'pending triage' },
+              { name: 'total_files', type: `${inboxFiles.length}` }
+            ]
+          });
+        }
+
+        let curFileY = 60;
+        const displayFiles = files.slice(0, 30);
+        displayFiles.forEach(f => {
+          const fileNodeId = `file_${f.id}`;
+          const isAnalyzed = Boolean(f.ai_analyzed);
+          const ext = (f.original_name || '').split('.').pop() || 'file';
+
+          nodes.push({
+            id: fileNodeId,
+            nodeType: 'FILE',
+            rawId: f.id,
+            title: f.original_name,
+            icon: 'file-text',
+            badge: ext.toUpperCase(),
+            defaultX: fileColX,
+            defaultY: curFileY,
+            rows: [
+              { name: 'size', type: formatBytes(f.size) },
+              { name: 'mime', type: (f.mime_type || '').split('/')[1] || 'binary' },
+              { name: 'folder', type: f.folder_name || (f.is_inbox ? 'inbox' : 'root') },
+              { name: 'ai_folder', type: f.suggested_folder || 'auto', isAi: true }
+            ],
+            canPreview: true
+          });
+
+          let targetFolderNodeId = 'folder_root';
+          if (f.folder_id && folderIds.has(String(f.folder_id))) {
+            targetFolderNodeId = `folder_${f.folder_id}`;
+          } else if (f.is_inbox) {
+            targetFolderNodeId = 'folder_inbox';
+          }
+          edges.push({ from: targetFolderNodeId, to: fileNodeId, type: 'relation-folder' });
+
+          if (isAnalyzed || f.suggested_folder || f.description) {
+            const metaNodeId = `meta_${f.id}`;
+            nodes.push({
+              id: metaNodeId,
+              nodeType: 'META',
+              rawId: f.id,
+              title: `AI: ${f.suggested_folder || f.category || 'Metadata'}`,
+              icon: 'sparkles',
+              badge: 'AI Enriched',
+              defaultX: metaColX,
+              defaultY: curFileY,
+              rows: [
+                { name: 'category', type: f.category || f.project || 'General', isAi: true },
+                { name: 'suggested_folder', type: f.suggested_folder || f.folder_name || '-', isAi: true },
+                { name: 'tags', type: f.tags ? (Array.isArray(f.tags) ? f.tags.join(', ') : f.tags) : 'none' },
+                { name: 'status', type: 'auto-organized', isAi: true }
+              ]
+            });
+            edges.push({ from: fileNodeId, to: metaNodeId, type: 'relation-meta' });
+          }
+
+          curFileY += 190;
+        });
+      }
+
+      graphState.nodes = nodes;
+      graphState.edges = edges;
+      return { nodes, edges };
+    }
+
+    function renderGraph(reposition = false) {
+      const container = document.getElementById('graphNodesLayer');
+      const stats = document.getElementById('graphStats');
+      if (!container) return;
+
+      const { nodes, edges } = buildGraphData();
+      if (stats) stats.textContent = `${nodes.length} node · ${edges.length} relasi`;
+
+      container.innerHTML = '';
+
+      nodes.forEach(node => {
+        if (reposition || !graphState.positions[node.id]) {
+          graphState.positions[node.id] = { x: node.defaultX, y: node.defaultY };
+        }
+        const pos = graphState.positions[node.id];
+
+        const nodeEl = document.createElement('div');
+        nodeEl.className = 'graph-node';
+        nodeEl.id = `gnode_${node.id}`;
+        nodeEl.dataset.id = node.id;
+        nodeEl.dataset.type = node.nodeType || 'TABLE';
+        if (node.rawId) nodeEl.dataset.rawId = node.rawId;
+        nodeEl.style.left = `${pos.x}px`;
+        nodeEl.style.top = `${pos.y}px`;
+
+        const rowsHtml = (node.rows || []).map(r => {
+          let diamondClass = '';
+          if (r.isPk) diamondClass = 'pk';
+          else if (r.isFk) diamondClass = 'fk';
+          else if (r.isAi) diamondClass = 'ai';
+
+          return `
+            <div class="graph-node-row">
+              <div class="graph-node-row-left">
+                <span class="graph-diamond ${diamondClass}">◆</span>
+                <span>${escapeHtml(r.name)}</span>
+              </div>
+              <span class="graph-node-row-type">${escapeHtml(r.type || '')}</span>
+            </div>
+          `;
+        }).join('');
+
+        let footerHtml = '';
+        if (node.canPreview) {
+          footerHtml = `
+            <div class="graph-node-footer">
+              <button class="graph-node-action-btn" onclick="openPreview('FILE', '${node.rawId}')" title="Buka Pratinjau">
+                <i data-lucide="eye" class="icon-sm"></i> <span>Pratinjau</span>
+              </button>
+            </div>
+          `;
+        }
+
+        nodeEl.innerHTML = `
+          <div class="graph-node-header" data-drag-handle="true">
+            <div class="graph-node-title">
+              <i data-lucide="${node.icon || 'table'}" class="icon-sm"></i>
+              <span>${escapeHtml(node.title)}</span>
+            </div>
+            <span class="graph-node-badge">${escapeHtml(node.badge || '')}</span>
+          </div>
+          <div class="graph-node-body">
+            ${rowsHtml}
+          </div>
+          ${footerHtml}
+        `;
+
+        container.appendChild(nodeEl);
+      });
+
+      applyGraphTransform();
+      updateGraphSvgWires();
+      setupGraphInteractions();
+      refreshIcons();
+    }
+
+    function updateGraphSvgWires() {
+      const svg = document.getElementById('graphSvgLayer');
+      if (!svg) return;
+
+      const defs = svg.querySelector('defs');
+      svg.innerHTML = '';
+      if (defs) svg.appendChild(defs);
+
+      const edges = graphState.edges || [];
+      edges.forEach(edge => {
+        const fromPos = graphState.positions[edge.from];
+        const toPos = graphState.positions[edge.to];
+        if (!fromPos || !toPos) return;
+
+        const fromNodeEl = document.getElementById(`gnode_${edge.from}`);
+        const toNodeEl = document.getElementById(`gnode_${edge.to}`);
+        const fromW = fromNodeEl ? fromNodeEl.offsetWidth : 250;
+        const toW = toNodeEl ? toNodeEl.offsetWidth : 250;
+
+        let x1 = fromPos.x + fromW;
+        let y1 = fromPos.y + 36;
+        let x2 = toPos.x;
+        let y2 = toPos.y + 36;
+
+        let d = '';
+        if (edge.isLoop) {
+          const loopH = 65;
+          d = `M ${x1} ${y1} C ${x1 + 60} ${y1 - loopH}, ${x1 + 60} ${y1 + loopH}, ${x1} ${y1 + 40}`;
+        } else {
+          const dx = Math.max(50, Math.abs(x2 - x1) * 0.45);
+          d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+        }
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('class', `graph-wire ${edge.type || 'relation-folder'}`);
+        path.setAttribute('d', d);
+        svg.appendChild(path);
+
+        const dot1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot1.setAttribute('class', `graph-port-dot ${edge.type === 'relation-meta' ? 'meta' : 'folder'}`);
+        dot1.setAttribute('cx', x1);
+        dot1.setAttribute('cy', y1);
+        dot1.setAttribute('r', '3.5');
+        svg.appendChild(dot1);
+
+        if (!edge.isLoop) {
+          const dot2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          dot2.setAttribute('class', `graph-port-dot ${edge.type === 'relation-meta' ? 'meta' : 'folder'}`);
+          dot2.setAttribute('cx', x2);
+          dot2.setAttribute('cy', y2);
+          dot2.setAttribute('r', '3.5');
+          svg.appendChild(dot2);
+        }
+      });
+    }
+
+    let graphEventsInitialized = false;
+    function setupGraphInteractions() {
+      if (graphEventsInitialized) return;
+      graphEventsInitialized = true;
+
+      const viewport = document.getElementById('graphViewport');
+      if (!viewport) return;
+
+      viewport.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.graph-node')) return;
+        graphState.isPanning = true;
+        graphState.startX = e.clientX - graphState.panX;
+        graphState.startY = e.clientY - graphState.panY;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (graphState.isPanning) {
+          graphState.panX = e.clientX - graphState.startX;
+          graphState.panY = e.clientY - graphState.startY;
+          applyGraphTransform();
+        } else if (graphState.isDraggingNode && graphState.dragNodeId) {
+          const dx = (e.clientX - graphState.dragStartX) / graphState.scale;
+          const dy = (e.clientY - graphState.dragStartY) / graphState.scale;
+          const newX = Math.round(graphState.nodeStartX + dx);
+          const newY = Math.round(graphState.nodeStartY + dy);
+          graphState.positions[graphState.dragNodeId] = { x: newX, y: newY };
+
+          const nodeEl = document.getElementById(`gnode_${graphState.dragNodeId}`);
+          if (nodeEl) {
+            nodeEl.style.left = `${newX}px`;
+            nodeEl.style.top = `${newY}px`;
+          }
+
+          if (nodeEl && nodeEl.dataset.type === 'FILE') {
+            const folderNodes = document.querySelectorAll('.graph-node[data-type="FOLDER"]');
+            folderNodes.forEach(fNode => {
+              const rect = fNode.getBoundingClientRect();
+              const isOver = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+              fNode.classList.toggle('drag-target', isOver);
+            });
+          }
+
+          updateGraphSvgWires();
+        }
+      });
+
+      window.addEventListener('mouseup', async (e) => {
+        if (graphState.isPanning) {
+          graphState.isPanning = false;
+        }
+        if (graphState.isDraggingNode) {
+          const draggedId = graphState.dragNodeId;
+          const draggedEl = document.getElementById(`gnode_${draggedId}`);
+          graphState.isDraggingNode = false;
+          graphState.dragNodeId = null;
+
+          if (draggedEl && draggedEl.dataset.type === 'FILE') {
+            const folderTarget = document.querySelector('.graph-node[data-type="FOLDER"].drag-target');
+            if (folderTarget) {
+              folderTarget.classList.remove('drag-target');
+              const fileId = draggedEl.dataset.rawId;
+              const folderId = folderTarget.dataset.rawId;
+              if (fileId && folderId && folderId !== 'inbox') {
+                try {
+                  const targetFolder = (allData.folders || []).find(f => String(f.id) === String(folderId));
+                  const folderName = targetFolder ? targetFolder.name : `Folder #${folderId}`;
+                  showToast('info', `Memindahkan file ke "${folderName}"...`);
+                  const res = await authFetch(`${API_BASE}/files/${fileId}/organize`, {
+                    method: 'POST',
+                    body: JSON.stringify({ folder_id: folderId })
+                  });
+                  if (res.ok) {
+                    showToast('success', `File berhasil dipindahkan ke "${folderName}"!`);
+                    await fetchAllData();
+                    renderGraph();
+                  }
+                } catch (err) {
+                  showToast('error', 'Gagal memindahkan file: ' + err.message);
+                }
+              }
+            }
+          }
+        }
+      });
+
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.12 : -0.12;
+        zoomGraph(delta);
+      }, { passive: false });
+
+      viewport.addEventListener('mousedown', (e) => {
+        const handle = e.target.closest('[data-drag-handle="true"]');
+        if (!handle) return;
+        const node = handle.closest('.graph-node');
+        if (!node) return;
+
+        const nodeId = node.dataset.id;
+        graphState.isDraggingNode = true;
+        graphState.dragNodeId = nodeId;
+        graphState.dragStartX = e.clientX;
+        graphState.dragStartY = e.clientY;
+        const currentPos = graphState.positions[nodeId] || { x: node.offsetLeft, y: node.offsetTop };
+        graphState.nodeStartX = currentPos.x;
+        graphState.nodeStartY = currentPos.y;
+        e.stopPropagation();
+      });
+    }
+
     // ── Preview Modal ──────────────────────────────────────────────────────────
+
     // ── Preview Modal & Rich Viewers ───────────────────────────────────────────
     function togglePreviewExpand() {
       const backdrop = document.getElementById('previewModalBackdrop');

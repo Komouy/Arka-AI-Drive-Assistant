@@ -14,6 +14,8 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 // ── Config, storage & database bootstrap ─────────────────────────────────────
 loadEnv();
 
+import { autoOrganizeStartupSweep } from './controllers/fileController.js';
+
 // In local mode (without Supabase), ensure local storage & init SQLite
 if (!isSupabaseConfigured()) {
   try {
@@ -23,6 +25,9 @@ if (!isSupabaseConfigured()) {
     console.warn('[DB] SQLite initialization skipped:', err.message);
   }
 }
+
+// Auto-organize sweep on startup: automatically place any existing files into AI suggested folders
+autoOrganizeStartupSweep().catch(err => console.warn('[ARKA AI] Startup auto-organize sweep skipped:', err.message));
 
 export const app = express();
 

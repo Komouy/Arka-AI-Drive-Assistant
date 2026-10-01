@@ -36,10 +36,121 @@ async function triggerAIAnalysis(fileId, filePath, mimeType, filename, userId = 
       saveMetadata(fileId, metadata);
     }
     console.log(`[ARKA AI] 💾 Metadata saved for file ID ${fileId} (provider: ${metadata.provider})`);
+
+    // AI automatically creates folder and organizes file without requiring manual button clicks
+    await autoOrganizeFileByAiSuggestion(fileId, metadata, userId);
+
     return metadata;
   } catch (err) {
     console.warn(`[ARKA AI] ⚠️  Analysis skipped for file ID ${fileId}: ${err.message}`);
     return { ok: false, error: err.message };
+  }
+}
+
+/**
+ * Automatically create folder and move file into it based on AI suggestion.
+ * Preserves manual folder assignment if user already explicitly selected one.
+ */
+export async function autoOrganizeFileByAiSuggestion(fileId, metadata, userId = null) {
+  try {
+    const rawSugg = metadata?.suggestedFolder || metadata?.project || '';
+    const folderSuggestion = String(rawSugg).trim();
+    if (!folderSuggestion || folderSuggestion.toLowerCase() === 'root' || folderSuggestion.toLowerCase() === 'general') {
+      return null;
+    }
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      let query = supabase.from('files').select('id, folder_id, is_inbox, is_trash').eq('id', fileId);
+      if (userId) query = query.or(`user_id.eq.${userId},user_id.is.null`);
+      const { data: file } = await query.maybeSingle();
+      if (!file || file.is_trash) return null;
+      if (file.folder_id) return null; // Already assigned
+
+      const targetFolderId = await resolveTargetFolderSupabase(supabase, folderSuggestion, userId);
+      if (targetFolderId) {
+        await supabase.from('files').update({
+          folder_id: targetFolderId,
+          is_inbox: false,
+          updated_at: new Date().toISOString()
+        }).eq('id', fileId);
+        console.log(`[ARKA AI] 📁 [Auto-Folder] File ID ${fileId} automatically moved to folder "${folderSuggestion}" (${targetFolderId})`);
+        return targetFolderId;
+      }
+    } else {
+      // SQLite
+      const file = db.prepare('SELECT id, folder_id, is_inbox, is_trash, stored_name, path FROM files WHERE id = ?').get(Number(fileId));
+      if (!file || file.is_trash === 1) return null;
+      if (file.folder_id) return null; // Already assigned
+
+      const targetFolderId = resolveTargetFolder(null, folderSuggestion);
+      if (targetFolderId) {
+        let newDbPath = file.path;
+        if (file.is_inbox === 1 && file.stored_name) {
+          const oldPath = path.resolve(UPLOADS_DIR, '..', file.path);
+          const newPath = path.join(UPLOADS_DIR, file.stored_name);
+          if (fs.existsSync(oldPath)) {
+            if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+            try { fs.renameSync(oldPath, newPath); } catch {}
+          }
+          newDbPath = `uploads/${file.stored_name}`;
+        }
+        db.prepare(`
+          UPDATE files 
+          SET folder_id = ?, is_inbox = 0, path = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(targetFolderId, newDbPath, Number(fileId));
+        console.log(`[ARKA AI] 📁 [Auto-Folder] File ID ${fileId} automatically moved to folder "${folderSuggestion}" (${targetFolderId})`);
+        return targetFolderId;
+      }
+    }
+  } catch (err) {
+    console.warn(`[ARKA AI] ⚠️ Auto-organize failed for file ID ${fileId}:`, err.message);
+  }
+  return null;
+}
+
+/**
+ * Startup sweep to auto-organize existing files that have AI suggestions but no folder yet.
+ */
+export async function autoOrganizeStartupSweep() {
+  try {
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      const { data: unorganized } = await supabase
+        .from('files')
+        .select('id, folder_id, is_trash, user_id, file_metadata(suggested_folder, project)')
+        .is('folder_id', null)
+        .eq('is_trash', false);
+
+      for (const f of (unorganized || [])) {
+        const meta = Array.isArray(f.file_metadata) ? f.file_metadata[0] : f.file_metadata;
+        const folderName = meta?.suggested_folder || meta?.project;
+        if (folderName) {
+          await autoOrganizeFileByAiSuggestion(f.id, { suggestedFolder: folderName }, f.user_id);
+        }
+      }
+    } else {
+      const unorganized = db.prepare(`
+        SELECT f.id, f.stored_name, f.path, f.is_inbox, m.suggested_folder, m.project
+        FROM files f
+        LEFT JOIN file_metadata m ON f.id = m.file_id
+        WHERE f.folder_id IS NULL AND f.is_trash = 0
+          AND (
+            (m.suggested_folder IS NOT NULL AND TRIM(m.suggested_folder) != '')
+            OR (m.project IS NOT NULL AND TRIM(m.project) != '')
+          )
+      `).all();
+
+      for (const f of unorganized) {
+        const folderName = f.suggested_folder || f.project;
+        if (folderName) {
+          await autoOrganizeFileByAiSuggestion(f.id, { suggestedFolder: folderName }, null);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[ARKA AI] Auto-organize startup sweep notice:', err.message);
   }
 }
 
@@ -979,6 +1090,7 @@ export const fileController = {
           }
 
           await saveMetadataSupabase(id, metadata, file.user_id);
+          await autoOrganizeFileByAiSuggestion(id, metadata, file.user_id);
 
           const { data: updated } = await runFileSelect(sel =>
             supabase.from('files').select(sel).eq('id', id).maybeSingle()
@@ -1022,6 +1134,7 @@ export const fileController = {
       }
 
       saveMetadata(Number(id), metadata);
+      await autoOrganizeFileByAiSuggestion(id, metadata, null);
 
       const updated = db.prepare(`
         SELECT f.*, fl.name as folder_name, m.description, m.category, m.project, m.tags, m.ai_analyzed${sqliteSuggestionFields()}
@@ -1037,6 +1150,60 @@ export const fileController = {
       enriched.ai_analyzed = 1;
 
       return ok(res, { metadata, data: enriched });
+    } catch (err) {
+      return fail(res, err);
+    }
+  },
+
+  // Batch auto-organize all unorganized files based on AI suggestions
+  autoOrganizeAll: async (req, res) => {
+    try {
+      const userId = req.user?.id || null;
+      let count = 0;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        let query = supabase
+          .from('files')
+          .select('id, folder_id, is_trash, file_metadata(suggested_folder, project)')
+          .is('folder_id', null)
+          .eq('is_trash', false);
+        if (userId) query = query.or(`user_id.eq.${userId},user_id.is.null`);
+
+        const { data: unorganized, error } = await query;
+        if (error) return fail(res, error);
+
+        for (const f of (unorganized || [])) {
+          const meta = Array.isArray(f.file_metadata) ? f.file_metadata[0] : f.file_metadata;
+          const folderName = meta?.suggested_folder || meta?.project;
+          if (folderName) {
+            const resFolderId = await autoOrganizeFileByAiSuggestion(f.id, { suggestedFolder: folderName }, userId);
+            if (resFolderId) count++;
+          }
+        }
+      } else {
+        // SQLite
+        const unorganized = db.prepare(`
+          SELECT f.id, f.stored_name, f.path, f.is_inbox, m.suggested_folder, m.project
+          FROM files f
+          LEFT JOIN file_metadata m ON f.id = m.file_id
+          WHERE f.folder_id IS NULL AND f.is_trash = 0
+            AND (
+              (m.suggested_folder IS NOT NULL AND TRIM(m.suggested_folder) != '')
+              OR (m.project IS NOT NULL AND TRIM(m.project) != '')
+            )
+        `).all();
+
+        for (const f of unorganized) {
+          const folderName = f.suggested_folder || f.project;
+          if (folderName) {
+            const resFolderId = await autoOrganizeFileByAiSuggestion(f.id, { suggestedFolder: folderName }, null);
+            if (resFolderId) count++;
+          }
+        }
+      }
+
+      return ok(res, { count, message: `${count} file berhasil dirapikan otomatis ke folder AI` });
     } catch (err) {
       return fail(res, err);
     }

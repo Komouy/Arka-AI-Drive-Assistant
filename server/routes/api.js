@@ -33,6 +33,7 @@ router.delete('/folders/:id', folderController.delete);
 // Files & Upload — upload + named sub-routes MUST come before the :id wildcard
 router.get('/files', fileController.getAll);
 router.post('/files/upload', uploadMiddleware.array('files', 50), fileController.upload);
+router.post('/files/auto-organize-all', fileController.autoOrganizeAll);
 router.delete('/trash', fileController.emptyTrash);
 router.get('/files/:id', fileController.getById);
 router.get('/files/:id/download', fileController.download);
