@@ -43,7 +43,7 @@ Batas ukuran: 500 MB per file. Format yang didukung: semua format umum (gambar, 
     title: 'Inbox & perapian file',
     text: `Inbox = file yang belum punya folder/organisasi.
 Pada filter "Semua Item", file yang masih di inbox ditandai dengan label inbox.
-Perapian AI Otomatis: klik tombol "Perapian AI Otomatis" (ikon sparkles) di toolbar — AI menganalisis file inbox lalu memindahkannya ke folder saran AI.
+Perapian AI Otomatis: klik tombol "AI Otomatis" (ikon bot) di toolbar — AI menganalisis file inbox lalu memindahkannya ke folder saran AI.
 Cara per item: klik tombol "→ NamaFolder" pada baris file untuk menerima saran folder AI.
 Tips: unggah file apa adanya dulu, lalu jalankan "Perapian AI Otomatis" sekali untuk merapikan semuanya sekaligus.`
   },

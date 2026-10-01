@@ -95,7 +95,7 @@ function buildGraphData() {
     nodes.push({
       id: 'schema_file_metadata',
       title: 'file_metadata',
-      icon: 'sparkles',
+      icon: 'bot',
       badge: 'table',
       defaultX: 60,
       defaultY: 80,
@@ -359,7 +359,7 @@ function buildGraphData() {
           nodeType: 'META',
           rawId: f.id,
           title: `AI: ${f.suggested_folder || f.category || 'Metadata'}`,
-          icon: 'sparkles',
+          icon: 'bot',
           badge: 'AI Enriched',
           defaultX: metaColX,
           defaultY: curFileY,

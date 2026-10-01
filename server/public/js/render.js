@@ -279,7 +279,7 @@ function render() {
 
           let aiBadge = '';
           if (f.ai_analyzed) {
-            aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="sparkles" class="w-3 h-3"></i> AI</span>';
+            aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="bot" class="w-3 h-3"></i> AI</span>';
           }
 
           let suggestBtns = '';
@@ -456,7 +456,7 @@ function render() {
       const downloadUrl = `/api/files/${safeId}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
       const isAnalyzed = !!(item.raw?.ai_analyzed);
       if (isAnalyzed) {
-        aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="sparkles" class="w-2.5 h-2.5"></i> AI</span>';
+        aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="bot" class="w-2.5 h-2.5"></i> AI</span>';
       } else {
         aiBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/25 pulse-badge" id="badge-FILE-${safeId}"><i data-lucide="loader" class="w-2.5 h-2.5 spin"></i> Menganalisis...</span>`;
       }
@@ -494,7 +494,7 @@ function render() {
       const safeUrl = escapeHtml(item.url || '');
       const isLinkAnalyzed = !!(item.desc && item.desc !== item.url && item.raw?.tags && (Array.isArray(item.raw.tags) ? item.raw.tags.length > 0 : String(item.raw.tags).trim().length > 0));
       if (isLinkAnalyzed) {
-        aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="sparkles" class="w-2.5 h-2.5"></i> AI</span>';
+        aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="bot" class="w-2.5 h-2.5"></i> AI</span>';
       }
       actionBtn = `
         <button class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" onclick="openPreview('LINK', '${safeId}')"><i data-lucide="eye" class="w-3 h-3"></i> <span>pratinjau</span></button>
