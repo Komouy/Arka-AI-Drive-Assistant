@@ -15,7 +15,9 @@ const VECTOR_EXTS = ['.svg']; // XML text — must NOT go to the vision model
 const VIDEO_EXTS = ['.mp4', '.mkv', '.webm', '.avi', '.mov', '.m4v', '.wmv', '.flv'];
 const AUDIO_EXTS = ['.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac', '.opus'];
 const CODE_EXTS = ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.html', '.css', '.json', '.py', '.sql', '.sh', '.rs', '.go', '.vue', '.php', '.rb', '.java', '.c', '.cpp', '.h', '.yml', '.yaml', '.toml', '.xml'];
-const DOC_EXTS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.csv', '.rtf', '.log'];
+const TEXT_DOC_EXTS = ['.txt', '.md', '.csv', '.rtf', '.log'];
+const BINARY_DOC_EXTS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'];
+const DOC_EXTS = [...TEXT_DOC_EXTS, ...BINARY_DOC_EXTS];
 const ARCHIVE_EXTS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz'];
 
 /** Lower-cased extension (including dot) for a filename. */
@@ -25,6 +27,12 @@ export function extOf(filename = '') {
 
 function extIn(ext, list) {
   return list.includes(ext);
+}
+
+/** Check if file is a PDF */
+export function isPdf(mimeType = '', filename = '') {
+  const mime = String(mimeType || '').toLowerCase();
+  return mime.includes('pdf') || extOf(filename) === '.pdf';
 }
 
 /**
@@ -49,8 +57,8 @@ export function getFileTypeCategory(mimeType = '', filename = '') {
 export function isTextLike(mimeType = '', filename = '') {
   const mime = String(mimeType || '').toLowerCase();
   if (mime.startsWith('text/')) return true;
-  if (mime === 'application/json' || mime === 'application/xml' || mime === 'application/sql') return true;
-  return extIn(extOf(filename), [...CODE_EXTS, ...DOC_EXTS, '.svg', '.ini', '.env', '.gitignore']);
+  if (mime === 'application/json' || mime === 'application/xml' || mime === 'application/sql' || mime === 'application/javascript') return true;
+  return extIn(extOf(filename), [...CODE_EXTS, ...TEXT_DOC_EXTS, '.svg', '.ini', '.env', '.gitignore']);
 }
 
 /** True when the file is a raster image (vision model capable). */
@@ -59,8 +67,9 @@ export function isRasterImage(mimeType = '', filename = '') {
   return (mime.startsWith('image/') && !mime.includes('svg')) || extIn(extOf(filename), IMAGE_EXTS);
 }
 
-/** True when the file needs a multimodal model (image / video / audio). */
+/** True when the file needs a multimodal model (image / video / audio / pdf document). */
 export function isMultimodal(mimeType = '', filename = '') {
+  if (isPdf(mimeType, filename)) return true;
   const category = getFileTypeCategory(mimeType, filename);
   if (category === 'Image') return isRasterImage(mimeType, filename);
   return category === 'Video' || category === 'Audio';

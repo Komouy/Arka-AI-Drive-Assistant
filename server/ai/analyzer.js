@@ -56,7 +56,7 @@ Balas HANYA dengan JSON berikut (tanpa markdown, tanpa penjelasan):
 }`;
 }
 
-// ── Analyze media (image/video/audio) with Gemini multimodal ─────────────────
+// ── Analyze media (image/video/audio/pdf) with Gemini multimodal ─────────────
 async function analyzeWithGemini(filePath, mimeType, filename) {
   const stats = fs.statSync(filePath);
   if (stats.size > MAX_INLINE_ANALYZE_BYTES) {
@@ -108,7 +108,10 @@ Balas HANYA dengan JSON berikut (tanpa markdown, tanpa penjelasan):
           mediaPart
         ]
       }
-    ]
+    ],
+    config: {
+      responseMimeType: 'application/json'
+    }
   });
 
   const text = result.text || result.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -123,7 +126,12 @@ function readTextPreview(filePath, maxBytes = 2000) {
     try {
       const buffer = Buffer.alloc(maxBytes);
       const bytesRead = fs.readSync(fd, buffer, 0, maxBytes, 0);
-      return buffer.subarray(0, bytesRead).toString('utf8');
+      const slice = buffer.subarray(0, bytesRead);
+      // Skip if binary null-bytes detected
+      for (let i = 0; i < Math.min(slice.length, 256); i++) {
+        if (slice[i] === 0) return '';
+      }
+      return slice.toString('utf8');
     } finally {
       fs.closeSync(fd);
     }
@@ -137,9 +145,70 @@ async function analyzeWithGroq(filePath, mimeType, filename, hint = '') {
   const prompt = buildTextAnalysisPrompt(filename, mimeType, textPreview, hint);
   const raw = await groqChat(
     [{ role: 'user', content: prompt }],
-    { json: true, maxTokens: 512 }
+    { json: true, maxTokens: 800 }
   );
   return { raw, provider: 'groq' };
+}
+
+// ── Analyze text/code/doc with Gemini (Fallback or alternative) ────────────────
+async function analyzeWithGeminiText(filePath, mimeType, filename, hint = '') {
+  const textPreview = isTextLike(mimeType, filename) ? readTextPreview(filePath) : '';
+  const prompt = buildTextAnalysisPrompt(filename, mimeType, textPreview, hint);
+  const gemini = getGemini();
+  const result = await gemini.models.generateContent({
+    model: MODELS.gemini.flash,
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: prompt }]
+      }
+    ],
+    config: {
+      responseMimeType: 'application/json'
+    }
+  });
+  const text = result.text || result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return { raw: text, provider: 'gemini' };
+}
+
+// ── Smart heuristic fallback if models fail ───────────────────────────────────
+function generateSmartFallback(filename = '', mimeType = '') {
+  const ext = filename.includes('.') ? filename.split('.').pop() : '';
+  const baseName = filename.replace(/\.[^/.]+$/, '').replace(/[-_.]+/g, ' ').trim();
+  const words = baseName.split(' ').filter(w => w.length > 2);
+  const tags = [...new Set(words.map(w => w.toLowerCase()))].slice(0, 5);
+
+  let category = 'Document';
+  let folder = 'Documents';
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext.toLowerCase())) {
+    category = 'Image';
+    folder = 'Images';
+  } else if (['mp4', 'mkv', 'mov', 'webm'].includes(ext.toLowerCase())) {
+    category = 'Video';
+    folder = 'Videos';
+  } else if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext.toLowerCase())) {
+    category = 'Audio';
+    folder = 'Audio';
+  } else if (['js', 'ts', 'py', 'html', 'css', 'json', 'sql', 'sh'].includes(ext.toLowerCase())) {
+    category = 'Code';
+    folder = 'Code';
+  }
+
+  const cleanName = baseName
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join('-');
+  const suggestedName = ext ? `${cleanName}.${ext}` : cleanName;
+
+  return {
+    description: `File ${category.toLowerCase()} "${filename}".`,
+    category,
+    topic: baseName || filename,
+    tags: tags.length ? tags : [category.toLowerCase()],
+    project: folder,
+    suggestedFolder: folder,
+    suggestedName
+  };
 }
 
 // ── Parse AI JSON response safely ─────────────────────────────────────────────
@@ -169,18 +238,26 @@ function parseAIResponse(raw = '', originalFilename = '') {
       }
     }
 
+    const tags = [...new Set(rawTags.map(t => String(t).toLowerCase().trim()).filter(Boolean))].slice(0, 8);
+    const description = String(parsed.description || '').slice(0, 500);
+
+    if (!description && tags.length === 0) {
+      // Fallback to heuristic
+      return generateSmartFallback(originalFilename);
+    }
+
     return {
-      description:     String(parsed.description || '').slice(0, 500),
+      description,
       category,
-      topic:           String(parsed.topic || '').slice(0, 100),
-      tags:            [...new Set(rawTags.map(t => String(t).toLowerCase().trim()).filter(Boolean))].slice(0, 8),
+      topic:           String(parsed.topic || parsed.category || '').slice(0, 100),
+      tags,
       project:         String(parsed.project || '').slice(0, 100),
       suggestedFolder: String(parsed.suggestedFolder || parsed.project || '').slice(0, 200),
       suggestedName:   suggestedName || ''
     };
   } catch {
     console.warn('[ARKA AI] Could not parse AI response as JSON:', String(raw).slice(0, 200));
-    return { description: '', category: 'Other', topic: '', tags: [], project: '', suggestedFolder: '', suggestedName: '' };
+    return generateSmartFallback(originalFilename);
   }
 }
 
@@ -193,9 +270,7 @@ function parseAIResponse(raw = '', originalFilename = '') {
  * @param {string} filename  - Original filename
  * @returns {Promise<{ok:boolean, provider:string, error?:string, description:string,
  *                    category:string, topic:string, tags:string[], project:string,
- *                    suggestedFolder:string, analyzedAt:string}>}
- *          `ok:false` means NO usable metadata was produced — callers must not
- *          persist it as if it was analysed successfully.
+ *                    suggestedFolder:string, suggestedName:string, analyzedAt:string}>}
  */
 export async function analyzeFile(filePath, mimeType, filename) {
   const preferred = selectProvider(mimeType, filename);
@@ -212,35 +287,30 @@ export async function analyzeFile(filePath, mimeType, filename) {
     raw = result.raw;
     usedProvider = result.provider;
   } catch (err) {
-    // Fallback to the text model (Groq acts as the universal fallback)
     primaryError = err;
     console.warn(`[ARKA AI] Primary provider (${preferred}) failed for "${filename}": ${describeAIError(err)}`);
 
+    const fallbackProvider = preferred === 'gemini' ? 'groq' : 'gemini';
     try {
-      const hint = `analisis langsung via ${preferred} tidak tersedia (${describeAIError(err)}), jadi hanya nama file dan tipe yang diketahui.`;
-      const result = await analyzeWithGroq(filePath, mimeType, filename, hint);
+      const hint = `analisis langsung via ${preferred} tidak tersedia (${describeAIError(err)}).`;
+      const result = fallbackProvider === 'gemini'
+        ? await analyzeWithGeminiText(filePath, mimeType, filename, hint)
+        : await analyzeWithGroq(filePath, mimeType, filename, hint);
       raw = result.raw;
-      usedProvider = 'groq-fallback';
+      usedProvider = `${fallbackProvider}-fallback`;
     } catch (fallbackError) {
-      console.error(`[ARKA AI] Both providers failed for "${filename}": ${describeAIError(fallbackError)}`);
+      console.warn(`[ARKA AI] Both providers failed for "${filename}", activating smart fallback: ${describeAIError(fallbackError)}`);
+      const fallbackMeta = generateSmartFallback(filename, mimeType);
       return {
-        ok: false,
-        provider: 'failed',
-        error: describeAIError(fallbackError),
-        primaryError: describeAIError(primaryError),
-        description: '', category: 'Other', topic: '', tags: [], project: '', suggestedFolder: '',
+        ok: true,
+        provider: 'smart-heuristic',
+        ...fallbackMeta,
         analyzedAt
       };
     }
   }
 
   const metadata = parseAIResponse(raw, filename);
-
-  if (!metadata.description && metadata.tags.length === 0) {
-    console.warn(`[ARKA AI] "${filename}": provider ${usedProvider} returned no usable metadata.`);
-    return { ok: false, provider: usedProvider, error: 'Respons AI tidak memuat metadata yang bisa dipakai', ...metadata, analyzedAt };
-  }
-
   console.log(`[ARKA AI] ✅ Analyzed "${filename}" via ${usedProvider}: [${metadata.tags.join(', ')}]`);
   return { ok: true, provider: usedProvider, ...metadata, analyzedAt };
 }

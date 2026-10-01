@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ARKA Phase 2 — Google Drive Controller (BYOD Storage)
  *
  * Uploads files to the authenticated user's Google Drive using their
@@ -95,6 +95,28 @@ export async function deleteFromGoogleDrive(accessToken, driveFileId) {
   }
 
   return true;
+}
+
+/**
+ * Rename a file in Google Drive by its Drive file ID.
+ * Returns the updated file object.
+ */
+export async function renameInGoogleDrive(accessToken, driveFileId, newName) {
+  const res = await fetch(`${DRIVE_API_BASE}/files/${driveFileId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ name: newName })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Google Drive rename failed: ${err.error?.message || res.status}`);
+  }
+
+  return await res.json();
 }
 
 /**

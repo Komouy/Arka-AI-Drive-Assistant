@@ -145,4 +145,40 @@ export function getFolderPath(folderId) {
   return parts.length ? parts.join('/') : null;
 }
 
-export default { resolveTargetFolder, findFolder, getFolderPath, getFolderSubtreeIds, splitFolderPath, sanitizeFolderSegment };
+/**
+ * Resolve or create destination folder in Supabase mode (supports hierarchical "Projects/Instagram" paths).
+ */
+export async function resolveTargetFolderSupabase(supabase, projectName, userId = null) {
+  if (!projectName) return null;
+  const segments = splitFolderPath(projectName);
+  if (segments.length === 0) return null;
+
+  let currentParentId = null;
+  for (const segment of segments) {
+    let query = supabase.from('folders').select('id').ilike('name', segment);
+    if (currentParentId) {
+      query = query.eq('parent_id', currentParentId);
+    } else {
+      query = query.is('parent_id', null);
+    }
+    if (userId) {
+      query = query.or(`user_id.eq.${userId},user_id.is.null`);
+    }
+    const { data: existing } = await query.maybeSingle();
+
+    if (existing) {
+      currentParentId = existing.id;
+    } else {
+      const { data: inserted, error } = await supabase.from('folders').insert({
+        name: segment,
+        parent_id: currentParentId,
+        user_id: userId
+      }).select('id').single();
+      if (error || !inserted) return currentParentId;
+      currentParentId = inserted.id;
+    }
+  }
+  return currentParentId;
+}
+
+export default { resolveTargetFolder, resolveTargetFolderSupabase, findFolder, getFolderPath, getFolderSubtreeIds, splitFolderPath, sanitizeFolderSegment };

@@ -6,7 +6,7 @@ import { UPLOADS_DIR, INBOX_DIR, STORAGE_DIR } from '../config/env.js';
 import { isSupabaseConfigured, getSupabaseClient, BUCKET_NAME } from '../config/supabase.js';
 import { uploadToGoogleDrive, deleteFromGoogleDrive, downloadFromGoogleDrive } from './driveController.js';
 import { getFileTypeCategory, resolveMimeType } from '../utils/fileTypes.js';
-import { resolveTargetFolder } from '../utils/folders.js';
+import { resolveTargetFolder, resolveTargetFolderSupabase } from '../utils/folders.js';
 import { likePattern, ESCAPE_LIKE } from '../utils/search.js';
 import { fail, badRequest, notFound, ok } from '../utils/http.js';
 
@@ -20,7 +20,7 @@ function normalizeLimit(value, fallback = 200, max = 1000) {
 /**
  * Run AI analysis for an uploaded file and persist the result.
  */
-async function triggerAIAnalysis(fileId, filePath, mimeType, filename, fileBuffer = null) {
+async function triggerAIAnalysis(fileId, filePath, mimeType, filename, userId = null) {
   try {
     const { analyzeFile } = await import('../ai/analyzer.js');
     const metadata = await analyzeFile(filePath, mimeType, filename);
@@ -31,7 +31,7 @@ async function triggerAIAnalysis(fileId, filePath, mimeType, filename, fileBuffe
     }
 
     if (isSupabaseConfigured()) {
-      await saveMetadataSupabase(fileId, metadata);
+      await saveMetadataSupabase(fileId, metadata, userId);
     } else {
       saveMetadata(fileId, metadata);
     }
@@ -452,13 +452,15 @@ async function runAnalysisJob(job) {
 
   if (!analysisPath) {
     console.warn(`[ARKA AI] ⚠️  No readable source for file ID ${job.id} — analysis skipped.`);
-    return;
+    return null;
   }
 
   try {
-    await triggerAIAnalysis(job.id, analysisPath, job.mimeType, job.originalName);
+    const metadata = await triggerAIAnalysis(job.id, analysisPath, job.mimeType, job.originalName, job.userId || null);
+    return metadata;
   } catch (err) {
     console.warn(`[ARKA AI] Analysis error for ID ${job.id}: ${err.message}`);
+    return null;
   } finally {
     if (tempPath) { try { fs.unlinkSync(tempPath); } catch {} }
   }
@@ -533,7 +535,11 @@ export const fileController = {
           }
 
           if (search) {
-            query = query.ilike('original_name', `%${String(search).trim()}%`);
+            const s = String(search).trim();
+            const clean = s.replace(/[(),]/g, ' ').replace(/\s+/g, ' ').trim();
+            if (clean) {
+              query = query.or(`original_name.ilike.%${clean}%,stored_name.ilike.%${clean}%`);
+            }
           }
 
           return query.order('created_at', { ascending: false }).limit(normalizeLimit(limit));
@@ -543,6 +549,21 @@ export const fileController = {
         if (error) return fail(res, error);
 
         let enriched = (files || []).map(enrichSupabaseFileRow);
+
+        if (search) {
+          const q = String(search).trim().toLowerCase();
+          enriched = enriched.filter(f =>
+            (f.original_name && f.original_name.toLowerCase().includes(q)) ||
+            (f.stored_name && f.stored_name.toLowerCase().includes(q)) ||
+            (f.description && f.description.toLowerCase().includes(q)) ||
+            (f.tags && f.tags.toLowerCase().includes(q)) ||
+            (f.category && f.category.toLowerCase().includes(q)) ||
+            (f.project && f.project.toLowerCase().includes(q)) ||
+            (f.suggested_name && f.suggested_name.toLowerCase().includes(q)) ||
+            (f.suggested_folder && f.suggested_folder.toLowerCase().includes(q)) ||
+            (f.folder_name && f.folder_name.toLowerCase().includes(q))
+          );
+        }
 
         if (type && type !== 'All') {
           enriched = enriched.filter(f => f.typeCategory.toLowerCase() === String(type).toLowerCase());
@@ -683,15 +704,7 @@ export const fileController = {
           if (folderIdInput) {
             targetFolderId = folderIdInput;
           } else if (project) {
-            let folderQuery = supabase.from('folders').select('id').ilike('name', project);
-            if (userId) folderQuery = folderQuery.or(`user_id.eq.${userId},user_id.is.null`);
-            const { data: foundFolder } = await folderQuery.maybeSingle();
-            if (foundFolder) {
-              targetFolderId = foundFolder.id;
-            } else {
-              const { data: newF } = await supabase.from('folders').insert({ name: project, user_id: userId }).select().single();
-              if (newF) targetFolderId = newF.id;
-            }
+            targetFolderId = await resolveTargetFolderSupabase(supabase, project, userId);
           }
         }
 
@@ -780,17 +793,38 @@ export const fileController = {
             fileBuffer,
             physicalPath: f.path || null,
             mimeType,
-            originalName: f.originalname
+            originalName: f.originalname,
+            userId
           });
         }
 
-        // Trigger AI analysis for every uploaded file. The work is registered
-        // before the response goes out so a serverless runtime (Vercel) keeps the
-        // invocation alive until it settles; the jobs themselves run right after
-        // the response is written. Cloud / Google Drive uploads only exist in the
-        // upload buffer, so `runAnalysisJob` stages them into a temp file and
-        // removes that copy again once the analysis is done.
-        await registerBackgroundWork(analysisJobs.map(deferredJob));
+        // Automatic AI analysis:
+        // For small uploads (up to 3 files), execute the analysis inline with a fast timeout
+        // so the frontend receives the enriched AI metadata immediately without manual clicking.
+        if (analysisJobs.length <= 3) {
+          try {
+            await Promise.race([
+              Promise.allSettled(analysisJobs.map(runAnalysisJob)),
+              new Promise(r => setTimeout(r, 4500))
+            ]);
+            const ids = savedRecords.map(r => r.id);
+            const { data: refreshed } = await runFileSelect(sel =>
+              supabase.from('files').select(sel).in('id', ids)
+            );
+            if (refreshed && refreshed.length) {
+              const refreshedMap = new Map(refreshed.map(r => [r.id, enrichSupabaseFileRow(r)]));
+              for (let i = 0; i < savedRecords.length; i++) {
+                const updatedRow = refreshedMap.get(savedRecords[i].id);
+                if (updatedRow) savedRecords[i] = { ...savedRecords[i], ...updatedRow };
+              }
+            }
+          } catch (err) {
+            console.warn('[ARKA AI] Fast inline analysis timeout/error, continuing in background:', err.message);
+          }
+        } else {
+          // Large batch: register background work
+          await registerBackgroundWork(analysisJobs.map(deferredJob));
+        }
 
         res.status(201).json({
           success: true,
@@ -839,14 +873,35 @@ export const fileController = {
         savedRecords.push({ ...formatFileRecord(record), physicalPath: desiredPhysicalPath });
       }
 
-      // Same background-analysis contract as the cloud path above: the jobs are
-      // registered before the response so a serverless runtime keeps them alive.
-      await registerBackgroundWork(savedRecords.map(record => deferredJob({
+      const sqliteJobs = savedRecords.map(record => ({
         id: record.id,
         physicalPath: record.physicalPath,
         mimeType: record.mime_type,
         originalName: record.original_name
-      })));
+      }));
+
+      if (sqliteJobs.length <= 3) {
+        try {
+          await Promise.race([
+            Promise.allSettled(sqliteJobs.map(runAnalysisJob)),
+            new Promise(r => setTimeout(r, 4500))
+          ]);
+          for (let i = 0; i < savedRecords.length; i++) {
+            const row = db.prepare(`
+              SELECT f.*, fl.name as folder_name, m.description, m.category, m.project, m.tags, m.ai_analyzed${sqliteSuggestionFields()}
+              FROM files f
+              LEFT JOIN folders fl ON f.folder_id = fl.id
+              LEFT JOIN file_metadata m ON f.id = m.file_id
+              WHERE f.id = ?
+            `).get(savedRecords[i].id);
+            if (row) savedRecords[i] = { ...savedRecords[i], ...formatFileRecord(row) };
+          }
+        } catch (err) {
+          console.warn('[ARKA AI] Fast inline analysis timeout/error (SQLite):', err.message);
+        }
+      } else {
+        await registerBackgroundWork(sqliteJobs.map(deferredJob));
+      }
 
       res.status(201).json({
         success: true,
@@ -1270,7 +1325,13 @@ export const fileController = {
         if (error || !file) return notFound(res, `File "${id}" tidak ditemukan`);
 
         if (file.gdrive_view_url || file.public_url) {
-          return res.redirect(file.gdrive_view_url || file.public_url);
+          if (file.storage_provider === 'gdrive' || file.gdrive_file_id) {
+            return res.redirect(file.public_url || file.gdrive_view_url);
+          }
+          const downloadUrl = file.public_url.includes('?')
+            ? `${file.public_url}&download=${encodeURIComponent(file.original_name)}`
+            : `${file.public_url}?download=${encodeURIComponent(file.original_name)}`;
+          return res.redirect(downloadUrl);
         }
 
         // Fallback: download blob and stream
@@ -1279,7 +1340,8 @@ export const fileController = {
 
         const arrayBuffer = await blob.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
+        const safeName = String(file.original_name || 'download').replace(/["\\]/g, '_');
+        res.setHeader('Content-Disposition', `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(file.original_name)}`);
         res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
         return res.send(buffer);
       }

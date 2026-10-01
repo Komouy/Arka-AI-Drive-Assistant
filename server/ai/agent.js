@@ -18,7 +18,7 @@
 
 import { db } from '../database/db.js';
 import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
-import { getGroq, MODELS, describeAIError } from './providers.js';
+import { getGroq, getGemini, MODELS, describeAIError } from './providers.js';
 import { getEnv } from '../config/env.js';
 import { getFileTypeCategory } from '../utils/fileTypes.js';
 import { likePattern } from '../utils/search.js';
@@ -85,6 +85,20 @@ const TOOLS = [
       name: 'list_folders',
       description: 'Tampilkan semua folder di workspace.',
       parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_links',
+      description: 'Cari tautan atau bookmark web yang tersimpan berdasarkan URL, judul, deskripsi, atau tag.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Kata kunci pencarian tautan' }
+        },
+        required: ['query']
+      }
     }
   },
   {
@@ -243,6 +257,44 @@ async function executeTool(name, args, userId = null) {
         LIMIT 10
       `).all(pattern, pattern, pattern);
       return { prompts: rows, count: rows.length };
+    }
+
+    case 'search_links': {
+      const q = String(args.query || '').trim();
+
+      if (useSupabase) {
+        const supabase = getSupabaseClient();
+        let query = supabase.from('links').select('id, url, title, description, category, tags, domain');
+        query = scopeToUser(query, userId);
+        const { data: rows = [] } = await query.order('created_at', { ascending: false }).limit(SEARCH_SCAN_LIMIT);
+
+        const filtered = rows
+          .filter(l => {
+            const haystack = [l.title, l.url, l.description, l.category, l.domain]
+              .concat(Array.isArray(l.tags) ? l.tags : [l.tags])
+              .filter(Boolean)
+              .join(' ')
+              .toLowerCase();
+            return !q || haystack.includes(q.toLowerCase());
+          })
+          .slice(0, 10);
+
+        return { links: filtered, count: filtered.length };
+      }
+
+      const pattern = likePattern(q);
+      const rows = db.prepare(`
+        SELECT id, url, title, description, category, tags, domain
+        FROM links
+        WHERE url LIKE ? ESCAPE '\\'
+           OR title LIKE ? ESCAPE '\\'
+           OR description LIKE ? ESCAPE '\\'
+           OR tags LIKE ? ESCAPE '\\'
+           OR domain LIKE ? ESCAPE '\\'
+        ORDER BY created_at DESC
+        LIMIT 10
+      `).all(pattern, pattern, pattern, pattern, pattern);
+      return { links: rows, count: rows.length };
     }
 
     case 'list_inbox': {
@@ -442,7 +494,24 @@ async function askForFinalText(messages) {
     if (!text) return null;
     return { answer: text, truncated: choice?.finish_reason === 'length' || looksCut(text) };
   } catch (err) {
-    console.error('[ARKA AI] /ask final pass failed:', describeAIError(err));
+    console.error('[ARKA AI] /ask final pass failed with Groq, trying Gemini:', describeAIError(err));
+    try {
+      const gemini = getGemini();
+      const lastUser = [...messages].reverse().find(m => m.role === 'user')?.content || '';
+      const geminiRes = await gemini.models.generateContent({
+        model: MODELS.gemini.flash,
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `Permintaan: ${lastUser}\n\nJawab sekarang sebagai teks biasa secara ringkas dalam bahasa Indonesia (maksimal 120 kata, kalimat penutup harus lengkap).` }]
+          }
+        ]
+      });
+      const text = geminiRes.text || geminiRes.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return { answer: text.trim(), truncated: false };
+    } catch (geminiErr) {
+      console.error('[ARKA AI] Gemini final pass fallback also failed:', describeAIError(geminiErr));
+    }
     return null;
   }
 }
@@ -502,7 +571,32 @@ Aturan:
         temperature: 0.2
       });
     } catch (err) {
-      console.error('[ARKA AI] /ask provider error:', describeAIError(err));
+      console.warn('[ARKA AI] /ask Groq error, attempting Gemini fallback:', describeAIError(err));
+      try {
+        const gemini = getGemini();
+        const geminiRes = await gemini.models.generateContent({
+          model: MODELS.gemini.flash,
+          contents: [
+            {
+              role: 'user',
+              parts: [{
+                text: `${systemPrompt}\n\nPertanyaan pengguna: ${userQuery}\n\nJawab dalam bahasa Indonesia, ramah, padat, ringkas, dan jelas.`
+              }]
+            }
+          ]
+        });
+        const ans = geminiRes.text || geminiRes.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (ans) {
+          return {
+            answer: ans.trim(),
+            toolCalled: 'gemini_fallback',
+            toolResult: null,
+            steps
+          };
+        }
+      } catch (geminiErr) {
+        console.error('[ARKA AI] Gemini fallback also failed:', describeAIError(geminiErr));
+      }
       return {
         answer: `Maaf, layanan AI sedang bermasalah (${describeAIError(err)}). Coba lagi sebentar.`,
         toolCalled: null,

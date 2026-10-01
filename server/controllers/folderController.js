@@ -13,6 +13,36 @@ function getFolderRow(id) {
   return db.prepare('SELECT * FROM folders WHERE id = ?').get(Number(id));
 }
 
+/** Recursively collect all descendant folder IDs in Supabase mode */
+async function getFolderSubtreeIdsSupabase(supabase, folderId, userId = null) {
+  let query = supabase.from('folders').select('id, parent_id');
+  if (userId) query = query.or(`user_id.eq.${userId},user_id.is.null`);
+  const { data: folders } = await query;
+  const childMap = new Map();
+  for (const f of (folders || [])) {
+    const p = f.parent_id || 'root';
+    if (!childMap.has(p)) childMap.set(p, []);
+    childMap.get(p).push(f.id);
+  }
+  const result = [folderId];
+  const queue = [folderId];
+  while (queue.length > 0) {
+    const curr = queue.shift();
+    const children = childMap.get(curr) || [];
+    for (const ch of children) {
+      result.push(ch);
+      queue.push(ch);
+    }
+  }
+  return result;
+}
+
+/** Check if candidateParentId is a descendant of folderId in Supabase mode */
+async function isFolderDescendantSupabase(supabase, folderId, candidateParentId, userId = null) {
+  const subtreeIds = await getFolderSubtreeIdsSupabase(supabase, folderId, userId);
+  return subtreeIds.includes(candidateParentId);
+}
+
 export const folderController = {
   // Get all folders (flat with parent references + child counts)
   getAll: async (req, res) => {
@@ -233,6 +263,14 @@ export const folderController = {
         if (icon !== undefined) updates.icon = icon;
         if (parent_id !== undefined) {
           if (parent_id === id) return badRequest(res, 'Folder tidak boleh menjadi induk dirinya sendiri');
+          if (parent_id) {
+            const { data: parentFolder } = await supabase.from('folders').select('id').eq('id', parent_id).maybeSingle();
+            if (!parentFolder) return badRequest(res, `Parent folder ID ${parent_id} tidak ditemukan`);
+            const isDescendant = await isFolderDescendantSupabase(supabase, id, parent_id, userId);
+            if (isDescendant) {
+              return badRequest(res, 'Tidak bisa memindahkan folder ke dalam subfolder-nya sendiri');
+            }
+          }
           updates.parent_id = parent_id || null;
         }
 
@@ -300,18 +338,21 @@ export const folderController = {
           return notFound(res, 'Folder tidak ditemukan');
         }
 
-        // Move files in this folder to inbox (only for this user / shared)
-        let fileMoveQuery = supabase.from('files').update({ folder_id: null, is_inbox: true, updated_at: new Date().toISOString() }).eq('folder_id', id);
+        // Collect all descendant folder IDs in this subtree
+        const allSubtreeIds = await getFolderSubtreeIdsSupabase(supabase, id, userId);
+
+        // Move files in this folder and its subfolders to inbox (only for this user / shared)
+        let fileMoveQuery = supabase.from('files').update({ folder_id: null, is_inbox: true, updated_at: new Date().toISOString() }).in('folder_id', allSubtreeIds);
         if (userId) {
           fileMoveQuery = fileMoveQuery.or(`user_id.eq.${userId},user_id.is.null`);
         }
         await fileMoveQuery;
 
-        // Delete the folder
-        const { error: delErr } = await supabase.from('folders').delete().eq('id', id);
+        // Delete this folder and all its descendant subfolders
+        const { error: delErr } = await supabase.from('folders').delete().in('id', allSubtreeIds);
         if (delErr) return fail(res, delErr);
 
-        return ok(res, { message: `Folder "${folder.name}" dihapus. File dipindahkan ke Inbox.` });
+        return ok(res, { message: `Folder "${folder.name}" dihapus. File dipindahkan ke Inbox.`, deletedFolderIds: allSubtreeIds });
       }
 
       // SQLite Fallback

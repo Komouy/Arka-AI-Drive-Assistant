@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { UPLOADS_DIR } from '../config/env.js';
 import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
 import { getFileTypeCategory } from '../utils/fileTypes.js';
-import { resolveTargetFolder, getFolderPath } from '../utils/folders.js';
+import { resolveTargetFolder, resolveTargetFolderSupabase, getFolderPath } from '../utils/folders.js';
 import { fail, badRequest, notFound, ok } from '../utils/http.js';
 import { runFileSelect, enrichSupabaseFileRow, sqliteSuggestionFields } from './fileController.js';
 
@@ -87,17 +87,7 @@ export const inboxController = {
 
         let targetFolderId = folder_id;
         if (!targetFolderId && project_name) {
-          let folderQuery = supabase.from('folders').select('id').ilike('name', project_name);
-          if (userId) {
-            folderQuery = folderQuery.or(`user_id.eq.${userId},user_id.is.null`);
-          }
-          const { data: foundFolder } = await folderQuery.maybeSingle();
-          if (foundFolder) {
-            targetFolderId = foundFolder.id;
-          } else {
-            const { data: newF } = await supabase.from('folders').insert({ name: project_name, user_id: userId }).select().single();
-            if (newF) targetFolderId = newF.id;
-          }
+          targetFolderId = await resolveTargetFolderSupabase(supabase, project_name, userId);
         }
 
         if (!targetFolderId) {

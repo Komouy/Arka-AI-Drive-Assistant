@@ -64,7 +64,10 @@ export const linkController = {
         }
         if (search) {
           const s = String(search).trim();
-          query = query.or(`url.ilike.%${s}%,title.ilike.%${s}%,description.ilike.%${s}%,domain.ilike.%${s}%`);
+          const clean = s.replace(/[(),]/g, ' ').replace(/\s+/g, ' ').trim();
+          if (clean) {
+            query = query.or(`url.ilike.%${clean}%,title.ilike.%${clean}%,description.ilike.%${clean}%,domain.ilike.%${clean}%`);
+          }
         }
 
         query = query.order('created_at', { ascending: false });
@@ -194,7 +197,20 @@ export const linkController = {
         }).select().single();
 
         if (error) return fail(res, error);
-        return ok(res, { data: created, message: 'Link berhasil disimpan & dikategorikan' }, 201);
+
+        // Automatically analyze the link with AI (fast 3.5s timeout)
+        try {
+          const enriched = await Promise.race([
+            performLinkAIAnalysis(created),
+            new Promise(r => setTimeout(r, 3500))
+          ]);
+          if (enriched) return ok(res, { data: enriched, message: 'Link berhasil disimpan & dianalisis AI' }, 201);
+        } catch (err) {
+          console.warn('[ARKA AI] Inline link analysis error, background continuing:', err.message);
+          performLinkAIAnalysis(created).catch(() => {});
+        }
+
+        return ok(res, { data: created, message: 'Link berhasil disimpan' }, 201);
       }
 
       const info = db.prepare(`
@@ -210,7 +226,19 @@ export const linkController = {
       );
 
       const created = db.prepare('SELECT * FROM links WHERE id = ?').get(Number(info.lastInsertRowid));
-      return ok(res, { data: created, message: 'Link berhasil disimpan & dikategorikan' }, 201);
+
+      try {
+        const enriched = await Promise.race([
+          performLinkAIAnalysis(created),
+          new Promise(r => setTimeout(r, 3500))
+        ]);
+        if (enriched) return ok(res, { data: enriched, message: 'Link berhasil disimpan & dianalisis AI' }, 201);
+      } catch (err) {
+        console.warn('[ARKA AI] Inline link analysis error (SQLite):', err.message);
+        performLinkAIAnalysis(created).catch(() => {});
+      }
+
+      return ok(res, { data: created, message: 'Link berhasil disimpan' }, 201);
     } catch (err) {
       return fail(res, err);
     }
@@ -323,34 +351,50 @@ export const linkController = {
 
       if (!link) return notFound(res, 'Link tidak ditemukan');
 
-      // Fetch brief web snippet if possible
-      let webSnippet = '';
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 3500);
-        const pageRes = await fetch(link.url, {
-          signal: controller.signal,
-          headers: { 'User-Agent': 'Mozilla/5.0 (ARKA-AI-Assistant/1.0)' }
-        });
-        clearTimeout(timer);
-        if (pageRes.ok && (pageRes.headers.get('content-type') || '').includes('text/html')) {
-          const html = await pageRes.text();
-          const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)
-            || html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
-          if (metaMatch && metaMatch[1]) {
-            webSnippet = metaMatch[1].trim();
-          } else {
-            const text = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-                             .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-                             .replace(/<[^>]+>/g, ' ')
-                             .replace(/\s+/g, ' ')
-                             .trim();
-            webSnippet = text.slice(0, 400);
-          }
-        }
-      } catch {}
+      const updated = await performLinkAIAnalysis(link);
+      return ok(res, { data: updated || link, message: 'Link berhasil dianalisis dan diperkaya' });
+    } catch (err) {
+      return fail(res, err);
+    }
+  }
+};
 
-      const prompt = `Analisis bookmark web ini dan balas HANYA dengan objek JSON yang valid.
+/**
+ * Reusable AI analysis for links/bookmarks.
+ * Analyzes webpage metadata, extracts summary, category, and tags,
+ * and updates the database row automatically.
+ */
+export async function performLinkAIAnalysis(link) {
+  if (!link || !link.id) return null;
+
+  // Fetch brief web snippet if possible
+  let webSnippet = '';
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
+    const pageRes = await fetch(link.url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (ARKA-AI-Assistant/1.0)' }
+    });
+    clearTimeout(timer);
+    if (pageRes.ok && (pageRes.headers.get('content-type') || '').includes('text/html')) {
+      const html = await pageRes.text();
+      const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)
+        || html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
+      if (metaMatch && metaMatch[1]) {
+        webSnippet = metaMatch[1].trim();
+      } else {
+        const text = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                         .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+                         .replace(/<[^>]+>/g, ' ')
+                         .replace(/\s+/g, ' ')
+                         .trim();
+        webSnippet = text.slice(0, 400);
+      }
+    }
+  } catch {}
+
+  const prompt = `Analisis bookmark web ini dan balas HANYA dengan objek JSON yang valid.
 URL: ${link.url}
 Judul: ${link.title}
 Domain: ${link.domain}
@@ -364,62 +408,66 @@ Balas HANYA dengan JSON berikut:
   "tags": ["tag1", "tag2", "tag3", "tag4"]
 }`;
 
-      const { groqChat } = await import('../ai/providers.js');
-      let rawText = '';
-      try {
-        rawText = await groqChat([
-          { role: 'system', content: 'Kamu adalah ARKA, pengklasifikasi bookmark dan tautan yang cerdas. Selalu kembalikan JSON yang valid tanpa blok markdown.' },
-          { role: 'user', content: prompt }
-        ], { json: true });
-      } catch (aiErr) {
-        return res.status(502).json({ success: false, error: aiErr.message || 'Analisis AI gagal' });
-      }
-
-      if (!rawText) {
-        return res.status(502).json({ success: false, error: 'Analisis AI mengembalikan respons kosong' });
-      }
-
-      let parsed = {};
-      try {
-        const cleaned = String(rawText).replace(/```json?/gi, '').replace(/```/g, '').trim();
-        const start = cleaned.indexOf('{');
-        const end = cleaned.lastIndexOf('}');
-        const candidate = start !== -1 && end > start ? cleaned.slice(start, end + 1) : cleaned;
-        parsed = JSON.parse(candidate);
-      } catch {
-        return res.status(502).json({ success: false, error: 'AI mengembalikan JSON yang tidak valid' });
-      }
-
-      const newTitle = parsed.title || link.title;
-      const newDesc = parsed.description || link.description;
-      const newCategory = parsed.category || link.category;
-      const newTags = Array.isArray(parsed.tags) ? parsed.tags : (link.tags || []);
-
-      if (isSupabaseConfigured()) {
-        const supabase = getSupabaseClient();
-        const { data: updated, error: uErr } = await supabase.from('links').update({
-          title: newTitle,
-          description: newDesc,
-          category: newCategory,
-          tags: newTags,
-          updated_at: new Date().toISOString()
-        }).eq('id', id).select().single();
-
-        if (uErr) return fail(res, uErr);
-        return ok(res, { data: updated, message: 'Link berhasil dianalisis dan diperkaya' });
-      }
-
-      const tagsStr = Array.isArray(newTags) ? newTags.join(',') : String(newTags || '');
-      db.prepare(`
-        UPDATE links
-        SET title = ?, description = ?, category = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).run(newTitle, newDesc, newCategory, tagsStr, Number(id));
-
-      const updated = db.prepare('SELECT * FROM links WHERE id = ?').get(Number(id));
-      return ok(res, { data: updated, message: 'Link berhasil dianalisis dan diperkaya' });
-    } catch (err) {
-      return fail(res, err);
+  const { groqChat, getGemini, MODELS, describeAIError } = await import('../ai/providers.js');
+  let rawText = '';
+  try {
+    rawText = await groqChat([
+      { role: 'system', content: 'Kamu adalah ARKA, pengklasifikasi bookmark dan tautan yang cerdas. Selalu kembalikan JSON yang valid tanpa blok markdown.' },
+      { role: 'user', content: prompt }
+    ], { json: true, maxTokens: 400 });
+  } catch (aiErr) {
+    try {
+      const gemini = getGemini();
+      const geminiRes = await gemini.models.generateContent({
+        model: MODELS.gemini.flash,
+        contents: `Kamu adalah ARKA, pengklasifikasi bookmark dan tautan. Balas HANYA dengan JSON yang valid:\n${prompt}`,
+        config: { responseMimeType: 'application/json' }
+      });
+      rawText = geminiRes.text || geminiRes.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } catch (geminiErr) {
+      console.warn('[ARKA AI] Link analysis fallback error:', describeAIError(geminiErr));
     }
   }
-};
+
+  let parsed = {};
+  if (rawText) {
+    try {
+      const cleaned = String(rawText).replace(/```json?/gi, '').replace(/```/g, '').trim();
+      const start = cleaned.indexOf('{');
+      const end = cleaned.lastIndexOf('}');
+      const candidate = start !== -1 && end > start ? cleaned.slice(start, end + 1) : cleaned;
+      parsed = JSON.parse(candidate);
+    } catch {}
+  }
+
+  const newTitle = parsed.title || link.title;
+  const newDesc = parsed.description || link.description;
+  const newCategory = parsed.category || link.category || 'General';
+  const newTags = Array.isArray(parsed.tags) ? parsed.tags : (link.tags || []);
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    const { data: updated, error: uErr } = await supabase.from('links').update({
+      title: newTitle,
+      description: newDesc,
+      category: newCategory,
+      tags: newTags,
+      updated_at: new Date().toISOString()
+    }).eq('id', link.id).select().maybeSingle();
+
+    if (uErr) {
+      console.warn('[ARKA AI] Could not update link in Supabase:', uErr.message);
+      return link;
+    }
+    return updated || link;
+  }
+
+  const tagsStr = Array.isArray(newTags) ? newTags.join(',') : String(newTags || '');
+  db.prepare(`
+    UPDATE links
+    SET title = ?, description = ?, category = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(newTitle, newDesc, newCategory, tagsStr, Number(link.id));
+
+  return db.prepare('SELECT * FROM links WHERE id = ?').get(Number(link.id));
+}

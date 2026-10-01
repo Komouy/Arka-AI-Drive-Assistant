@@ -9,6 +9,7 @@
   "scripts": {
     "server": "node server/index.js",
     "start": "node server/index.js",
+    "test": "node scripts/test-endpoints.mjs",
     "diagnose:rename": "node scripts/diagnose-ai-rename.mjs"
   },
   "dependencies": {

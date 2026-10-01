@@ -28,7 +28,10 @@ export const promptController = {
         }
         if (search) {
           const s = String(search).trim();
-          query = query.or(`title.ilike.%${s}%,content.ilike.%${s}%`);
+          const clean = s.replace(/[(),]/g, ' ').replace(/\s+/g, ' ').trim();
+          if (clean) {
+            query = query.or(`title.ilike.%${clean}%,content.ilike.%${clean}%`);
+          }
         }
 
         query = query.order('created_at', { ascending: false });

@@ -17,7 +17,7 @@
 
 import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
-import { getApiKey, loadEnv } from '../config/env.js';
+import { getApiKey, getEnv, loadEnv } from '../config/env.js';
 
 // Root .env is loaded through the shared config module (single implementation)
 loadEnv();
@@ -47,13 +47,13 @@ export function getGemini() {
 export const MODELS = {
   // Groq — teks, tool-calling agent & metadata JSON (ID diverifikasi Sep 2026)
   groq: {
-    fast:       'qwen/qwen3.8-27b',      // paling baik untuk tool-calling (agent) + JSON rapi
-    smart:      'openai/gpt-oss-120b',   // penalaran umum yang lebih kuat
+    fast:       getEnv('GROQ_FAST_MODEL') || getEnv('GROQ_MODEL') || 'qwen/qwen3.8-27b',
+    smart:      getEnv('GROQ_SMART_MODEL') || 'openai/gpt-oss-120b',
   },
-  // Gemini — multimodal (cek https://ai.google.dev/gemini-api/docs/models untuk yang terbaru)
+  // Gemini — multimodal (gemini-flash-lite-latest / gemini-3.8-flash)
   gemini: {
-    flash:      'gemini-3.5-flash',      // Cepat + multimodal (rekomendasi Google saat ini)
-    pro:        'gemini-3.5-flash',      // Tier Pro butuh kuota berbayar → pakai flash yang sama
+    flash:      getEnv('GEMINI_MODEL') || 'gemini-flash-lite-latest',
+    pro:        getEnv('GEMINI_PRO_MODEL') || getEnv('GEMINI_MODEL') || 'gemini-flash-lite-latest',
   }
 };
 
@@ -76,7 +76,7 @@ export function describeAIError(err) {
 
 // ── Status Check ─────────────────────────────────────────────────────────────
 /**
- * Live-check both providers.
+ * Live-check both providers concurrently.
  * @returns {Promise<{ groq: {available:boolean, error:string|null},
  *                     gemini: {available:boolean, error:string|null},
  *                     configured: boolean }>}
@@ -87,30 +87,35 @@ export async function checkAIProviders() {
     gemini: { available: false, error: null }
   };
 
-  try {
-    const groq = getGroq();
-    await groq.chat.completions.create({
-      model: MODELS.groq.fast,
-      messages: [{ role: 'user', content: 'ping' }],
-      max_tokens: 5
-    });
-    result.groq.available = true;
-  } catch (err) {
-    result.groq.error = describeAIError(err);
-  }
+  const checkGroq = async () => {
+    try {
+      const groq = getGroq();
+      await groq.chat.completions.create({
+        model: MODELS.groq.fast,
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 5
+      });
+      result.groq.available = true;
+    } catch (err) {
+      result.groq.error = describeAIError(err);
+    }
+  };
 
-  try {
-    const gemini = getGemini();
-    const response = await gemini.models.generateContent({
-      model: MODELS.gemini.flash,
-      contents: 'ping'
-    });
-    result.gemini.available = !!(response?.text || response?.candidates?.length);
-    if (!result.gemini.available) result.gemini.error = 'Model membalas dengan respons kosong';
-  } catch (err) {
-    result.gemini.error = describeAIError(err);
-  }
+  const checkGemini = async () => {
+    try {
+      const gemini = getGemini();
+      const response = await gemini.models.generateContent({
+        model: MODELS.gemini.flash,
+        contents: 'ping'
+      });
+      result.gemini.available = !!(response?.text || response?.candidates?.length);
+      if (!result.gemini.available) result.gemini.error = 'Model membalas dengan respons kosong';
+    } catch (err) {
+      result.gemini.error = describeAIError(err);
+    }
+  };
 
+  await Promise.allSettled([checkGroq(), checkGemini()]);
   result.configured = result.groq.available || result.gemini.available;
   return result;
 }
