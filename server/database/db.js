@@ -91,6 +91,8 @@ export function initDatabase() {
       category TEXT,
       project TEXT,
       tags TEXT,
+      suggested_name TEXT,
+      suggested_folder TEXT,
       ai_analyzed INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
@@ -129,6 +131,19 @@ export function initDatabase() {
     }
   } catch (err) {
     console.error('[DB] Migration check error:', err);
+  }
+
+  // Migration: ensure the AI suggestion columns exist (mirrors phase4_smart_ai_triage.sql)
+  try {
+    const metaInfo = database.prepare('PRAGMA table_info(file_metadata)').all();
+    if (!metaInfo.some(col => col.name === 'suggested_name')) {
+      database.exec('ALTER TABLE file_metadata ADD COLUMN suggested_name TEXT;');
+    }
+    if (!metaInfo.some(col => col.name === 'suggested_folder')) {
+      database.exec('ALTER TABLE file_metadata ADD COLUMN suggested_folder TEXT;');
+    }
+  } catch (err) {
+    console.error('[DB] file_metadata suggestion columns migration error:', err);
   }
 
   // Seed default folders

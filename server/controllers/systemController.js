@@ -4,6 +4,7 @@ import { APP } from '../config/env.js';
 import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
 import { getFileTypeCategory } from '../utils/fileTypes.js';
 import { fail, ok } from '../utils/http.js';
+import { probeSuggestionSchema, suggestionSchemaStatus } from './fileController.js';
 
 // API category → plural label used by the CLI breakdown
 const BREAKDOWN_LABELS = {
@@ -23,6 +24,10 @@ export const systemController = {
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
         const userId = req.user?.id || null;
+
+        // Verifies (once per process) that the Phase 4 AI columns exist, so the
+        // dashboard can warn when `phase4_smart_ai_triage.sql` was never applied.
+        await probeSuggestionSchema();
 
         let filesQuery = supabase.from('files').select('mime_type, original_name, size, is_inbox, is_trash');
         let foldersQuery = supabase.from('folders').select('*', { count: 'exact', head: true });
@@ -87,6 +92,7 @@ export const systemController = {
             nodeVersion: process.version,
             uptimeSeconds: Math.floor(process.uptime()),
             database: 'supabase',
+            ai: suggestionSchemaStatus(),
             stats: {
               totalFiles,
               totalBytes,
@@ -129,6 +135,7 @@ export const systemController = {
           nodeVersion: process.version,
           uptimeSeconds: Math.floor(process.uptime()),
           database: 'sqlite',
+          ai: suggestionSchemaStatus(),
           stats: {
             totalFiles: totalsRow.count,
             totalBytes: totalsRow.totalBytes,

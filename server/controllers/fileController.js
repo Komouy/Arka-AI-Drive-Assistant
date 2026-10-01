@@ -82,7 +82,12 @@ export async function saveMetadataSupabase(fileId, metadata, userId = null) {
 
   // If there's any schema mismatch (e.g. PostgREST PGRST204 or PostgreSQL 42703), fallback to base schema
   if (saveErr) {
-    console.warn(`[ARKA AI] Falling back to standard metadata schema for file ID ${fileId}: ${saveErr.message || saveErr.code}`);
+    if (isMissingColumnError(saveErr) && suggestionSchemaAvailable) {
+      suggestionSchemaAvailable = false;
+      warnMissingSuggestionSchema(saveErr);
+    } else {
+      console.warn(`[ARKA AI] Falling back to standard metadata schema for file ID ${fileId}: ${saveErr.message || saveErr.code}`);
+    }
     const basePayload = {
       description: metadata.description || '',
       category: topic,
@@ -114,23 +119,191 @@ export async function saveMetadataSupabase(fileId, metadata, userId = null) {
 export function saveMetadata(fileId, metadata) {
   const tags = Array.isArray(metadata.tags) ? metadata.tags.join(',') : String(metadata.tags || '');
   const topic = metadata.topic || metadata.category || '';
+  const id = Number(fileId);
 
-  const existing = db.prepare('SELECT id FROM file_metadata WHERE file_id = ?').get(Number(fileId));
+  const payload = {
+    description: metadata.description || '',
+    category: topic,
+    project: metadata.project || '',
+    tags,
+    ai_analyzed: 1
+  };
+
+  // Only touch the suggestion columns when the local schema actually has them.
+  if (hasSqliteSuggestionColumns()) {
+    payload.suggested_name = metadata.suggestedName || '';
+    payload.suggested_folder = metadata.suggestedFolder || metadata.project || '';
+  }
+
+  const keys = Object.keys(payload);
+  const values = keys.map(k => payload[k]);
+  const existing = db.prepare('SELECT id FROM file_metadata WHERE file_id = ?').get(id);
+
   if (existing) {
-    db.prepare(`
-      UPDATE file_metadata
-      SET description = ?, category = ?, project = ?, tags = ?, ai_analyzed = 1
-      WHERE file_id = ?
-    `).run(metadata.description || '', topic, metadata.project || '', tags, Number(fileId));
+    db.prepare(`UPDATE file_metadata SET ${keys.map(k => `${k} = ?`).join(', ')} WHERE file_id = ?`)
+      .run(...values, id);
   } else {
-    db.prepare(`
-      INSERT INTO file_metadata (file_id, description, category, project, tags, ai_analyzed)
-      VALUES (?, ?, ?, ?, ?, 1)
-    `).run(Number(fileId), metadata.description || '', topic, metadata.project || '', tags);
+    db.prepare(`INSERT INTO file_metadata (file_id, ${keys.join(', ')}) VALUES (?, ${keys.map(() => '?').join(', ')})`)
+      .run(id, ...values);
   }
 }
 
+/** True when the SQLite mirror has the Phase 4 suggestion columns (checked once). */
+let sqliteSuggestionColumns = null;
+function hasSqliteSuggestionColumns() {
+  if (sqliteSuggestionColumns === null) {
+    try {
+      const info = db.prepare('PRAGMA table_info(file_metadata)').all();
+      sqliteSuggestionColumns = info.some(c => c.name === 'suggested_name') && info.some(c => c.name === 'suggested_folder');
+    } catch {
+      sqliteSuggestionColumns = false;
+    }
+  }
+  return sqliteSuggestionColumns;
+}
+
+/** Extra SELECT snippet for the AI suggestion columns in SQLite queries. */
+export function sqliteSuggestionFields() {
+  return hasSqliteSuggestionColumns() ? ', m.suggested_name, m.suggested_folder' : '';
+}
+
+/**
+ * Verify the AI suggestion columns exist (cached; reads/writes fall back to the
+ * base schema when they do not). Run `phase4_smart_ai_triage.sql` in the Supabase
+ * SQL editor and restart the server to enable full persistence.
+ */
+export async function probeSuggestionSchema({ force = false } = {}) {
+  if (!isSupabaseConfigured()) return hasSqliteSuggestionColumns();
+  if (!force && suggestionSchemaChecked) return suggestionSchemaAvailable;
+
+  const { error } = await getSupabaseClient()
+    .from('file_metadata')
+    .select('suggested_name, suggested_folder')
+    .limit(1);
+
+  if (!error) {
+    suggestionSchemaAvailable = true;
+    suggestionSchemaChecked = true;
+  } else if (isMissingColumnError(error)) {
+    suggestionSchemaAvailable = false;
+    suggestionSchemaChecked = true;
+    warnMissingSuggestionSchema(error);
+  }
+
+  return suggestionSchemaAvailable;
+}
+
+/**
+ * Schema report for the status endpoint / CLI diagnostics. `ready` is `null`
+ * while the Supabase schema has not been verified by a query yet.
+ */
+export function suggestionSchemaStatus() {
+  if (!isSupabaseConfigured()) {
+    return { database: 'sqlite', ready: hasSqliteSuggestionColumns() };
+  }
+  return { database: 'supabase', ready: isSuggestionSchemaReady() };
+}
+
 export { getFileTypeCategory };
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * AI suggestion storage (suggested_name / suggested_folder)
+ *
+ * Those two columns come from `phase4_smart_ai_triage.sql`. If that migration
+ * has not been run in the Supabase project yet, every read or write that
+ * mentions them fails with PostgreSQL error 42703 — which is exactly how the
+ * "AI Rename" feature silently lost its data: the suggested name was never
+ * stored, so after a re-login the file was listed with its old messy name.
+ *
+ * To keep the app working in both states, the flag below remembers whether the
+ * enhanced schema is available. On the first 42703 we flip it, log an
+ * actionable warning, and retry once with the base column list.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const METADATA_FIELDS_FULL = 'description, category, project, tags, suggested_name, suggested_folder, ai_analyzed';
+const METADATA_FIELDS_BASE = 'description, category, project, tags, ai_analyzed';
+
+let suggestionSchemaAvailable = true;
+let suggestionSchemaChecked = false;
+let suggestionSchemaWarned = false;
+
+/** Embedded `file_metadata` resource selection, respecting the detected schema. */
+export function fileMetadataResource() {
+  return suggestionSchemaAvailable ? METADATA_FIELDS_FULL : METADATA_FIELDS_BASE;
+}
+
+/** Full `files` selection with folder + metadata embeds. */
+export function fileJoinSelect() {
+  return `*, folders(name), file_metadata(${fileMetadataResource()})`;
+}
+
+/** True when PostgREST/Postgres complains about a column that does not exist. */
+export function isMissingColumnError(error) {
+  if (!error) return false;
+  const code = String(error.code || '');
+  const message = String(error.message || '');
+  return code === '42703' || code === 'PGRST204' || code === 'PGRST203'
+    || /does not exist|could not find the .* column/i.test(message);
+}
+
+/** Whether the AI suggestion columns can be used (surfaced via /api/status). */
+export function isSuggestionSchemaReady() {
+  return suggestionSchemaChecked ? suggestionSchemaAvailable : null;
+}
+
+function warnMissingSuggestionSchema(error) {
+  suggestionSchemaChecked = true;
+  if (suggestionSchemaWarned) return;
+  suggestionSchemaWarned = true;
+  console.warn(
+    '[ARKA AI] ⚠️  file_metadata.suggested_name / suggested_folder tidak tersedia ' +
+    `(${error?.code || error?.message || 'unknown'}). ` +
+    'Saran nama & folder AI tidak bisa disimpan permanen. ' +
+    'Jalankan "phase4_smart_ai_triage.sql" di Supabase SQL Editor, lalu restart server.'
+  );
+}
+
+/**
+ * Run a `files` read that embeds `file_metadata`.
+ *
+ * @param {(selection: string) => PromiseLike<{ data: any, error: any|null }>} queryFactory
+ *        Builder factory — MUST return a fresh query on every call so the retry
+ *        after a missing-column error uses the corrected column list.
+ */
+export async function runFileSelect(queryFactory) {
+  let { data, error } = await queryFactory(fileJoinSelect());
+
+  if (error && isMissingColumnError(error) && suggestionSchemaAvailable) {
+    suggestionSchemaAvailable = false;
+    warnMissingSuggestionSchema(error);
+    ({ data, error } = await queryFactory(fileJoinSelect()));
+  }
+
+  return { data, error };
+}
+
+/** Flatten a Supabase `files` row (with embeds) into the shape the UI expects. */
+export function enrichSupabaseFileRow(row) {
+  if (!row) return row;
+  const meta = Array.isArray(row.file_metadata) ? row.file_metadata[0] : row.file_metadata;
+  const relPath = String(row.storage_path || row.path || '').replace(/\\/g, '/');
+
+  return {
+    ...row,
+    file_metadata: undefined,
+    folders: undefined,
+    folder_name: row.folders?.name || null,
+    description: meta?.description ?? null,
+    category: meta?.category ?? null,
+    project: meta?.project ?? null,
+    suggested_name: meta?.suggested_name || null,
+    suggested_folder: meta?.suggested_folder || meta?.project || null,
+    tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
+    ai_analyzed: meta?.ai_analyzed ? 1 : 0,
+    typeCategory: getFileTypeCategory(row.mime_type, row.original_name),
+    publicUrl: row.gdrive_view_url || row.public_url || (relPath ? `/storage/${relPath}` : null)
+  };
+}
 
 export function formatFileRecord(file) {
   const relPath = String(file?.path || file?.storage_path || '').replace(/\\/g, '/');
@@ -139,6 +312,85 @@ export function formatFileRecord(file) {
     typeCategory: getFileTypeCategory(file?.mime_type, file?.original_name),
     publicUrl: file?.public_url || `/storage/${relPath}`
   };
+}
+
+/**
+ * A suggestion is "consumed" once applied: clear the stored `suggested_name`
+ * so the UI stops offering the same "Ganti Nama AI" button. Best-effort — it
+ * never breaks the rename when the schema (or the metadata row) is missing.
+ */
+async function clearAppliedNameSuggestion(supabase, fileId) {
+  if (!suggestionSchemaAvailable) return;
+
+  const { error } = await supabase
+    .from('file_metadata')
+    .update({ suggested_name: null })
+    .eq('file_id', fileId);
+
+  if (error && isMissingColumnError(error)) {
+    suggestionSchemaAvailable = false;
+    warnMissingSuggestionSchema(error);
+  } else if (error) {
+    console.warn(`[ARKA AI] Saran nama untuk file ${fileId} gagal dibersihkan: ${error.message || error.code}`);
+  }
+}
+
+/** Storage-safe object key that keeps the human-readable name readable. */
+function buildStorageKey(currentStoragePath, newName) {
+  const dir = String(currentStoragePath || '').split('/').slice(0, -1).join('/') || 'uploads';
+  const cleaned = String(newName || '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/^\.+/, '')
+    .trim()
+    .slice(0, 180);
+
+  return cleaned ? `${dir}/${cleaned}` : null;
+}
+
+/**
+ * Best-effort rename of the stored object so the physical file in Supabase
+ * Storage matches the new display name.
+ *
+ * @returns {Promise<object|null>} column patch (`storage_path`, `stored_name`,
+ *          `public_url`) to persist, or null when the object was left untouched.
+ */
+async function renameStoredObject(supabase, file, newName) {
+  const oldPath = file.storage_path;
+  if (!oldPath || oldPath.startsWith('gdrive/')) return null;
+
+  const newPath = buildStorageKey(oldPath, newName);
+  if (!newPath || newPath === oldPath) return null;
+
+  const ext = path.extname(newPath);
+  const base = ext ? newPath.slice(0, -ext.length) : newPath;
+  const attempts = [newPath, `${base}-${Date.now().toString(36)}${ext}`];
+
+  for (let i = 0; i < attempts.length; i++) {
+    const target = attempts[i];
+    try {
+      const { error: moveErr } = await supabase.storage.from(BUCKET_NAME).move(oldPath, target);
+      if (moveErr) {
+        if (i === attempts.length - 1) {
+          console.warn(`[ARKA] Nama objek di storage tidak ikut berubah ("${oldPath}"): ${moveErr.message || moveErr.statusCode}`);
+          return null;
+        }
+        continue;
+      }
+
+      const { data: pubData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(target);
+      return {
+        storage_path: target,
+        stored_name: target.split('/').pop(),
+        public_url: pubData?.publicUrl || null
+      };
+    } catch (err) {
+      console.warn(`[ARKA] Gagal memindahkan objek penyimpanan "${oldPath}": ${err.message}`);
+      return null;
+    }
+  }
+
+  return null;
 }
 
 /** Resolve the physical path of a stored file, guarding against path traversal. */
@@ -254,58 +506,43 @@ export const fileController = {
         const supabase = getSupabaseClient();
         const userId = req.user?.id || null;
 
-        let query = supabase
-          .from('files')
-          .select('*, folders(name), file_metadata(description, category, project, tags, ai_analyzed)');
+        const buildFilesQuery = (selection) => {
+          let query = supabase.from('files').select(selection);
 
-        // Multi-tenant: scope to this user's files only (NULL = owner data, visible to password login)
-        if (userId) {
-          query = query.or(`user_id.eq.${userId},user_id.is.null`);
-        }
+          // Multi-tenant: scope to this user's files only (NULL = owner data, visible to password login)
+          if (userId) {
+            query = query.or(`user_id.eq.${userId},user_id.is.null`);
+          }
 
-        if (trash === 'true') {
-          query = query.eq('is_trash', true);
-        } else {
-          query = query.eq('is_trash', false);
+          if (trash === 'true') {
+            query = query.eq('is_trash', true);
+          } else {
+            query = query.eq('is_trash', false);
 
-          if (inbox === 'true') {
-            query = query.eq('is_inbox', true);
-          } else if (favorites === 'true') {
-            query = query.eq('is_favorite', true);
-          } else if (folder_id !== undefined && !search) {
-            if (folder_id === 'null' || folder_id === '') {
-              query = query.is('folder_id', null).eq('is_inbox', false);
-            } else {
-              query = query.eq('folder_id', folder_id);
+            if (inbox === 'true') {
+              query = query.eq('is_inbox', true);
+            } else if (favorites === 'true') {
+              query = query.eq('is_favorite', true);
+            } else if (folder_id !== undefined && !search) {
+              if (folder_id === 'null' || folder_id === '') {
+                query = query.is('folder_id', null).eq('is_inbox', false);
+              } else {
+                query = query.eq('folder_id', folder_id);
+              }
             }
           }
-        }
 
-        if (search) {
-          const s = String(search).trim();
-          query = query.ilike('original_name', `%${s}%`);
-        }
+          if (search) {
+            query = query.ilike('original_name', `%${String(search).trim()}%`);
+          }
 
-        query = query.order('created_at', { ascending: false }).limit(normalizeLimit(limit));
-        const { data: files, error } = await query;
+          return query.order('created_at', { ascending: false }).limit(normalizeLimit(limit));
+        };
+
+        const { data: files, error } = await runFileSelect(sel => buildFilesQuery(sel));
         if (error) return fail(res, error);
 
-        let enriched = (files || []).map(f => {
-          const meta = Array.isArray(f.file_metadata) ? f.file_metadata[0] : f.file_metadata;
-          return {
-            ...f,
-            folder_name: f.folders?.name || null,
-            description: meta?.description || null,
-            category: meta?.category || null,
-            project: meta?.project || null,
-            suggested_folder: meta?.suggested_folder || meta?.project || null,
-            suggested_name: meta?.suggested_name || null,
-            tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
-            ai_analyzed: meta?.ai_analyzed ? 1 : 0,
-            typeCategory: getFileTypeCategory(f.mime_type, f.original_name),
-            publicUrl: f.gdrive_view_url || f.public_url || `/storage/${f.storage_path}`
-          };
-        });
+        let enriched = (files || []).map(enrichSupabaseFileRow);
 
         if (type && type !== 'All') {
           enriched = enriched.filter(f => f.typeCategory.toLowerCase() === String(type).toLowerCase());
@@ -318,7 +555,7 @@ export const fileController = {
       let query = `
         SELECT f.*, 
                fl.name as folder_name,
-               m.description, m.category, m.project, m.tags, m.ai_analyzed
+               m.description, m.category, m.project, m.tags, m.ai_analyzed${sqliteSuggestionFields()}
         FROM files f
         LEFT JOIN folders fl ON f.folder_id = fl.id
         LEFT JOIN file_metadata m ON f.id = m.file_id
@@ -376,47 +613,34 @@ export const fileController = {
         const supabase = getSupabaseClient();
         const userId = req.user?.id || null;
 
-        let query = supabase
-          .from('files')
-          .select('*, folders(name), file_metadata(description, category, project, tags, ai_analyzed)');
+        const buildQuery = (selection) => {
+          let query = supabase.from('files').select(selection);
 
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id).trim());
-        if (isUuid) {
-          query = query.eq('id', id);
-        } else {
-          query = query.or(`original_name.eq.${id},stored_name.eq.${id}`).order('created_at', { ascending: false }).limit(1);
-        }
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id).trim());
+          if (isUuid) {
+            query = query.eq('id', id);
+          } else {
+            query = query.or(`original_name.eq.${id},stored_name.eq.${id}`).order('created_at', { ascending: false }).limit(1);
+          }
 
-        if (userId) {
-          query = query.or(`user_id.eq.${userId},user_id.is.null`);
-        }
+          if (userId) {
+            query = query.or(`user_id.eq.${userId},user_id.is.null`);
+          }
 
-        const { data: result, error } = await query.maybeSingle();
+          return query.maybeSingle();
+        };
+
+        const { data: result, error } = await runFileSelect(buildQuery);
         if (error) return fail(res, error);
         if (!result) return notFound(res, `File "${id}" tidak ditemukan`);
 
-        const meta = Array.isArray(result.file_metadata) ? result.file_metadata[0] : result.file_metadata;
-        const fileObj = {
-          ...result,
-          folder_name: result.folders?.name || null,
-          description: meta?.description || null,
-          category: meta?.category || null,
-          project: meta?.project || null,
-          suggested_folder: meta?.suggested_folder || meta?.project || null,
-          suggested_name: meta?.suggested_name || null,
-          tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
-          ai_analyzed: meta?.ai_analyzed ? 1 : 0,
-          typeCategory: getFileTypeCategory(result.mime_type, result.original_name),
-          publicUrl: result.gdrive_view_url || result.public_url || `/storage/${result.storage_path}`
-        };
-
-        return ok(res, { data: fileObj });
+        return ok(res, { data: enrichSupabaseFileRow(result) });
       }
 
       // SQLite Fallback
       const baseSelect = `
         SELECT f.*, fl.name as folder_name,
-               m.description, m.category, m.project, m.tags, m.ai_analyzed
+               m.description, m.category, m.project, m.tags, m.ai_analyzed${sqliteSuggestionFields()}
         FROM files f
         LEFT JOIN folders fl ON f.folder_id = fl.id
         LEFT JOIN file_metadata m ON f.id = m.file_id
@@ -701,25 +925,20 @@ export const fileController = {
 
           await saveMetadataSupabase(id, metadata, file.user_id);
 
-          const { data: updated } = await supabase
-            .from('files')
-            .select('*, folders(name), file_metadata(description, category, project, tags, ai_analyzed)')
-            .eq('id', id)
-            .single();
+          const { data: updated } = await runFileSelect(sel =>
+            supabase.from('files').select(sel).eq('id', id).maybeSingle()
+          );
 
-          const meta = Array.isArray(updated?.file_metadata) ? updated.file_metadata[0] : updated?.file_metadata;
-          const enriched = {
-            ...(updated || file),
-            folder_name: updated?.folders?.name || null,
-            description: meta?.description || metadata.description || null,
-            category: meta?.category || metadata.category || null,
-            project: meta?.project || metadata.project || null,
-            suggested_folder: metadata.suggestedFolder || meta?.suggested_folder || meta?.project || null,
-            suggested_name: metadata.suggestedName || meta?.suggested_name || null,
-            tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
-            ai_analyzed: 1,
-            publicUrl: updated?.gdrive_view_url || updated?.public_url || `/storage/${updated?.storage_path || file.storage_path}`
-          };
+          const enriched = enrichSupabaseFileRow(updated || file);
+
+          // Fresh-from-AI suggestions win over the stored ones — this also keeps
+          // the response useful when the suggestion columns are not created yet.
+          enriched.suggested_name = metadata.suggestedName || enriched.suggested_name || null;
+          enriched.suggested_folder = metadata.suggestedFolder || enriched.suggested_folder || null;
+          enriched.description = enriched.description || metadata.description || null;
+          enriched.category = enriched.category || metadata.category || metadata.topic || null;
+          enriched.tags = enriched.tags || (Array.isArray(metadata.tags) ? metadata.tags.join(',') : (metadata.tags || ''));
+          enriched.ai_analyzed = 1;
 
           return ok(res, { metadata, data: enriched });
         } finally {
@@ -750,14 +969,19 @@ export const fileController = {
       saveMetadata(Number(id), metadata);
 
       const updated = db.prepare(`
-        SELECT f.*, fl.name as folder_name, m.description, m.category, m.project, m.tags, m.ai_analyzed
+        SELECT f.*, fl.name as folder_name, m.description, m.category, m.project, m.tags, m.ai_analyzed${sqliteSuggestionFields()}
         FROM files f
         LEFT JOIN folders fl ON f.folder_id = fl.id
         LEFT JOIN file_metadata m ON f.id = m.file_id
         WHERE f.id = ?
       `).get(Number(id));
 
-      return ok(res, { metadata, data: formatFileRecord(updated) });
+      const enriched = formatFileRecord(updated);
+      enriched.suggested_name = enriched.suggested_name ?? (metadata.suggestedName || null);
+      enriched.suggested_folder = enriched.suggested_folder ?? (metadata.suggestedFolder || metadata.project || null);
+      enriched.ai_analyzed = 1;
+
+      return ok(res, { metadata, data: enriched });
     } catch (err) {
       return fail(res, err);
     }
@@ -773,8 +997,9 @@ export const fileController = {
         const supabase = getSupabaseClient();
         const userId = req.user?.id || null;
 
-        // Check ownership
-        let checkQuery = supabase.from('files').select('id, user_id').eq('id', id);
+        // Check ownership — the full row is needed because a rename also has to
+        // locate the stored object (Supabase Storage key or Google Drive id).
+        let checkQuery = supabase.from('files').select('*').eq('id', id);
         if (userId) checkQuery = checkQuery.or(`user_id.eq.${userId},user_id.is.null`);
         const { data: existing } = await checkQuery.maybeSingle();
         if (!existing) return notFound(res, 'File tidak ditemukan');
@@ -791,17 +1016,51 @@ export const fileController = {
         if (is_inbox !== undefined) updates.is_inbox = Boolean(is_inbox);
         if (is_trash !== undefined) updates.is_trash = Boolean(is_trash);
 
-        const { data: updated, error } = await supabase
-          .from('files')
-          .update(updates)
-          .eq('id', id)
-          .select('*, folders(name)')
-          .maybeSingle();
+        const { data: updated, error } = await runFileSelect(sel =>
+          supabase.from('files').update(updates).eq('id', id).select(sel).maybeSingle()
+        );
 
         if (error) return fail(res, error);
         if (!updated) return notFound(res, 'File tidak ditemukan');
 
-        return ok(res, { data: formatFileRecord(updated) });
+        // ── The display name really changed → make it stick everywhere ────────
+        const renameNotes = [];
+        if (updates.original_name && updates.original_name !== existing.original_name) {
+          // The suggestion is consumed — don't offer "Ganti Nama AI" again.
+          await clearAppliedNameSuggestion(supabase, id);
+
+          const isGDrive = existing.storage_provider === 'gdrive' || Boolean(existing.gdrive_file_id);
+
+          if (isGDrive && existing.gdrive_file_id) {
+            if (req.providerToken) {
+              try {
+                const { renameInGoogleDrive } = await import('./driveController.js');
+                await renameInGoogleDrive(req.providerToken, existing.gdrive_file_id, updates.original_name);
+                renameNotes.push('Nama file di Google Drive ikut diubah.');
+              } catch (driveErr) {
+                console.warn('[GDrive Rename Warning]', driveErr.message);
+                renameNotes.push(`Nama di Google Drive tidak ikut berubah (${driveErr.message}).`);
+              }
+            } else {
+              renameNotes.push('Nama di Google Drive belum berubah — masuk dengan Google agar nama aslinya ikut diubah.');
+            }
+          } else {
+            const storagePatch = await renameStoredObject(supabase, existing, updates.original_name);
+            if (storagePatch) {
+              await supabase
+                .from('files')
+                .update({ ...storagePatch, updated_at: new Date().toISOString() })
+                .eq('id', id);
+              Object.assign(updated, storagePatch);
+            }
+          }
+        }
+
+        return ok(res, {
+          data: enrichSupabaseFileRow(updated),
+          message: `File "${updates.original_name || existing.original_name}" diperbarui.`,
+          renameNotes
+        });
       }
 
       // SQLite Fallback
@@ -837,14 +1096,30 @@ export const fileController = {
         newStoredPath = `${newInbox === 1 ? 'inbox' : 'uploads'}/${file.stored_name}`;
       }
 
+      const isRename = newName !== file.original_name;
+
       db.prepare(`
         UPDATE files 
         SET original_name = ?, folder_id = ?, is_favorite = ?, is_inbox = ?, is_trash = ?, path = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `).run(newName, newFolderId, newFavorite, newInbox, newTrash, newStoredPath, Number(id));
 
-      const updated = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(id));
-      return ok(res, { data: formatFileRecord(updated) });
+      // The name suggestion has been consumed — remove it so the button does not
+      // reappear the next time the list is loaded.
+      if (isRename && hasSqliteSuggestionColumns()) {
+        db.prepare('UPDATE file_metadata SET suggested_name = NULL WHERE file_id = ?').run(Number(id));
+      }
+
+      const updated = db.prepare(`
+        SELECT f.*, fl.name as folder_name,
+               m.description, m.category, m.project, m.tags, m.ai_analyzed${sqliteSuggestionFields()}
+        FROM files f
+        LEFT JOIN folders fl ON f.folder_id = fl.id
+        LEFT JOIN file_metadata m ON f.id = m.file_id
+        WHERE f.id = ?
+      `).get(Number(id));
+
+      return ok(res, { data: formatFileRecord(updated), message: `File "${newName}" diperbarui.` });
     } catch (err) {
       return fail(res, err);
     }

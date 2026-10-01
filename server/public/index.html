@@ -1398,6 +1398,11 @@
         </div>
       </section>
 
+      <!-- AI schema health check: shown when phase4_smart_ai_triage.sql is missing -->
+      <div id="aiSchemaWarning" style="display:none;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.35);border-radius:10px;padding:0.85rem 1rem;margin-bottom:1rem;color:#fbbf24;font-size:0.85rem;line-height:1.55">
+        <strong>Kolom skema AI belum lengkap.</strong> Kolom <code>suggested_name</code> / <code>suggested_folder</code> tidak ditemukan di database, sehingga saran nama &amp; folder AI hilang setiap kali halaman dimuat ulang. Jalankan <code>phase4_smart_ai_triage.sql</code> di Supabase SQL Editor, lalu restart server.
+      </div>
+
       <!-- Quick Action / Creation Panel -->
       <section class="creation-panel">
         <div class="panel-header">
@@ -1969,6 +1974,12 @@
           document.getElementById('statStorage').textContent = formatBytes(stats.totalBytes);
           document.getElementById('statusIndicator').classList.add('online');
           document.getElementById('statusText').textContent  = 'inti online';
+
+          // Warn when the AI triage columns are missing from the database.
+          const aiWarn = document.getElementById('aiSchemaWarning');
+          if (aiWarn) {
+            aiWarn.style.display = (json.data.ai && json.data.ai.ready === false) ? 'block' : 'none';
+          }
         }
       } catch {
         document.getElementById('statusText').textContent = 'terputus';
@@ -2142,17 +2153,23 @@
           const suggFolder = rawObj.suggested_folder;
           const currFolder = rawObj.folder_name;
 
+          // Values travel through data-* attributes: interpolating a name into an
+          // onclick string breaks on apostrophes ("Children's Report.pdf") because
+          // escapeHtml turns ' into &#39; *inside* the JS string literal.
           if (suggName && suggName !== rawObj.original_name) {
             suggestBtns += `
-              <button class="btn-action btn-ai-suggest" title="Ganti nama AI: ${escapeHtml(suggName)}" onclick="handleApplyRename('${safeId}', '${escapeHtml(suggName)}')">
+              <button class="btn-action btn-ai-suggest" title="Ganti nama AI: ${escapeHtml(suggName)}"
+                      data-id="${safeId}" data-value="${escapeHtml(suggName)}" onclick="handleApplyRename(this)">
                 <i data-lucide="save-pen" class="icon"></i> <span>Ganti Nama AI</span>
               </button>
             `;
           }
           if (suggFolder && (!currFolder || currFolder !== suggFolder)) {
+            const folderLabel = suggFolder.length > 14 ? suggFolder.slice(0, 12) + '...' : suggFolder;
             suggestBtns += `
-              <button class="btn-action btn-ai-folder" title="Pindahkan ke folder: ${escapeHtml(suggFolder)}" onclick="handleApplyFolder('${safeId}', '${escapeHtml(suggFolder)}')">
-                <i data-lucide="folder-input" class="icon"></i> <span>→ ${escapeHtml(suggFolder.length > 14 ? suggFolder.slice(0, 12) + '...' : suggFolder)}</span>
+              <button class="btn-action btn-ai-folder" title="Pindahkan ke folder: ${escapeHtml(suggFolder)}"
+                      data-id="${safeId}" data-value="${escapeHtml(suggFolder)}" onclick="handleApplyFolder(this)">
+                <i data-lucide="folder-input" class="icon"></i> <span>→ ${escapeHtml(folderLabel)}</span>
               </button>
             `;
           }
@@ -2482,7 +2499,7 @@
         const json = await res.json();
 
         if (res.ok && json.success) {
-          showToast('success', `Link berhasil disimpan.`);
+          showToast('success', `Tautan berhasil disimpan.`);
           setFormStatus('linkStatus', 'success', 'Tersimpan.');
           document.getElementById('linkUrl').value   = '';
           document.getElementById('linkTitle').value = '';
@@ -2490,7 +2507,7 @@
           await fetchAllData(); await loadStatus(); setFilter('links');
         } else {
           setFormStatus('linkStatus', 'error', json.error || 'Gagal menyimpan tautan.');
-          showToast('error', json.error || 'Gagal menyimpan link.');
+          showToast('error', json.error || 'Gagal menyimpan tautan.');
         }
       } catch (err) {
         setFormStatus('linkStatus', 'error', 'Kesalahan: ' + err.message);
@@ -2596,21 +2613,46 @@
     }
 
     // ── AI Smart Ingestion Handlers (Auto-Rename & Auto-Folder) ───────────────
-    async function handleApplyRename(id, newName) {
-      if (!newName || !newName.trim()) return;
+    /**
+     * Apply an AI suggestion. Called from the list buttons as
+     * `handleApplyRename(this)` — the id/value come from data-* attributes so
+     * names containing quotes can never break the generated JavaScript.
+     */
+    function readSuggestionTarget(source, fallbackId, fallbackValue) {
+      if (source && typeof source === 'object' && source.dataset) {
+        return { id: source.dataset.id, value: source.dataset.value || '', btn: source };
+      }
+      return { id: fallbackId, value: fallbackValue || '', btn: null };
+    }
+
+    async function handleApplyRename(source, fallbackId, fallbackValue) {
+      const { id, value, btn } = readSuggestionTarget(source, arguments[0], arguments[1]);
+      const newName = String(value || '').trim();
+      if (!id || !newName) return;
+
+      if (btn) { btn.disabled = true; }
+
       try {
         const res = await authFetch(`${API_BASE}/files/${id}`, {
           method: 'PATCH',
-          body: JSON.stringify({ original_name: newName.trim() })
+          body: JSON.stringify({ original_name: newName })
         });
         const json = await res.json();
+
         if (res.ok && json.success) {
           const idx = allData.files.findIndex(f => String(f.id) === String(id));
           if (idx !== -1) {
-            allData.files[idx].original_name = newName.trim();
-            allData.files[idx].suggested_name = null;
+            // Keep the server's copy authoritative (storage path / public URL may
+            // have changed together with the renamed object).
+            allData.files[idx] = Object.assign({}, allData.files[idx], json.data || {}, {
+              original_name: (json.data && json.data.original_name) || newName,
+              suggested_name: null
+            });
           }
-          showToast('success', `File di-rename menjadi "${newName.trim()}"`);
+
+          const note = Array.isArray(json.renameNotes) && json.renameNotes.length ? ` ${json.renameNotes[0]}` : '';
+          showToast('success', `Nama file diubah menjadi "${newName}".${note}`);
+
           const modalBackdrop = document.getElementById('previewModalBackdrop');
           if (modalBackdrop && modalBackdrop.classList.contains('open')) {
             openPreview('FILE', id);
@@ -2618,27 +2660,36 @@
           render();
         } else {
           showToast('warn', 'Gagal rename: ' + (json.error || 'Terjadi kesalahan pada server'));
+          if (btn) { btn.disabled = false; }
         }
       } catch (err) {
         showToast('error', 'Kesalahan jaringan: ' + err.message);
+        if (btn) { btn.disabled = false; }
       }
     }
 
-    async function handleApplyFolder(id, folderName) {
-      if (!folderName || !folderName.trim()) return;
+    async function handleApplyFolder(source, fallbackId, fallbackValue) {
+      const { id, value, btn } = readSuggestionTarget(source, arguments[0], arguments[1]);
+      const folderName = String(value || '').trim();
+      if (!id || !folderName) return;
+
+      if (btn) { btn.disabled = true; }
+
       try {
         const res = await authFetch(`${API_BASE}/files/${id}/organize`, {
           method: 'POST',
-          body: JSON.stringify({ project_name: folderName.trim() })
+          body: JSON.stringify({ project_name: folderName })
         });
         const json = await res.json();
         if (res.ok && json.success) {
           const idx = allData.files.findIndex(f => String(f.id) === String(id));
           if (idx !== -1) {
-            allData.files[idx].folder_name = folderName.trim();
-            allData.files[idx].is_inbox = false;
+            allData.files[idx] = Object.assign({}, allData.files[idx], json.data || {}, {
+              folder_name: (json.data && json.data.folder_name) || folderName,
+              is_inbox: false
+            });
           }
-          showToast('success', `File dipindahkan ke folder "${folderName.trim()}"`);
+          showToast('success', `File dipindahkan ke folder "${folderName}"`);
           const modalBackdrop = document.getElementById('previewModalBackdrop');
           if (modalBackdrop && modalBackdrop.classList.contains('open')) {
             openPreview('FILE', id);
@@ -2646,9 +2697,11 @@
           render();
         } else {
           showToast('warn', 'Gagal memindahkan file: ' + (json.error || 'Terjadi kesalahan pada server'));
+          if (btn) { btn.disabled = false; }
         }
       } catch (err) {
         showToast('error', 'Kesalahan jaringan: ' + err.message);
+        if (btn) { btn.disabled = false; }
       }
     }
 
@@ -2938,7 +2991,7 @@
       // Check auth before opening
       const isDashboardVisible = document.getElementById('dashboard')?.classList.contains('visible');
       if (!isDashboardVisible) {
-        showToast('warn', 'Silakan login terlebih dahulu untuk mengakses Arka Assistant.');
+        showToast('warn', 'Silakan masuk terlebih dahulu untuk mengakses Arka Assistant.');
         return;
       }
 
@@ -3126,7 +3179,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
-        showToast('Percakapan Arka Assistant di-reset.', 'info');
+        showToast('info', 'Percakapan Arka Assistant telah direset.');
       } catch {}
     }
 

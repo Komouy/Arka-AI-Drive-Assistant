@@ -6,6 +6,7 @@ import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
 import { getFileTypeCategory } from '../utils/fileTypes.js';
 import { resolveTargetFolder, getFolderPath } from '../utils/folders.js';
 import { fail, badRequest, notFound, ok } from '../utils/http.js';
+import { runFileSelect, enrichSupabaseFileRow, sqliteSuggestionFields } from './fileController.js';
 
 /** Enrich a file row for the API (category + public URL). */
 export function formatInboxRecord(file) {
@@ -25,44 +26,29 @@ export const inboxController = {
         const supabase = getSupabaseClient();
         const userId = req.user?.id || null;
 
-        let query = supabase
-          .from('files')
-          .select('*, folders(name), file_metadata(description, category, project, tags, ai_analyzed)')
-          .eq('is_inbox', true)
-          .eq('is_trash', false)
-          .order('created_at', { ascending: false });
+        const { data: files, error } = await runFileSelect((selection) => {
+          let query = supabase
+            .from('files')
+            .select(selection)
+            .eq('is_inbox', true)
+            .eq('is_trash', false);
 
-        if (userId) {
-          query = query.or(`user_id.eq.${userId},user_id.is.null`);
-        }
+          if (userId) {
+            query = query.or(`user_id.eq.${userId},user_id.is.null`);
+          }
 
-        const { data: files, error } = await query;
+          return query.order('created_at', { ascending: false });
+        });
 
         if (error) return fail(res, error);
 
-        const data = (files || []).map(f => {
-          const meta = Array.isArray(f.file_metadata) ? f.file_metadata[0] : f.file_metadata;
-          return {
-            ...f,
-            folder_name: f.folders?.name || null,
-            description: meta?.description || null,
-            category: meta?.category || null,
-            project: meta?.project || null,
-            suggested_folder: meta?.suggested_folder || meta?.project || null,
-            suggested_name: meta?.suggested_name || null,
-            tags: Array.isArray(meta?.tags) ? meta.tags.join(',') : (meta?.tags || ''),
-            ai_analyzed: meta?.ai_analyzed ? 1 : 0,
-            typeCategory: getFileTypeCategory(f.mime_type, f.original_name),
-            publicUrl: f.gdrive_view_url || f.public_url || `/storage/${f.storage_path}`
-          };
-        });
-
+        const data = (files || []).map(enrichSupabaseFileRow);
         return ok(res, { count: data.length, data });
       }
 
       // SQLite Fallback
       const files = db.prepare(`
-        SELECT f.*, m.description, m.category, m.project, m.tags, m.ai_analyzed
+        SELECT f.*, m.description, m.category, m.project, m.tags, m.ai_analyzed${sqliteSuggestionFields()}
         FROM files f
         LEFT JOIN file_metadata m ON f.id = m.file_id
         WHERE f.is_inbox = 1 AND f.is_trash = 0
