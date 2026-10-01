@@ -18,16 +18,16 @@ function renderUploadPreviews() {
   const selectedListEl = document.getElementById('selectedFilesList');
   if (selectedListEl) selectedListEl.style.display = 'none';
 
-  if (!container || !grid) return;
-
   if (!selectedUploadFiles || selectedUploadFiles.length === 0) {
     container.style.display = 'none';
+    container.classList.add('hidden');
     grid.innerHTML = '';
-    if (titleEl) titleEl.textContent = 'Letakkan file di sini atau klik untuk memilih';
+    if (titleEl) titleEl.textContent = 'Ketuk untuk memilih file atau letakkan di sini';
     return;
   }
 
   container.style.display = 'block';
+  container.classList.remove('hidden');
   let totalBytes = 0;
   selectedUploadFiles.forEach(f => { totalBytes += (f.size || 0); });
 
@@ -141,12 +141,12 @@ function setupDragAndDrop() {
     ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => {
       e.preventDefault();
       e.stopPropagation();
-      zone.classList.add('border-zinc-500', 'bg-zinc-900/60');
+      zone.classList.add('border-zinc-500', 'bg-zinc-200/60', 'dark:bg-zinc-900/60');
     }));
     ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
       e.preventDefault();
       e.stopPropagation();
-      zone.classList.remove('border-zinc-500', 'bg-zinc-900/60');
+      zone.classList.remove('border-zinc-500', 'bg-zinc-200/60', 'dark:bg-zinc-900/60');
     }));
     zone.addEventListener('drop', e => {
       if (e.dataTransfer?.files?.length) {
@@ -391,9 +391,9 @@ async function handleNoteSubmit(e) {
 async function handleLinkSubmit(e) {
   e.preventDefault();
   const url = document.getElementById('linkUrl').value.trim();
-  const title = document.getElementById('linkTitle').value.trim();
-  const category = document.getElementById('linkCategory').value.trim() || 'General';
-  const description = document.getElementById('linkDesc').value.trim();
+  const title = document.getElementById('linkTitle')?.value?.trim() || '';
+  const category = document.getElementById('linkCategory')?.value?.trim() || 'General';
+  const description = document.getElementById('linkDesc')?.value?.trim() || '';
   const submitBtn = document.getElementById('btnLinkSubmit');
 
   if (!url) {

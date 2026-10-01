@@ -124,47 +124,6 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover {
   pointer-events: none;
 }
 
-html:not(.dark) .graph-viewport {
-  background-color: #f8fafc;
-  background-image: 
-    radial-gradient(circle, rgba(0, 0, 0, 0.12) 1px, transparent 1px),
-    radial-gradient(circle, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
-}
-html:not(.dark) .graph-node {
-  background: #ffffff;
-  border-color: #e2e8f0;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-html:not(.dark) .graph-node:hover {
-  border-color: #94a3b8;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
-}
-html:not(.dark) .graph-node-header {
-  background: #f1f5f9;
-  border-bottom-color: #e2e8f0;
-}
-html:not(.dark) .graph-node-title {
-  color: #0f172a;
-}
-html:not(.dark) .graph-node-badge {
-  background: #e2e8f0;
-  color: #475569;
-}
-html:not(.dark) .graph-node-body {
-  color: #475569;
-}
-html:not(.dark) .graph-node-footer {
-  background: #f8fafc;
-  border-top-color: #e2e8f0;
-  color: #64748b;
-}
-html:not(.dark) .graph-port-dot.folder {
-  stroke: #ffffff;
-}
-html:not(.dark) .graph-port-dot.meta {
-  stroke: #ffffff;
-}
-
 .graph-wire {
   fill: none;
   stroke-width: 2.2px;

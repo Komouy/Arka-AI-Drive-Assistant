@@ -206,7 +206,7 @@ function isImageFile(f) {
 function getFileCategoryIcon(mime, name) {
   const ext = (name || '').split('.').pop().toLowerCase();
   const m = (mime || '').toLowerCase();
-  if (['xlsx', 'xls', 'csv', 'tsv', 'ods'].includes(ext)) return { icon: 'sheet', color: '#10b981', label: 'SPREADSHEET' };
+  if (['xlsx', 'xls', 'csv', 'tsv', 'ods'].includes(ext)) return { icon: 'file-spreadsheet', color: '#10b981', label: 'SPREADSHEET' };
   if (['docx', 'doc', 'odt', 'rtf'].includes(ext)) return { icon: 'file-text', color: '#3b82f6', label: 'DOKUMEN' };
   if (ext === 'pdf' || m === 'application/pdf') return { icon: 'file-text', color: '#ef4444', label: 'PDF' };
   if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return { icon: 'archive', color: '#a855f7', label: 'ARSIP' };

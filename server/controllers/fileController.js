@@ -1347,6 +1347,12 @@ export const fileController = {
     }
   },
 
+  // Restore file from trash
+  restore: async (req, res) => {
+    req.body = Object.assign({}, req.body, { is_trash: false });
+    return fileController.update(req, res);
+  },
+
   // Delete file (soft-delete to trash or permanent removal)
   delete: async (req, res) => {
     try {
@@ -1467,10 +1473,11 @@ export const fileController = {
     }
   },
 
-  // Download file
+  // Download or inline stream file
   download: async (req, res) => {
     try {
       const { id } = req.params;
+      const isInline = req.query.inline === 'true' || req.query.inline === '1';
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
@@ -1495,6 +1502,9 @@ export const fileController = {
           if (file.storage_provider === 'gdrive' || file.gdrive_file_id) {
             return res.redirect(file.public_url || file.gdrive_view_url);
           }
+          if (isInline) {
+            return res.redirect(file.public_url);
+          }
           const downloadUrl = file.public_url.includes('?')
             ? `${file.public_url}&download=${encodeURIComponent(file.original_name)}`
             : `${file.public_url}?download=${encodeURIComponent(file.original_name)}`;
@@ -1508,7 +1518,8 @@ export const fileController = {
         const arrayBuffer = await blob.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const safeName = String(file.original_name || 'download').replace(/["\\]/g, '_');
-        res.setHeader('Content-Disposition', `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(file.original_name)}`);
+        const disposition = isInline ? 'inline' : 'attachment';
+        res.setHeader('Content-Disposition', `${disposition}; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(file.original_name)}`);
         res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
         return res.send(buffer);
       }
@@ -1523,6 +1534,13 @@ export const fileController = {
 
       const physicalPath = physicalPathOf(file);
       if (!fs.existsSync(physicalPath)) return notFound(res, 'File fisik tidak ditemukan di disk');
+
+      const safeName = String(file.original_name || 'download').replace(/["\\]/g, '_');
+      if (isInline) {
+        res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+        return res.sendFile(path.resolve(physicalPath));
+      }
 
       return res.download(physicalPath, file.original_name);
     } catch (err) {

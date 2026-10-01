@@ -280,7 +280,7 @@ function openPreview(type, id, buildList = true) {
     categoryBadge.textContent = item.folder_name || 'root';
 
     const downloadUrl = `/api/files/${item.id}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
-    const viewUrl = item.public_url || item.publicUrl || downloadUrl;
+    const viewUrl = item.public_url || item.publicUrl || `${downloadUrl}${downloadUrl.includes('?') ? '&' : '?'}inline=1`;
     const mime = (item.mime_type || '').toLowerCase();
     const ext = (item.original_name || '').split('.').pop().toLowerCase();
 

@@ -38,6 +38,7 @@ router.delete('/trash', fileController.emptyTrash);
 router.get('/files/:id', fileController.getById);
 router.get('/files/:id/download', fileController.download);
 router.post('/files/:id/analyze', fileController.analyze);
+router.post('/files/:id/restore', fileController.restore);
 router.post('/files/:id/organize', inboxController.organize);
 router.patch('/files/:id', fileController.update);
 router.delete('/files/:id', fileController.delete);

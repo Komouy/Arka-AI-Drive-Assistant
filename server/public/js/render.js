@@ -273,7 +273,7 @@ function render() {
           const safeTitle = escapeHtml(f.original_name || 'Tanpa Judul');
           const deleteId = `del-FILE-${safeId}`;
           const downloadUrl = `/api/files/${safeId}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
-          const viewUrl = f.public_url || f.publicUrl || downloadUrl;
+          const viewUrl = f.public_url || f.publicUrl || `${downloadUrl}${downloadUrl.includes('?') ? '&' : '?'}inline=1`;
           const ext = (f.original_name || '').split('.').pop().toLowerCase();
           const category = f.folder_name || (f.is_inbox ? 'inbox' : 'root');
 
@@ -288,7 +288,7 @@ function render() {
               <button class="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30 transition-colors inline-flex items-center gap-1"
                       title="Ganti nama AI: ${escapeHtml(f.suggested_name)}"
                       data-id="${safeId}" data-value="${escapeHtml(f.suggested_name)}" onclick="handleApplyRename(this)">
-                <i data-lucide="save-pen" class="w-3 h-3"></i> <span>Ganti Nama</span>
+                <i data-lucide="pen-line" class="w-3 h-3"></i> <span>Ganti Nama</span>
               </button>
             `;
           }
@@ -462,7 +462,7 @@ function render() {
       }
 
       if (isImageFile(item.raw)) {
-        const viewUrl = item.raw?.public_url || item.raw?.publicUrl || downloadUrl;
+        const viewUrl = item.raw?.public_url || item.raw?.publicUrl || `${downloadUrl}${downloadUrl.includes('?') ? '&' : '?'}inline=1`;
         miniThumbHtml = `<img src="${viewUrl}" class="w-8 h-8 rounded object-cover border border-zinc-300 dark:border-zinc-700/80 flex-shrink-0 cursor-pointer hover:scale-110 transition-transform" onclick="openPreview('FILE', '${safeId}')" title="Klik pratinjau" loading="lazy" onerror="this.style.display='none'">`;
       }
 
@@ -477,7 +477,7 @@ function render() {
           <button class="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30 transition-colors inline-flex items-center gap-1"
                   title="Ganti nama AI: ${escapeHtml(suggName)}"
                   data-id="${safeId}" data-value="${escapeHtml(suggName)}" onclick="handleApplyRename(this)">
-            <i data-lucide="save-pen" class="w-3 h-3"></i> <span>Ganti Nama AI</span>
+            <i data-lucide="pen-line" class="w-3 h-3"></i> <span>Ganti Nama AI</span>
           </button>
         `;
       }

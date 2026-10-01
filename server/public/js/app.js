@@ -1,6 +1,7 @@
 // ── ARKA Application Lifecycle & Keyboard Shortcuts ─────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   initTheme();
+  initAiChatSection();
   refreshIcons();
   setupDragAndDrop();
   setupClipboardPaste();
