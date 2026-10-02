@@ -477,13 +477,13 @@ function render() {
 
       let aiBadge = '';
       if (f.ai_analyzed) {
-        aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="bot" class="w-3 h-3"></i> AI</span>';
+        aiBadge = '<span class="inline-flex items-center gap-1 h-5 px-1.5 text-[10px] font-mono rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="bot" class="w-3 h-3"></i> AI</span>';
       }
 
       let suggestBtns = '';
       if (f.suggested_name && f.suggested_name !== f.original_name) {
         suggestBtns = `
-              <button class="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30 transition-colors inline-flex items-center gap-1"
+              <button class="inline-flex items-center gap-1 h-5 px-1.5 rounded-md text-[10px] font-mono bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30 transition-colors"
                       title="Ganti nama AI: ${escapeHtml(f.suggested_name)}"
                       data-id="${safeId}" data-value="${escapeHtml(f.suggested_name)}" onclick="handleApplyRename(this)">
                 <i data-lucide="pen-line" class="w-3 h-3"></i> <span>Ganti Nama</span>
@@ -498,7 +498,7 @@ function render() {
             <div class="group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md" id="row-FILE-${safeId}">
               <div class="relative h-40 sm:h-48 w-full bg-zinc-100 dark:bg-zinc-950 overflow-hidden cursor-pointer flex items-center justify-center" onclick="openPreview('FILE', '${safeId}')" title="Buka pratinjau: ${safeTitle}">
                 <img src="${viewUrl}" alt="${safeTitle}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.onerror=null; this.src='/placeholder-image.svg';">
-                <span class="absolute top-2 left-2 text-[10px] font-mono font-medium uppercase bg-white/90 dark:bg-black/70 text-zinc-800 dark:text-zinc-200 px-2 py-0.5 rounded-md backdrop-blur-md shadow-sm">${escapeHtml(ext.toUpperCase() || 'IMG')}</span>
+                <span class="absolute top-2 left-2 inline-flex items-center justify-center h-5 px-2 text-[10px] font-mono font-bold uppercase bg-white/90 dark:bg-black/70 text-zinc-800 dark:text-zinc-200 rounded-md backdrop-blur-md shadow-sm border border-transparent">${escapeHtml(ext.toUpperCase() || 'IMG')}</span>
                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-3">
                   <span class="text-xs text-white font-medium flex items-center gap-1.5 drop-shadow-md"><i data-lucide="maximize-2" class="w-4 h-4"></i> <span class="hidden sm:inline">Lihat Penuh</span></span>
                 </div>
@@ -506,8 +506,8 @@ function render() {
               <div class="p-3 sm:p-4 flex flex-col justify-between flex-1 gap-3">
                 <div>
                   <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-1 mb-1" title="${safeTitle}">${safeTitle}</div>
-                  <div class="flex items-center gap-2 text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
-                    <span class="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded-md truncate max-w-[120px]"><i data-lucide="folder" class="w-3 h-3"></i> ${escapeHtml(category)}</span>
+                  <div class="flex items-center gap-2 text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
+                    <span class="inline-flex items-center gap-1 h-5 px-1.5 bg-zinc-100 dark:bg-zinc-800/80 rounded-md border border-transparent truncate max-w-[120px]"><i data-lucide="folder" class="w-3 h-3"></i> ${escapeHtml(category)}</span>
                     <span>•</span>
                     <span>${formatBytes(f.size)}</span>
                   </div>
@@ -519,7 +519,7 @@ function render() {
                   </div>
                 ` : ''}
                 <div class="flex items-center justify-between gap-2 pt-3 mt-auto border-t border-zinc-100 dark:border-zinc-800">
-                  <span class="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">${formatDate(f.created_at)}</span>
+                  <span class="inline-flex items-center h-5 text-[10px] font-mono text-zinc-400 dark:text-zinc-500">${formatDate(f.created_at)}</span>
                   <div class="flex items-center gap-1">
                     <a href="${downloadUrl}" class="p-1.5 rounded-md text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center" title="Unduh gambar" target="_blank" rel="noopener noreferrer">
                       <i data-lucide="download" class="w-4 h-4"></i>
