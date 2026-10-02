@@ -889,40 +889,107 @@ Aturan:
     } catch (err) {
       console.warn('[ARKA AI] /ask Groq error, attempting Gemini fallback:', describeAIError(err));
       try {
+        let workspaceContext = '';
+        try {
+          let fList = [];
+          let flList = [];
+          if (isSupabaseConfigured()) {
+            const sb = getSupabaseClient();
+            let fq = sb.from('folders').select('id, name, parent_id');
+            let flq = sb.from('files').select('id, original_name, folder_id, size').eq('is_trash', false);
+            fq = scopeToUser(fq, userId);
+            flq = scopeToUser(flq, userId);
+            const [{ data: fData }, { data: flData }] = await Promise.all([
+              fq.order('name'),
+              flq.order('created_at', { ascending: false }).limit(60)
+            ]);
+            fList = fData || [];
+            flList = flData || [];
+          } else {
+            fList = db.prepare('SELECT id, name, parent_id FROM folders').all();
+            flList = db.prepare('SELECT id, original_name, folder_id, size FROM files WHERE is_trash = 0 ORDER BY created_at DESC LIMIT 60').all();
+          }
+          const fNameMap = Object.fromEntries(fList.map(f => [f.id, f.name]));
+          workspaceContext = `\nDATA WORKSPACE AKTUAL:
+Daftar Folder:
+${fList.map(f => `- [ID: ${f.id}] "${f.name}" (Parent: ${fNameMap[f.parent_id] || 'Root'})`).join('\n')}
+Daftar Berkas:
+${flList.map(fl => `- [ID: ${fl.id}] "${fl.original_name}" (Folder: ${fNameMap[fl.folder_id] || 'Inbox/Root'}, Size: ${(fl.size / 1024).toFixed(0)} KB)`).join('\n')}`;
+        } catch (ctxErr) {
+          console.warn('[ARKA AI] Gemini context prefetch error:', ctxErr.message);
+        }
+
+        const geminiPrompt = `${systemPrompt}
+${workspaceContext}
+
+Pertanyaan pengguna: ${userQuery}
+
+Jika pengguna meminta pemindahan file, penggabungan folder, penggantian nama, atau penghapusan file/folder (misalnya menggabungkan SocialMedia ke Social Media):
+Jawab HANYA dalam format JSON persis:
+{
+  "answer": "Penjelasan singkat ramah dalam bahasa Indonesia",
+  "proposedActions": [
+    {
+      "type": "move_file" atau "delete_folder" atau "delete_file" atau "rename_file",
+      "label": "Label ringkas aksi",
+      "details": {
+        "file_id": "ID file target",
+        "folder_id": "ID folder target",
+        "current_name": "Nama bersih file atau folder",
+        "target_folder_id": "ID folder tujuan untuk move_file",
+        "target_folder_name": "Nama folder tujuan",
+        "reason": "Alasan aksi"
+      }
+    }
+  ]
+}
+
+Jika pertanyaan pengguna hanya pertanyaan umum biasa (tidak meminta aksi berkas/folder):
+{
+  "answer": "Jawaban informatif singkat dalam bahasa Indonesia",
+  "proposedActions": []
+}`;
+
         const gemini = getGemini();
         const geminiRes = await gemini.models.generateContent({
           model: MODELS.gemini.flash,
-          contents: [
-            {
-              role: 'user',
-              parts: [{
-                text: `${systemPrompt}\n\nPertanyaan pengguna: ${userQuery}\n\nJawab dalam bahasa Indonesia, ramah, padat, ringkas, dan jelas.`
-              }]
-            }
-          ]
+          contents: [{ role: 'user', parts: [{ text: geminiPrompt }] }]
         });
-        const ans = geminiRes.text || geminiRes.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (ans) {
-          let fallbackPermission = null;
-          const claimsCard = /(kartu\s+aksi|kartu\s+persetujuan|kartu\s+di\s+atas|tombol\s+.*\[?izinkan\]?|izin.*diajukan|tekan\s+.*izinkan)/i.test(ans);
-          if (isExplicitActionTrigger || claimsCard) {
-            fallbackPermission = await autoDetectCleanupActions(userId);
-          }
+        const rawText = (geminiRes.text || geminiRes.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
 
-          let finalAnswer = ans.trim();
-          if (fallbackPermission && /(mana\s+yang\s+kamu\s+maksud|buka\s+dashboard|sebutkan\s+nama)/i.test(finalAnswer)) {
-            finalAnswer = fallbackPermission.message;
+        let parsed = null;
+        try {
+          const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            parsed = JSON.parse(jsonMatch[0]);
           }
-
-          return {
-            answer: finalAnswer,
-            toolCalled: 'gemini_fallback',
-            toolResult: null,
-            steps,
-            proposedActions: fallbackPermission?.actions || null,
-            permissionMessage: fallbackPermission?.message || null
-          };
+        } catch {
+          parsed = null;
         }
+
+        let finalAnswer = parsed?.answer || rawText;
+        let actions = Array.isArray(parsed?.proposedActions) ? parsed.proposedActions : [];
+
+        if (actions.length > 0) {
+          actions = await resolveActionTargets(actions, userId);
+        } else if (isExplicitActionTrigger) {
+          const fallback = await autoDetectCleanupActions(userId);
+          if (fallback) {
+            actions = fallback.actions;
+            if (actions.length > 0 && /(buka\s+dashboard|memeriksa\s+file|sebutkan\s+nama)/i.test(finalAnswer)) {
+              finalAnswer = fallback.message;
+            }
+          }
+        }
+
+        return {
+          answer: finalAnswer,
+          toolCalled: 'gemini_fallback',
+          toolResult: null,
+          steps,
+          proposedActions: actions.length > 0 ? actions : null,
+          permissionMessage: finalAnswer
+        };
       } catch (geminiErr) {
         console.error('[ARKA AI] Gemini fallback also failed:', describeAIError(geminiErr));
       }
