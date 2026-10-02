@@ -513,25 +513,33 @@ function looksCut(text = '') {
 const MEMORY_TTL_MS       = 10 * 60 * 1000;
 const MEMORY_MAX_MESSAGES = 8;
 
-let memory      = [];
-let memoryStamp = 0;
+let userMemories = new Map();
 
-export function resetAgentMemory() {
-  memory      = [];
-  memoryStamp = Date.now();
+export function resetAgentMemory(userId = 'guest') {
+  userMemories.delete(userId);
 }
 
-function takeMemory() {
-  if (Date.now() - memoryStamp > MEMORY_TTL_MS) memory = [];
-  memoryStamp = Date.now();
-  return memory.slice();
+function takeMemory(userId = 'guest') {
+  const mem = userMemories.get(userId);
+  if (!mem) return [];
+  if (Date.now() - mem.stamp > MEMORY_TTL_MS) {
+    userMemories.delete(userId);
+    return [];
+  }
+  mem.stamp = Date.now();
+  return mem.messages.slice();
 }
 
-function remember(question, answer) {
-  memory.push({ role: 'user',      content: String(question).slice(0, 800) });
-  memory.push({ role: 'assistant', content: String(answer).slice(0, 1200) });
-  if (memory.length > MEMORY_MAX_MESSAGES) memory = memory.slice(-MEMORY_MAX_MESSAGES);
-  memoryStamp = Date.now();
+function remember(userId = 'guest', question, answer) {
+  let mem = userMemories.get(userId);
+  if (!mem) {
+    mem = { messages: [], stamp: Date.now() };
+    userMemories.set(userId, mem);
+  }
+  mem.messages.push({ role: 'user',      content: String(question).slice(0, 800) });
+  mem.messages.push({ role: 'assistant', content: String(answer).slice(0, 1200) });
+  if (mem.messages.length > MEMORY_MAX_MESSAGES) mem.messages = mem.messages.slice(-MEMORY_MAX_MESSAGES);
+  mem.stamp = Date.now();
 }
 
 async function askForFinalText(messages) {
@@ -580,13 +588,15 @@ async function askForFinalText(messages) {
  * @param {{ reset?: boolean, userId?: string }} [options]
  */
 export async function runAgent(userQuery, { reset = false, userId = null } = {}) {
-  if (reset) resetAgentMemory();
+  const memUserId = userId || 'guest';
+  if (reset) resetAgentMemory(memUserId);
   const result = await runOnce(userQuery, userId);
-  if (!result.error && result.answer) remember(userQuery, result.answer);
+  if (!result.error && result.answer) remember(memUserId, userQuery, result.answer);
   return result;
 }
 
 async function runOnce(userQuery, userId = null) {
+  const memUserId = userId || 'guest';
   const systemPrompt = `Kamu adalah ARKA, asisten workspace pribadi berbasis AI untuk aplikasi web ARKA (arkaapp.vercel.app). Kamu membantu pengguna mengelola file, prompt, tautan, dan workspace lewat UI web.
 
 Tool yang tersedia memungkinkanmu mencari file, mencari prompt, melihat daftar inbox, memeriksa statistik workspace, melihat daftar folder, dan membaca panduan penggunaan ARKA.
@@ -609,7 +619,7 @@ Aturan:
 
   const messages = [
     { role: 'system',  content: systemPrompt },
-    ...takeMemory(),
+    ...takeMemory(memUserId),
     { role: 'user',    content: userQuery }
   ];
 

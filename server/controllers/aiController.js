@@ -85,7 +85,8 @@ export const aiController = {
   resetMemory: async (req, res) => {
     try {
       const { resetAgentMemory } = await import('../ai/agent.js');
-      resetAgentMemory();
+      const userId = req.user?.id || 'guest';
+      resetAgentMemory(userId);
       return ok(res, { data: { cleared: true } });
     } catch (err) {
       return fail(res, err);
