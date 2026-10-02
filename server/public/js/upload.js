@@ -289,53 +289,78 @@ async function handleUploadSubmit(e) {
   if (progressLabel) progressLabel.textContent = 'Menyiapkan unggahan...';
 
   const hasOnlyImages = filesToUpload.every(f => isImageFile(f));
+  const totalFiles = filesToUpload.length;
+  let successfulUploads = 0;
 
   try {
-    const formData = new FormData();
-    for (let i = 0; i < filesToUpload.length; i++) formData.append('files', filesToUpload[i]);
-    if (project) formData.append('project', project);
+    for (let i = 0; i < totalFiles; i++) {
+      const file = filesToUpload[i];
+      const formData = new FormData();
+      formData.append('files', file);
+      if (project) formData.append('project', project);
 
-    const json = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_BASE}/files/upload`);
-      if (authToken) xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
-      const pt = providerToken || loadProviderToken();
-      if (pt) xhr.setRequestHeader('X-Provider-Token', pt);
-
-      xhr.upload.addEventListener('progress', (ev) => {
-        if (ev.lengthComputable && progressFill && progressLabel) {
-          const pct = Math.round((ev.loaded / ev.total) * 95);
-          progressFill.style.width = pct + '%';
-          progressLabel.textContent = `Mengunggah... ${pct}%`;
-        }
-      });
-      xhr.addEventListener('load', () => {
-        if (progressFill) progressFill.style.width = '100%';
-        if (progressLabel) progressLabel.textContent = 'Memproses berkas...';
-        try { resolve(JSON.parse(xhr.responseText)); }
-        catch { reject(new Error('Respons server tidak valid.')); }
-      });
-      xhr.addEventListener('error', () => reject(new Error('Kesalahan jaringan saat mengunggah.')));
-      xhr.send(formData);
-    });
-
-    if (json.success) {
-      const count = Array.isArray(json.data) ? json.data.length : 1;
-      showToast('success', `${count} file berhasil diunggah.`);
-      setFormStatus('uploadStatus', 'success', `${count} file berhasil diunggah.`);
-      clearUploadSelection();
-      document.getElementById('uploadProject').value = '';
-      if (typeof closeCreateModal === 'function') closeCreateModal();
-      await fetchAllData();
-      await loadStatus();
-      if (hasOnlyImages) {
-        setFilter('images');
-      } else {
-        setFilter('files');
+      if (progressLabel) {
+        progressLabel.textContent = `Mengunggah berkas ${i + 1} dari ${totalFiles}: ${file.name}...`;
       }
+
+      const json = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE}/files/upload`);
+        if (authToken) xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+        const pt = providerToken || loadProviderToken();
+        if (pt) xhr.setRequestHeader('X-Provider-Token', pt);
+
+        xhr.upload.addEventListener('progress', (ev) => {
+          if (ev.lengthComputable && progressFill && progressLabel) {
+            const currentFilePct = ev.loaded / ev.total;
+            const overallPct = Math.round(((i + currentFilePct) / totalFiles) * 95);
+            progressFill.style.width = overallPct + '%';
+          }
+        });
+
+        xhr.addEventListener('load', () => {
+          let resData = null;
+          try {
+            resData = JSON.parse(xhr.responseText);
+          } catch {
+            if (xhr.status === 413) {
+              return reject(new Error(`Berkas "${file.name}" terlalu besar untuk server cloud (maksimal 4.5 MB per berkas).`));
+            } else if (xhr.status >= 500) {
+              return reject(new Error(`Server mengalami kendala saat memproses "${file.name}" (HTTP ${xhr.status}).`));
+            }
+            return reject(new Error(`Respons server tidak valid saat memproses "${file.name}".`));
+          }
+
+          if (xhr.status >= 400 || (resData && resData.success === false)) {
+            return reject(new Error(resData?.error || `Gagal mengunggah "${file.name}" (HTTP ${xhr.status}).`));
+          }
+
+          resolve(resData);
+        });
+
+        xhr.addEventListener('error', () => reject(new Error(`Kesalahan jaringan saat mengunggah "${file.name}".`)));
+        xhr.send(formData);
+      });
+
+      if (json && json.success) {
+        successfulUploads++;
+      }
+    }
+
+    if (progressFill) progressFill.style.width = '100%';
+    if (progressLabel) progressLabel.textContent = 'Selesai!';
+
+    showToast('success', `${successfulUploads} file berhasil diunggah.`);
+    setFormStatus('uploadStatus', 'success', `${successfulUploads} file berhasil diunggah.`);
+    clearUploadSelection();
+    document.getElementById('uploadProject').value = '';
+    if (typeof closeCreateModal === 'function') closeCreateModal();
+    await fetchAllData();
+    await loadStatus();
+    if (hasOnlyImages) {
+      setFilter('images');
     } else {
-      setFormStatus('uploadStatus', 'error', json.error || 'Unggahan gagal.');
-      showToast('error', json.error || 'Gagal mengunggah file.');
+      setFilter('files');
     }
   } catch (err) {
     setFormStatus('uploadStatus', 'error', 'Kesalahan: ' + err.message);
