@@ -448,10 +448,11 @@ async function executeTool(name, args, userId = null) {
     }
 
     case 'request_user_permission': {
+      const sanitizedActions = await resolveActionTargets(args.actions, userId);
       return {
         status: 'pending_user_approval',
         message: args.message || 'Permintaan izin aksi workspace',
-        actions: Array.isArray(args.actions) ? args.actions : []
+        actions: sanitizedActions
       };
     }
 
@@ -462,6 +463,94 @@ async function executeTool(name, args, userId = null) {
     default:
       return { error: `Unknown tool: ${name}` };
   }
+}
+
+// ── Resolusi Target Aksi agar ID selalu cocok dengan database aktual ────────
+async function resolveActionTargets(actions, userId) {
+  if (!Array.isArray(actions) || actions.length === 0) return [];
+  const useSupabase = isSupabaseConfigured();
+
+  let allFolders = [];
+  let allFiles = [];
+
+  try {
+    if (useSupabase) {
+      const supabase = getSupabaseClient();
+      let fq = supabase.from('folders').select('id, name');
+      fq = scopeToUser(fq, userId);
+      const { data: fRows } = await fq;
+      allFolders = fRows || [];
+
+      let flq = supabase.from('files').select('id, original_name').eq('is_trash', false);
+      flq = scopeToUser(flq, userId);
+      const { data: flRows } = await flq.order('created_at', { ascending: false }).limit(250);
+      allFiles = flRows || [];
+    } else {
+      allFolders = db.prepare('SELECT id, name FROM folders').all();
+      allFiles = db.prepare('SELECT id, original_name FROM files WHERE is_trash = 0 ORDER BY created_at DESC LIMIT 250').all();
+    }
+  } catch (err) {
+    console.warn('[ARKA AI] resolveActionTargets prefetch error:', err.message);
+  }
+
+  return actions.map(act => {
+    if (!act || !act.details) return act;
+    const details = { ...act.details };
+
+    // Resolusi Target Folder
+    if (act.type === 'delete_folder') {
+      const rawTarget = String(details.current_name || act.label || '').replace(/^hapus\s+(folder\s+)?/i, '').replace(/["']/g, '').trim().toLowerCase();
+      let matched = allFolders.find(f => String(f.id) === String(details.folder_id));
+      if (!matched && rawTarget) {
+        matched = allFolders.find(f => f.name.toLowerCase() === rawTarget)
+               || allFolders.find(f => f.name.toLowerCase().includes(rawTarget) || rawTarget.includes(f.name.toLowerCase()));
+      }
+      if (matched) {
+        details.folder_id = matched.id;
+        details.current_name = matched.name;
+        act.label = `Hapus Folder "${matched.name}"`;
+      }
+    }
+
+    // Resolusi Target File
+    if (act.type === 'delete_file' || act.type === 'rename_file' || act.type === 'open_preview') {
+      const rawTarget = String(details.current_name || act.label || '').replace(/^hapus\s+(file\s+|berkas\s+)?/i, '').replace(/["']/g, '').trim().toLowerCase();
+      let matched = allFiles.find(f => String(f.id) === String(details.file_id));
+      if (!matched && rawTarget) {
+        matched = allFiles.find(f => f.original_name.toLowerCase() === rawTarget)
+               || allFiles.find(f => f.original_name.toLowerCase().includes(rawTarget) || rawTarget.includes(f.original_name.toLowerCase()));
+      }
+      if (matched) {
+        details.file_id = matched.id;
+        details.current_name = matched.original_name;
+      }
+    }
+
+    // Resolusi Target Pindah Folder
+    if (act.type === 'move_file') {
+      const rawFileName = String(details.current_name || act.label || '').replace(/^pindah\s+(file\s+|berkas\s+)?/i, '').replace(/["']/g, '').trim().toLowerCase();
+      let matchedFile = allFiles.find(f => String(f.id) === String(details.file_id));
+      if (!matchedFile && rawFileName) {
+        matchedFile = allFiles.find(f => f.original_name.toLowerCase() === rawFileName);
+      }
+      if (matchedFile) {
+        details.file_id = matchedFile.id;
+        details.current_name = matchedFile.original_name;
+      }
+
+      const rawTargetFolder = String(details.target_folder_name || details.target_folder_id || '').trim().toLowerCase();
+      let matchedFolder = allFolders.find(f => String(f.id) === String(details.target_folder_id));
+      if (!matchedFolder && rawTargetFolder) {
+        matchedFolder = allFolders.find(f => f.name.toLowerCase() === rawTargetFolder);
+      }
+      if (matchedFolder) {
+        details.target_folder_id = matchedFolder.id;
+        details.target_folder_name = matchedFolder.name;
+      }
+    }
+
+    return { ...act, details };
+  });
 }
 
 // ── Programmatic Fallback: Deteksi aksi perapian jika model berhalusinasi ────
@@ -840,7 +929,7 @@ Aturan:
         messages.push({ role: 'assistant', content: msg.content });
         messages.push({
           role: 'user',
-          content: 'Peringatan Sistem: Kamu belum memanggil tool "request_user_permission", sehingga kartu aksi dan tombol konfirmasi BELUM muncul di layar pengguna! SEKARANG juga panggil tool request_user_permission dengan daftar aksi (actions) yang kamu sebutkan agar kartunya benar-benar tampil!'
+          content: 'Peringatan Sistem: Kamu belum memanggil tool "request_user_permission", sehingga kartu aksi dan tombol konfirmasi BELUM muncul di layar pengguna! SEKARANG juga panggil tool request_user_permission dengan daftar aksi (actions) yang kamu sebutkan. Untuk current_name, tuliskan nama asli/murni folder atau file yang ingin kamu ubah/hapus agar sistem dapat mencocokkannya ke database.'
         });
         nextToolChoice = { type: 'function', function: { name: 'request_user_permission' } };
         continue;

@@ -1423,16 +1423,41 @@ export const fileController = {
     try {
       const { id } = req.params;
       const { permanent } = req.query;
+      const fallbackNameRaw = req.query.name || req.body?.name || req.body?.original_name || null;
+      const cleanFallbackName = fallbackNameRaw
+        ? String(fallbackNameRaw).replace(/^hapus\s+(file\s+|berkas\s+)?/i, '').replace(/["']/g, '').trim()
+        : null;
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
         const userId = req.user?.id || null;
+        const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-        let checkQuery = supabase.from('files').select('*').eq('id', id);
-        if (userId) checkQuery = checkQuery.or(`user_id.eq.${userId},user_id.is.null`);
-        const { data: file, error: fErr } = await checkQuery.maybeSingle();
-        if (fErr) return fail(res, fErr);
-        if (!file) return notFound(res, 'File tidak ditemukan');
+        let file = null;
+        if (UUID_REGEX.test(id)) {
+          let checkQuery = supabase.from('files').select('*').eq('id', id);
+          if (userId) checkQuery = checkQuery.or(`user_id.eq.${userId},user_id.is.null`);
+          const { data, error: fErr } = await checkQuery.maybeSingle();
+          if (fErr) return fail(res, fErr);
+          file = data;
+        }
+
+        if (!file && cleanFallbackName) {
+          let nameQuery = supabase.from('files').select('*').ilike('original_name', cleanFallbackName).eq('is_trash', false);
+          if (userId) nameQuery = nameQuery.or(`user_id.eq.${userId},user_id.is.null`);
+          const { data: matched } = await nameQuery.limit(1);
+          file = matched?.[0] || null;
+        }
+
+        if (!file) {
+          const cleanName = String(id).replace(/^hapus\s+(file\s+|berkas\s+)?/i, '').replace(/["']/g, '').trim();
+          let nameQuery = supabase.from('files').select('*').ilike('original_name', cleanName).eq('is_trash', false);
+          if (userId) nameQuery = nameQuery.or(`user_id.eq.${userId},user_id.is.null`);
+          const { data: matched } = await nameQuery.limit(1);
+          file = matched?.[0] || null;
+        }
+
+        if (!file) return notFound(res, `File "${cleanFallbackName || id}" tidak ditemukan`);
 
         if (permanent === 'true' || file.is_trash) {
           // If stored on user's Google Drive, delete from Drive via Drive API
@@ -1449,18 +1474,25 @@ export const fileController = {
           if (file.storage_path && !file.storage_path.startsWith('gdrive/')) {
             await supabase.storage.from(BUCKET_NAME).remove([file.storage_path]);
           }
-          await supabase.from('files').delete().eq('id', id);
+          await supabase.from('files').delete().eq('id', file.id);
           return ok(res, { message: `File "${file.original_name}" dihapus permanen.` });
         }
 
         // Soft delete
-        await supabase.from('files').update({ is_trash: true, updated_at: new Date().toISOString() }).eq('id', id);
+        await supabase.from('files').update({ is_trash: true, updated_at: new Date().toISOString() }).eq('id', file.id);
         return ok(res, { message: `File "${file.original_name}" dipindahkan ke sampah.` });
       }
 
       // SQLite Fallback
-      const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(id));
-      if (!file) return notFound(res, 'File tidak ditemukan');
+      let file = !Number.isNaN(Number(id)) ? db.prepare('SELECT * FROM files WHERE id = ?').get(Number(id)) : null;
+      if (!file && cleanFallbackName) {
+        file = db.prepare('SELECT * FROM files WHERE LOWER(original_name) = LOWER(?) AND is_trash = 0 LIMIT 1').get(cleanFallbackName);
+      }
+      if (!file) {
+        const cleanName = String(id).replace(/^hapus\s+(file\s+|berkas\s+)?/i, '').replace(/["']/g, '').trim();
+        file = db.prepare('SELECT * FROM files WHERE LOWER(original_name) = LOWER(?) AND is_trash = 0 LIMIT 1').get(cleanName);
+      }
+      if (!file) return notFound(res, `File "${cleanFallbackName || id}" tidak ditemukan`);
 
       if (permanent === 'true' || file.is_trash === 1) {
         removePhysicalFile(file);

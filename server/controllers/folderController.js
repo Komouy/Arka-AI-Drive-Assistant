@@ -325,6 +325,10 @@ export const folderController = {
     try {
       const { id } = req.params;
       const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const fallbackNameRaw = req.query.name || req.body?.name || null;
+      const cleanFallbackName = fallbackNameRaw
+        ? String(fallbackNameRaw).replace(/^hapus\s+(folder\s+)?/i, '').replace(/["']/g, '').trim()
+        : null;
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
@@ -335,19 +339,30 @@ export const folderController = {
           const { data, error: fetchErr } = await supabase.from('folders').select('*').eq('id', id).maybeSingle();
           if (fetchErr) return fail(res, fetchErr);
           folder = data;
-        } else {
-          // Fallback: search by folder name (stripping redundant "Hapus Folder" or quotes if passed by LLM)
+        }
+
+        if (!folder) {
+          // Fallback 1: search by folder name using id parameter
           const cleanName = String(id).replace(/^hapus\s+(folder\s+)?/i, '').replace(/["']/g, '').trim();
           let nameQuery = supabase.from('folders').select('*').ilike('name', cleanName);
           if (userId) {
             nameQuery = nameQuery.or(`user_id.eq.${userId},user_id.is.null`);
           }
-          const { data: matched, error: nameErr } = await nameQuery.limit(1);
-          if (nameErr) return fail(res, nameErr);
+          const { data: matched } = await nameQuery.limit(1);
           folder = matched?.[0] || null;
         }
 
-        if (!folder) return notFound(res, `Folder "${id}" tidak ditemukan`);
+        if (!folder && cleanFallbackName) {
+          // Fallback 2: search by query/body name param
+          let nameQuery = supabase.from('folders').select('*').ilike('name', cleanFallbackName);
+          if (userId) {
+            nameQuery = nameQuery.or(`user_id.eq.${userId},user_id.is.null`);
+          }
+          const { data: matched } = await nameQuery.limit(1);
+          folder = matched?.[0] || null;
+        }
+
+        if (!folder) return notFound(res, `Folder "${cleanFallbackName || id}" tidak ditemukan`);
 
         // Multi-tenant check
         if (folder.user_id && userId && folder.user_id !== userId) {
@@ -378,11 +393,15 @@ export const folderController = {
       let folder = null;
       if (!Number.isNaN(Number(id))) {
         folder = getFolderRow(id);
-      } else {
+      }
+      if (!folder) {
         const cleanName = String(id).replace(/^hapus\s+(folder\s+)?/i, '').replace(/["']/g, '').trim();
         folder = db.prepare('SELECT * FROM folders WHERE LOWER(name) = LOWER(?) LIMIT 1').get(cleanName);
       }
-      if (!folder) return notFound(res, `Folder "${id}" tidak ditemukan`);
+      if (!folder && cleanFallbackName) {
+        folder = db.prepare('SELECT * FROM folders WHERE LOWER(name) = LOWER(?) LIMIT 1').get(cleanFallbackName);
+      }
+      if (!folder) return notFound(res, `Folder "${cleanFallbackName || id}" tidak ditemukan`);
 
       const folderId = Number(folder.id);
       const allFolderIds = getFolderSubtreeIds(folderId);

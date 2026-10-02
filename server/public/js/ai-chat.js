@@ -396,10 +396,11 @@ async function executeAiAction(action, containerEl) {
       refreshIcons();
 
     } else if (type === 'delete_file') {
-      const fileId = details.file_id;
+      const fileId = details.file_id || details.current_name || action.label;
       if (!fileId) throw new Error('ID berkas tidak ditemukan');
 
-      const res = await authFetch(`${API_BASE}/files/${fileId}`, { method: 'DELETE' });
+      const nameParam = details.current_name ? `?name=${encodeURIComponent(details.current_name)}` : '';
+      const res = await authFetch(`${API_BASE}/files/${encodeURIComponent(fileId)}${nameParam}`, { method: 'DELETE' });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Gagal menghapus berkas');
 
@@ -418,7 +419,8 @@ async function executeAiAction(action, containerEl) {
       const folderId = details.folder_id || details.file_id || details.current_name || action.label;
       if (!folderId) throw new Error('ID atau nama folder tidak ditemukan');
 
-      const res = await authFetch(`${API_BASE}/folders/${encodeURIComponent(folderId)}`, { method: 'DELETE' });
+      const nameParam = details.current_name ? `?name=${encodeURIComponent(details.current_name)}` : '';
+      const res = await authFetch(`${API_BASE}/folders/${encodeURIComponent(folderId)}${nameParam}`, { method: 'DELETE' });
       const data = await res.json();
       if (!data.success) {
         const errTxt = typeof data.error === 'string' ? data.error : (data.error?.message || JSON.stringify(data.error) || 'Gagal menghapus folder');
