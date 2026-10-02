@@ -27,6 +27,8 @@ router.get('/status', systemController.getStatus);
 // Folders
 router.get('/folders', folderController.getAll);
 router.post('/folders', folderController.create);
+router.post('/folders/prune-empty', folderController.pruneEmpty);
+router.delete('/folders/empty', folderController.pruneEmpty);
 router.patch('/folders/:id', folderController.update);
 router.delete('/folders/:id', folderController.delete);
 

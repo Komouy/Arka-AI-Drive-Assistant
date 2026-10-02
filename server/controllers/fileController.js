@@ -6,7 +6,7 @@ import { UPLOADS_DIR, INBOX_DIR, STORAGE_DIR } from '../config/env.js';
 import { isSupabaseConfigured, getSupabaseClient, BUCKET_NAME } from '../config/supabase.js';
 import { uploadToGoogleDrive, deleteFromGoogleDrive, downloadFromGoogleDrive } from './driveController.js';
 import { getFileTypeCategory, resolveMimeType } from '../utils/fileTypes.js';
-import { resolveTargetFolder, resolveTargetFolderSupabase } from '../utils/folders.js';
+import { resolveTargetFolder, resolveTargetFolderSupabase, pruneEmptyFolders } from '../utils/folders.js';
 import { likePattern, ESCAPE_LIKE } from '../utils/search.js';
 import { fail, badRequest, notFound, ok } from '../utils/http.js';
 
@@ -1327,6 +1327,9 @@ export const fileController = {
           }
         }
 
+        // Auto-cleanup: remove folder if it became empty after moving or trashing
+        await pruneEmptyFolders(userId);
+
         return ok(res, {
           data: enrichSupabaseFileRow(updated),
           message: `File "${updates.original_name || existing.original_name}" diperbarui.`,
@@ -1406,6 +1409,9 @@ export const fileController = {
         WHERE f.id = ?
       `).get(Number(id));
 
+      // Auto-cleanup: remove folder if it became empty after move/trash
+      pruneEmptyFolders(null);
+
       return ok(res, { data: formatFileRecord(updated), message: `File "${newName}" diperbarui.` });
     } catch (err) {
       return fail(res, err);
@@ -1480,6 +1486,8 @@ export const fileController = {
 
         // Soft delete
         await supabase.from('files').update({ is_trash: true, updated_at: new Date().toISOString() }).eq('id', file.id);
+        // Auto-cleanup: remove folder if it became empty after trashing this file
+        await pruneEmptyFolders(userId);
         return ok(res, { message: `File "${file.original_name}" dipindahkan ke sampah.` });
       }
 
@@ -1497,10 +1505,12 @@ export const fileController = {
       if (permanent === 'true' || file.is_trash === 1) {
         removePhysicalFile(file);
         db.prepare('DELETE FROM files WHERE id = ?').run(Number(id));
+        pruneEmptyFolders(null);
         return ok(res, { message: `File "${file.original_name}" dihapus permanen.` });
       }
 
       db.prepare('UPDATE files SET is_trash = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(Number(id));
+      pruneEmptyFolders(null);
       return ok(res, { message: `File "${file.original_name}" dipindahkan ke sampah.` });
     } catch (err) {
       return fail(res, err);

@@ -8,6 +8,7 @@
  */
 
 import { db } from '../database/db.js';
+import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
 
 const MAX_SEGMENT_LENGTH = 64;
 
@@ -207,4 +208,115 @@ export async function resolveTargetFolderSupabase(supabase, projectName, userId 
   }
 }
 
-export default { resolveTargetFolder, resolveTargetFolderSupabase, findFolder, getFolderPath, getFolderSubtreeIds, splitFolderPath, sanitizeFolderSegment };
+/**
+ * Automatically delete empty folders (folders with 0 non-trash files and 0 subfolders).
+ * Executes bottom-up iteratively to prune empty parent directories that become empty.
+ */
+export async function pruneEmptyFoldersSupabase(supabase, userId = null) {
+  try {
+    const deletedFolderIds = [];
+    let iteration = 0;
+
+    while (iteration < 10) {
+      iteration++;
+
+      // 1. Fetch folders for this tenant
+      let fQuery = supabase.from('folders').select('id, name, parent_id');
+      if (userId) {
+        fQuery = fQuery.or(`user_id.eq.${userId},user_id.is.null`);
+      }
+      const { data: folders, error: fErr } = await fQuery;
+      if (fErr || !folders || folders.length === 0) break;
+
+      // 2. Fetch active files (non-trash)
+      let filesQuery = supabase.from('files').select('folder_id').eq('is_trash', false);
+      if (userId) {
+        filesQuery = filesQuery.or(`user_id.eq.${userId},user_id.is.null`);
+      }
+      const { data: files, error: flErr } = await filesQuery;
+      if (flErr) break;
+
+      const activeFolderIds = new Set((files || []).map(f => f.folder_id).filter(Boolean));
+      const parentFolderIds = new Set(folders.map(f => f.parent_id).filter(Boolean));
+
+      // Find leaf folders with no files and no subfolders
+      const emptyFolderIds = folders
+        .filter(f => !activeFolderIds.has(f.id) && !parentFolderIds.has(f.id))
+        .map(f => f.id);
+
+      if (emptyFolderIds.length === 0) break;
+
+      // Delete the empty folders
+      const { error: delErr } = await supabase.from('folders').delete().in('id', emptyFolderIds);
+      if (delErr) {
+        console.warn('[Prune Empty Folders Supabase Warning]', delErr.message);
+        break;
+      }
+
+      deletedFolderIds.push(...emptyFolderIds);
+    }
+
+    if (deletedFolderIds.length > 0) {
+      console.log(`[ARKA Cleanup] 🧹 Automatically pruned ${deletedFolderIds.length} empty folder(s) in Supabase.`);
+    }
+
+    return { prunedCount: deletedFolderIds.length, deletedFolderIds };
+  } catch (err) {
+    console.warn('[Prune Empty Folders Supabase Error]', err.message);
+    return { prunedCount: 0, deletedFolderIds: [] };
+  }
+}
+
+export function pruneEmptyFoldersSqlite() {
+  try {
+    const deletedFolderIds = [];
+    let iteration = 0;
+
+    while (iteration < 10) {
+      iteration++;
+
+      const emptyFolders = db.prepare(`
+        SELECT f.id, f.name FROM folders f
+        WHERE NOT EXISTS (SELECT 1 FROM files WHERE folder_id = f.id AND is_trash = 0)
+          AND NOT EXISTS (SELECT 1 FROM folders sub WHERE sub.parent_id = f.id)
+      `).all();
+
+      if (!emptyFolders || emptyFolders.length === 0) break;
+
+      const ids = emptyFolders.map(r => r.id);
+      const placeholders = ids.map(() => '?').join(',');
+      db.prepare(`DELETE FROM folders WHERE id IN (${placeholders})`).run(...ids);
+      deletedFolderIds.push(...ids);
+    }
+
+    if (deletedFolderIds.length > 0) {
+      console.log(`[ARKA Cleanup] 🧹 Automatically pruned ${deletedFolderIds.length} empty folder(s) in SQLite.`);
+    }
+
+    return { prunedCount: deletedFolderIds.length, deletedFolderIds };
+  } catch (err) {
+    console.warn('[Prune Empty Folders SQLite Error]', err.message);
+    return { prunedCount: 0, deletedFolderIds: [] };
+  }
+}
+
+export async function pruneEmptyFolders(userId = null) {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    return pruneEmptyFoldersSupabase(supabase, userId);
+  }
+  return pruneEmptyFoldersSqlite();
+}
+
+export default {
+  resolveTargetFolder,
+  resolveTargetFolderSupabase,
+  findFolder,
+  getFolderPath,
+  getFolderSubtreeIds,
+  splitFolderPath,
+  sanitizeFolderSegment,
+  pruneEmptyFoldersSupabase,
+  pruneEmptyFoldersSqlite,
+  pruneEmptyFolders
+};

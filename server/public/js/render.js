@@ -184,6 +184,7 @@ function setFolderFilter(folderName) {
 function setFilter(type) {
   if (type === 'all') type = 'overview';
   currentFilter = type;
+  saveCurrentFilter(type);
 
   const navTabs = ['overview', 'files', 'images', 'prompts', 'links', 'ai', 'trash'];
   navTabs.forEach(t => {
@@ -298,10 +299,10 @@ function renderOverview() {
                       class="p-1.5 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors">
                 <i data-lucide="eye" class="w-3.5 h-3.5"></i>
               </button>
-              <a href="${downloadUrl}" title="Unduh" target="_blank" rel="noopener noreferrer"
+              <button type="button" onclick="downloadFile('${safeId}', '${escapeHtml(f.original_name || f.stored_name || 'unduhan')}')" title="Unduh"
                  class="p-1.5 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors">
                 <i data-lucide="download" class="w-3.5 h-3.5"></i>
-              </a>
+              </button>
             </div>
           </div>
         `;
@@ -503,9 +504,9 @@ function render() {
                 <div class="flex items-center justify-between gap-2 pt-3 mt-auto border-t border-zinc-100 dark:border-zinc-800">
                   <span class="inline-flex items-center h-5 text-[10px] font-mono text-zinc-400 dark:text-zinc-500">${formatDate(f.created_at)}</span>
                   <div class="flex items-center gap-1">
-                    <a href="${downloadUrl}" class="p-1.5 rounded-md text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center" title="Unduh gambar" target="_blank" rel="noopener noreferrer">
+                    <button type="button" onclick="downloadFile('${safeId}', '${escapeHtml(f.original_name || 'unduhan')}')" class="p-1.5 rounded-md text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center" title="Unduh gambar">
                       <i data-lucide="download" class="w-4 h-4"></i>
-                    </a>
+                    </button>
                     <button
                       id="${deleteId}"
                       class="p-1.5 rounded-md text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center justify-center"
@@ -671,7 +672,7 @@ function render() {
       actionBtn = `
         ${suggestBtns}
         <button class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" onclick="openPreview('FILE', '${safeId}')"><i data-lucide="eye" class="w-3 h-3"></i> <span>pratinjau</span></button>
-        <a href="${downloadUrl}" class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" target="_blank" rel="noopener noreferrer"><i data-lucide="download" class="w-3 h-3"></i> <span>unduh</span></a>
+        <button class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" onclick="downloadFile('${safeId}', '${escapeHtml(item.title || 'unduhan')}')"><i data-lucide="download" class="w-3 h-3"></i> <span>unduh</span></button>
       `;
     } else if (item.type === 'LINK') {
       const safeUrl = escapeHtml(item.url || '');

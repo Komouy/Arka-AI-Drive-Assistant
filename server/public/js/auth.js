@@ -178,7 +178,9 @@ function showDashboard() {
   if (dash) dash.classList.remove('hidden');
   refreshIcons();
   if (typeof setFilter === 'function') {
-    setFilter('overview');
+    // Restore whichever tab the user was on before (persisted in sessionStorage)
+    const savedFilter = typeof loadCurrentFilter === 'function' ? loadCurrentFilter() : 'overview';
+    setFilter(savedFilter || 'overview');
   }
   loadStatus();
   fetchAllData();

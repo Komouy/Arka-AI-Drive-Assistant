@@ -339,7 +339,7 @@ function openPreview(type, id, buildList = true) {
     }
 
     footerActions.innerHTML = `
-      <a href="${downloadUrl}" class="px-3.5 py-1.5 rounded text-xs font-mono bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 font-medium transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer"><i data-lucide="download" class="w-3.5 h-3.5"></i> <span>Unduh File</span></a>
+      <button type="button" onclick="downloadFile('${escapeHtml(String(item.id))}', '${escapeHtml(item.original_name || 'unduhan')}')" class="px-3.5 py-1.5 rounded text-xs font-mono bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 font-medium transition-colors inline-flex items-center gap-1.5"><i data-lucide="download" class="w-3.5 h-3.5"></i> <span>Unduh File</span></button>
     `;
   }
 

@@ -236,3 +236,42 @@ async function authFetch(url, options = {}) {
   }
   return fetch(url, Object.assign({}, options, { headers }));
 }
+
+// ── Download Helper — stays on current page ───────────────────────────────────
+// Uses fetch + Blob + hidden <a> so the browser never navigates away.
+// Falls back to window.open with noopener for unsupported environments.
+async function downloadFile(fileId, filename) {
+  const token = authToken || loadToken();
+  const url = `/api/files/${encodeURIComponent(fileId)}/download${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  try {
+    const res = await fetch(url, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Gagal mengunduh berkas (HTTP ' + res.status + ')');
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename || 'unduhan';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(objectUrl);
+      a.remove();
+    }, 3000);
+  } catch (err) {
+    // Graceful fallback: open in new tab without changing current page
+    console.warn('[ARKA] Download via fetch failed, falling back to new tab:', err.message);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+
+// ── currentFilter Persistence ─────────────────────────────────────────────────
+const FILTER_KEY = 'arka_current_filter';
+
+function saveCurrentFilter(filterName) {
+  try { sessionStorage.setItem(FILTER_KEY, filterName); } catch {}
+}
+
+function loadCurrentFilter() {
+  try { return sessionStorage.getItem(FILTER_KEY) || 'overview'; } catch { return 'overview'; }
+}

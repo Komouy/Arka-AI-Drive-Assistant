@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { STORAGE_DIR, INBOX_DIR } from '../config/env.js';
 import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
-import { resolveTargetFolder, getFolderSubtreeIds, getFolderPath, splitFolderPath } from '../utils/folders.js';
+import { resolveTargetFolder, getFolderSubtreeIds, getFolderPath, splitFolderPath, pruneEmptyFolders } from '../utils/folders.js';
 import { fail, badRequest, notFound, ok } from '../utils/http.js';
 
 const DEFAULT_COLOR = '#6366f1';
@@ -51,6 +51,9 @@ export const folderController = {
         const supabase = getSupabaseClient();
         const userId = req.user?.id || null;
 
+        // Auto-cleanup: remove any empty folders before returning
+        await pruneEmptyFolders(userId);
+
         let folderQuery = supabase.from('folders').select('*').order('name', { ascending: true });
         if (userId) {
           folderQuery = folderQuery.or(`user_id.eq.${userId},user_id.is.null`);
@@ -97,6 +100,7 @@ export const folderController = {
       }
 
       // SQLite Fallback
+      await pruneEmptyFolders(null);
       const folders = db.prepare(`
         SELECT f.*, 
           (SELECT COUNT(*) FROM files WHERE folder_id = f.id AND is_trash = 0) as file_count,
@@ -443,6 +447,22 @@ export const folderController = {
         message: `Folder "${folder.name}" dihapus. ${files.length} file dipindahkan ke Inbox.`,
         deletedFolderIds: allFolderIds,
         filesMovedToInbox: files.length
+      });
+    } catch (err) {
+      return fail(res, err);
+    }
+  },
+
+  // Explicit endpoint to prune empty folders
+  pruneEmpty: async (req, res) => {
+    try {
+      const userId = req.user?.id || null;
+      const result = await pruneEmptyFolders(userId);
+      return ok(res, {
+        message: result.prunedCount > 0
+          ? `Berhasil membersihkan ${result.prunedCount} folder kosong.`
+          : 'Tidak ada folder kosong yang perlu dibersihkan.',
+        ...result
       });
     } catch (err) {
       return fail(res, err);
