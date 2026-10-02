@@ -118,7 +118,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'request_user_permission',
-      description: 'Minta izin pengguna (Human-in-the-Loop) sebelum mengeksekusi perubahan seperti ganti nama file, pindah folder, hapus file, buka pratinjau file, atau navigasi halaman. Cari filenya terlebih dahulu dengan search_files, lalu panggil tool ini untuk memunculkan tombol konfirmasi kepada pengguna.',
+      description: 'Minta izin pengguna (Human-in-the-Loop) sebelum mengeksekusi perubahan seperti ganti nama file, pindah folder, hapus file atau hapus folder, buka pratinjau file, atau navigasi halaman. Cari file atau folder-nya terlebih dahulu dengan search_files atau list_folders untuk mendapatkan ID-nya, lalu panggil tool ini untuk memunculkan tombol konfirmasi kepada pengguna. KAMU WAJIB memanggil tool ini jika menjanjikan aksi.',
       parameters: {
         type: 'object',
         properties: {
@@ -611,9 +611,9 @@ Aturan:
 - JANGAN pernah mengarang fitur, URL, atau opsi yang tidak ada. Sebutkan hanya yang ada di panduan atau hasil tool.
 - KONTROL WORKSPACE & PERIZINAN AKSI (Human-in-the-Loop):
   Jika pengguna meminta kamu melakukan perubahan atau kontrol workspace (seperti mengganti nama file, memindahkan file ke folder, menghapus file atau folder, membuka pratinjau file, atau berpindah navigasi):
-  1. Cari dulu data file atau folder terkait menggunakan tool (search_files, list_folders).
-  2. Panggil tool 'request_user_permission' untuk mengajukan proposal aksi kepada pengguna dengan rincian file_id, nama lama, nama baru, folder tujuan, dsb.
-  3. Jelaskan proposalmu secara singkat dan sopan dalam teks jawaban, lalu ajak pengguna menekan tombol konfirmasi ("Izinkan") pada kartu chat yang muncul.
+  1. Cari dulu data file atau folder terkait menggunakan tool (search_files, list_folders) untuk mendapatkan ID-nya.
+  2. KAMU WAJIB MEMANGGIL tool 'request_user_permission' untuk mengajukan proposal aksi. JANGAN HANYA MENULIS TEKS menyuruh pengguna menekan tombol. Jika kamu tidak memanggil tool-nya, tombolnya tidak akan pernah muncul!
+  3. Setelah memanggil tool tersebut, baru kamu boleh memberikan teks jawaban singkat.
   JANGAN menolak dengan mengatakan kamu tidak bisa atau read-only jika aksi tersebut dapat diajukan via 'request_user_permission'!
 - Untuk permintaan perapian/triage, pakai list_inbox dulu lalu sarankan langkah di dashboard web.`;
 

@@ -140,7 +140,7 @@ function addAiMessage(role, text) {
 
   const avatar = isUser
     ? `<div class="w-8 h-8 rounded-full bg-zinc-800 dark:bg-zinc-700 text-white flex items-center justify-center font-mono text-xs font-semibold flex-shrink-0">U</div>`
-    : `<div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0"><img src="/arka-white-logo.png" alt="ARKA" class="w-4 h-4 object-contain invert dark:invert-0"></div>`;
+    : `<div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0"><i data-lucide="bot-message-square" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i></div>`;
 
   const bubble = isUser
     ? `<div class="bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm max-w-lg leading-relaxed shadow-sm">${escapeHtmlAi(text).replace(/\n/g, '<br>')}</div>`
@@ -174,7 +174,7 @@ function addAiTyping() {
   el.id = 'aiTypingIndicator';
   el.innerHTML = `
     <div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-      <img src="/arka-white-logo.png" alt="ARKA" class="w-4 h-4 object-contain invert dark:invert-0">
+      <i data-lucide="bot-message-square" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i>
     </div>
     <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400">
       <span class="w-2 h-2 rounded-full bg-amber-400/80 animate-bounce"></span>
