@@ -519,12 +519,25 @@ export function resetAgentMemory(userId = 'guest') {
   userMemories.delete(userId);
 }
 
-function takeMemory(userId = 'guest') {
-  const mem = userMemories.get(userId);
-  if (!mem) return [];
-  if (Date.now() - mem.stamp > MEMORY_TTL_MS) {
-    userMemories.delete(userId);
-    return [];
+function takeMemory(userId = 'guest', clientHistory = []) {
+  let mem = userMemories.get(userId);
+  if (!mem || Date.now() - mem.stamp > MEMORY_TTL_MS || mem.messages.length === 0) {
+    if (Array.isArray(clientHistory) && clientHistory.length > 0) {
+      mem = {
+        messages: clientHistory
+          .filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content)
+          .map(m => ({
+            role: m.role,
+            content: String(m.content).slice(0, 1000)
+          }))
+          .slice(-MEMORY_MAX_MESSAGES),
+        stamp: Date.now()
+      };
+      userMemories.set(userId, mem);
+    } else {
+      userMemories.delete(userId);
+      return [];
+    }
   }
   mem.stamp = Date.now();
   return mem.messages.slice();
@@ -587,15 +600,15 @@ async function askForFinalText(messages) {
  * @param {string} userQuery
  * @param {{ reset?: boolean, userId?: string }} [options]
  */
-export async function runAgent(userQuery, { reset = false, userId = null } = {}) {
+export async function runAgent(userQuery, { reset = false, userId = null, history = [] } = {}) {
   const memUserId = userId || 'guest';
   if (reset) resetAgentMemory(memUserId);
-  const result = await runOnce(userQuery, userId);
+  const result = await runOnce(userQuery, userId, history);
   if (!result.error && result.answer) remember(memUserId, userQuery, result.answer);
   return result;
 }
 
-async function runOnce(userQuery, userId = null) {
+async function runOnce(userQuery, userId = null, history = []) {
   const memUserId = userId || 'guest';
   const systemPrompt = `Kamu adalah ARKA, asisten workspace pribadi berbasis AI untuk aplikasi web ARKA (arkaapp.vercel.app). Kamu membantu pengguna mengelola file, prompt, tautan, dan workspace lewat UI web.
 
@@ -607,21 +620,21 @@ Aturan:
 - Setelah mendapat hasil tool, beri jawaban yang ramah dan ringkas.
 - Jika ragu, gunakan tool 'answer' untuk menjawab langsung.
 - Jawaban harus SINGKAT dan LENGKAP: maksimal ~100 kata / 6 baris poin, selalu akhiri dengan kalimat yang utuh — jangan terputus.
-- Percakapan sebelumnya disertakan. Jika pesan adalah lanjutan ("yang lebih detail", "yg kedua"), lanjutkan topik itu.
+- Percakapan sebelumnya disertakan. Jika pesan adalah respon lanjutan seperti "ya", "ya semua", "oke", "bersihkan", atau "lanjutkan", pahami konteks percakapan sebelumnya dan SEGERA jalankan tindakan yang dibahas!
 - JANGAN pernah mengarang fitur, URL, atau opsi yang tidak ada. Sebutkan hanya yang ada di panduan atau hasil tool.
 - KONTROL WORKSPACE & PERIZINAN AKSI (Human-in-the-Loop):
   Jika pengguna meminta kamu melakukan perubahan atau kontrol workspace (seperti mengganti nama file, memindahkan file ke folder, menghapus file atau folder, membuka pratinjau file, atau berpindah navigasi):
   1. Cari dulu data file atau folder terkait menggunakan tool (search_files, list_folders) untuk mendapatkan ID-nya.
   2. Gunakan ID yang tertera di [ID:xxx] secara persis untuk parameter file_id atau folder_id.
   3. Untuk current_name dan label, gunakan HANYA nama bersih file/folder tanpa menambahkan kata perintah "Hapus" atau tanda petik (contoh: "Cloud Projects", bukan "Hapus Cloud Projects").
-  4. KAMU WAJIB MEMANGGIL tool 'request_user_permission' untuk mengajukan proposal aksi. JANGAN HANYA MENULIS TEKS menyuruh pengguna menekan tombol. Jika kamu tidak memanggil tool-nya, tombolnya tidak akan pernah muncul!
-  5. Setelah memanggil tool tersebut, baru kamu boleh memberikan teks jawaban singkat.
+  4. JANGAN MEMINTA KONFIRMASI DENGAN TEKS seperti "Apakah kamu setuju? Balas ya semua". LANGSUNG PANGGIL tool 'request_user_permission'! Tombol [Izinkan] dan [Tolak] pada kartu aksi ITULAH tempat pengguna memberikan persetujuannya secara interaktif!
+  5. Setelah memanggil tool 'request_user_permission', beri penjelasan singkat dan persilakan pengguna menekan tombol Izinkan pada kartu tersebut.
   JANGAN menolak dengan mengatakan kamu tidak bisa atau read-only jika aksi tersebut dapat diajukan via 'request_user_permission'!
 - Untuk permintaan perapian/triage, pakai list_inbox dulu lalu sarankan langkah di dashboard web.`;
 
   const messages = [
     { role: 'system',  content: systemPrompt },
-    ...takeMemory(memUserId),
+    ...takeMemory(memUserId, history),
     { role: 'user',    content: userQuery }
   ];
 

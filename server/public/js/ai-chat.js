@@ -2,6 +2,7 @@
 const AI_COLLAPSE_KEY = 'arka_ai_collapsed';
 let aiChatLoading = false;
 let aiSectionCollapsed = false;
+let aiChatHistory = [];
 
 function initAiChatSection() {
   try {
@@ -151,6 +152,11 @@ function addAiMessage(role, text) {
 
   msgEl.innerHTML = `${avatar}${bubble}`;
   container.appendChild(msgEl);
+
+  if (role === 'user' || role === 'assistant') {
+    aiChatHistory.push({ role, content: text });
+    if (aiChatHistory.length > 10) aiChatHistory.shift();
+  }
 
   if (scrollArea) {
     scrollArea.scrollTop = scrollArea.scrollHeight;
@@ -472,13 +478,15 @@ async function sendAiMessage() {
   if (sendBtn) sendBtn.disabled = true;
   aiChatLoading = true;
 
+  const historyToSend = aiChatHistory.slice(-6);
+
   addAiMessage('user', query);
   addAiTyping();
 
   try {
     const resp = await authFetch(`${API_BASE}/ai/ask`, {
       method: 'POST',
-      body: JSON.stringify({ query })
+      body: JSON.stringify({ query, history: historyToSend })
     });
     const data = await resp.json();
     removeAiTyping();
@@ -505,6 +513,7 @@ async function sendAiMessage() {
 }
 
 async function resetAiChat() {
+  aiChatHistory = [];
   const container = document.getElementById('aiChatMessages');
   if (container) container.innerHTML = '';
 

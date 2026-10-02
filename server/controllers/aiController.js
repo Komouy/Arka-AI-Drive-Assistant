@@ -45,7 +45,7 @@ export const aiController = {
   // POST /api/ai/ask — natural language query via the AI agent
   ask: async (req, res) => {
     try {
-      const { query, reset } = req.body || {};
+      const { query, reset, history } = req.body || {};
       if (!query || typeof query !== 'string' || !query.trim()) {
         return badRequest(res, 'Query wajib diisi');
       }
@@ -53,7 +53,7 @@ export const aiController = {
       const { runAgent } = await import('../ai/agent.js');
       const userId = req.user?.id || null;
       // reset=true → forget the short conversation memory before answering
-      const result = await runAgent(query.trim(), { reset: !!reset, userId });
+      const result = await runAgent(query.trim(), { reset: !!reset, userId, history });
 
       // A provider outage is reported as 502 with the real reason, never as success
       if (result.error) {
