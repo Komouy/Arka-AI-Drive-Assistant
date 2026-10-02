@@ -499,3 +499,39 @@ html:not(.dark) .code-content-pre {
   background: #ffffff;
 }
 
+/* ── Modern Sidebar & View Transition Enhancements ───────────────────────── */
+#viewOverview,
+#viewDataList,
+#viewAi,
+#graphContainer {
+  animation: fadeInFast 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#createModalBackdrop.flex {
+  display: flex !important;
+}
+
+#createModalBackdrop > div {
+  animation: modalPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.nav-link {
+  transition: all 0.15s ease-in-out;
+}
+
+.nav-link:active {
+  transform: scale(0.98);
+}
+
+

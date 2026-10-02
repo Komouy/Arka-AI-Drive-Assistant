@@ -2,7 +2,7 @@
 
 async function loadStatus() {
   try {
-    const res  = await authFetch(`${API_BASE}/status`);
+    const res = await authFetch(`${API_BASE}/status`);
     if (res.status === 401) { handleLogout(); return; }
     const json = await res.json();
     if (json.success && json.data) {
@@ -22,7 +22,7 @@ async function loadStatus() {
         statusInd.classList.remove('bg-red-500', 'bg-amber-500');
         statusInd.classList.add('bg-emerald-500');
       }
-      if (statusTxt) statusTxt.textContent = 'online';
+      if (statusTxt) statusTxt.textContent = 'core online';
 
       const aiWarn = document.getElementById('aiSchemaWarning');
       if (aiWarn) {
@@ -67,11 +67,11 @@ async function fetchAllData() {
       authFetch(`${API_BASE}/files?trash=true`).then(r => r.json()).catch(() => ({ data: [] }))
     ]);
 
-    allData.files   = Array.isArray(filesRes.data)   ? filesRes.data   : [];
+    allData.files = Array.isArray(filesRes.data) ? filesRes.data : [];
     allData.prompts = Array.isArray(promptsRes.data) ? promptsRes.data : [];
-    allData.links   = Array.isArray(linksRes.data)   ? linksRes.data   : [];
+    allData.links = Array.isArray(linksRes.data) ? linksRes.data : [];
     allData.folders = Array.isArray(foldersRes.data) ? foldersRes.data : [];
-    allData.trash   = Array.isArray(trashRes.data)   ? trashRes.data   : [];
+    allData.trash = Array.isArray(trashRes.data) ? trashRes.data : [];
 
     const folderDatalist = document.getElementById('folderSuggestions');
     if (folderDatalist) {
@@ -80,7 +80,11 @@ async function fetchAllData() {
 
     updateCounts();
     renderFolderChips();
-    render();
+    if (currentFilter === 'overview' || currentFilter === 'all') {
+      renderOverview();
+    } else {
+      render();
+    }
     if (currentFilter === 'graph' && typeof renderGraph === 'function') {
       setTimeout(() => renderGraph(true), 50);
     }
@@ -107,6 +111,8 @@ async function handleRefresh(btn) {
 
 function updateCounts() {
   const total = allData.files.length + allData.prompts.length + allData.links.length;
+  const imageCount = (allData.files || []).filter(isImageFile).length;
+
   const countAll = document.getElementById('countAll');
   const countFiles = document.getElementById('countFiles');
   const countImages = document.getElementById('countImages');
@@ -116,13 +122,23 @@ function updateCounts() {
 
   if (countAll) countAll.textContent = total;
   if (countFiles) countFiles.textContent = allData.files.length;
-  if (countImages) {
-    const imageCount = (allData.files || []).filter(isImageFile).length;
-    countImages.textContent = imageCount;
-  }
+  if (countImages) countImages.textContent = imageCount;
   if (countPrompts) countPrompts.textContent = allData.prompts.length;
   if (countLinks) countLinks.textContent = allData.links.length;
   if (countTrash) countTrash.textContent = allData.trash.length;
+
+  // Sidebar Badges
+  const badgeFiles = document.getElementById('badgeFiles');
+  const badgeImages = document.getElementById('badgeImages');
+  const badgePrompts = document.getElementById('badgePrompts');
+  const badgeLinks = document.getElementById('badgeLinks');
+  const badgeTrash = document.getElementById('badgeTrash');
+
+  if (badgeFiles) badgeFiles.textContent = allData.files.length;
+  if (badgeImages) badgeImages.textContent = imageCount;
+  if (badgePrompts) badgePrompts.textContent = allData.prompts.length;
+  if (badgeLinks) badgeLinks.textContent = allData.links.length;
+  if (badgeTrash) badgeTrash.textContent = allData.trash.length;
 }
 
 // ── Folder Quick-Filter Chips (UX Kenyamanan Ekstra) ─────────────────────────
@@ -169,51 +185,85 @@ function setFolderFilter(folderName) {
 
 // ── Tab Navigation Filter ───────────────────────────────────────────────────
 function setFilter(type) {
+  if (type === 'all') type = 'overview';
   currentFilter = type;
-  ['all', 'files', 'images', 'prompts', 'links', 'trash', 'graph'].forEach(t => {
-    const btn = document.getElementById(`filter${t.charAt(0).toUpperCase() + t.slice(1)}`);
+
+  // Sidebar navigation active highlight
+  const navTabs = ['overview', 'files', 'images', 'prompts', 'links', 'ai', 'graph', 'trash'];
+  navTabs.forEach(t => {
+    const btn = document.getElementById(`nav${t.charAt(0).toUpperCase() + t.slice(1)}`);
     if (btn) {
       const isActive = t === type;
-      btn.classList.toggle('bg-white', isActive);
-      btn.classList.toggle('dark:bg-zinc-800', isActive);
-      btn.classList.toggle('text-zinc-900', isActive);
-      btn.classList.toggle('dark:text-zinc-100', isActive);
-      btn.classList.toggle('border-zinc-300', isActive);
-      btn.classList.toggle('dark:border-zinc-700', isActive);
-      btn.classList.toggle('shadow-sm', isActive);
-      btn.classList.toggle('text-zinc-600', !isActive);
-      btn.classList.toggle('dark:text-zinc-400', !isActive);
-      btn.classList.toggle('border-transparent', !isActive);
+      if (isActive) {
+        btn.className = 'nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold bg-zinc-200/90 dark:bg-zinc-800 text-zinc-900 dark:text-white transition-colors';
+      } else {
+        btn.className = 'nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-850 transition-colors';
+      }
     }
   });
 
-  const emptyTrashBtn = document.getElementById('btnEmptyTrash');
-  if (emptyTrashBtn) emptyTrashBtn.classList.toggle('hidden', type !== 'trash');
+  // Header Title & Subtitle updates
+  const pageTitle = document.getElementById('pageTitle');
+  const pageSubtitle = document.getElementById('pageSubtitle');
+  const titles = {
+    overview: { title: 'Beranda', subtitle: 'Ringkasan aktivitas dan berkas terkini' },
+    files: { title: 'Berkas & Dokumen', subtitle: 'Kelola seluruh berkas dan dokumen di Drive Anda' },
+    images: { title: 'Galeri Gambar', subtitle: 'Koleksi foto dan gambar dengan pratinjau langsung' },
+    prompts: { title: 'Catatan & Prompt', subtitle: 'Koleksi prompt AI, instruksi, dan catatan kerja' },
+    links: { title: 'Tautan Tersimpan', subtitle: 'Daftar bookmark tautan web dan referensi' },
+    ai: { title: 'Arka AI Assistant', subtitle: 'Tanya asisten cerdas berbasis Groq & Gemini' },
+    graph: { title: 'Diagram Visual Hub', subtitle: 'Visualisasi interaktif relasi folder dan skema' },
+    trash: { title: 'Tong Sampah', subtitle: 'Berkas terhapus yang dapat dipulihkan atau dibersihkan' }
+  };
+  if (pageTitle && titles[type]) pageTitle.textContent = titles[type].title;
+  if (pageSubtitle && titles[type]) pageSubtitle.textContent = titles[type].subtitle;
 
-  const dataContainer = document.querySelector('.data-table-container');
+  // View containers
+  const viewOverview = document.getElementById('viewOverview');
+  const viewDataList = document.getElementById('viewDataList');
+  const viewAi = document.getElementById('viewAi');
   const graphContainer = document.getElementById('graphContainer');
-  const searchBox = document.querySelector('.controls-bar .search-box');
   const folderChips = document.getElementById('folderChipsBar');
+  const emptyTrashBtn = document.getElementById('btnEmptyTrash');
 
-  if (type === 'graph') {
-    if (dataContainer) dataContainer.classList.add('hidden');
+  // Hide all view panels
+  if (viewOverview) viewOverview.classList.add('hidden');
+  if (viewDataList) viewDataList.classList.add('hidden');
+  if (viewAi) viewAi.classList.add('hidden');
+  if (graphContainer) {
+    graphContainer.classList.add('hidden');
+    graphContainer.classList.remove('flex');
+  }
+
+  // Close mobile sidebar if drawer is open
+  toggleMobileSidebar(false);
+
+  if (type === 'overview') {
+    if (viewOverview) viewOverview.classList.remove('hidden');
+    renderOverview();
+  } else if (type === 'ai') {
+    if (viewAi) viewAi.classList.remove('hidden');
+    const scrollArea = document.getElementById('aiMessagesScroll');
+    if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
+    setTimeout(() => {
+      const input = document.getElementById('aiChatInput');
+      if (input) input.focus();
+    }, 100);
+  } else if (type === 'graph') {
     if (graphContainer) {
       graphContainer.classList.remove('hidden');
       graphContainer.classList.add('flex');
     }
-    if (searchBox) searchBox.classList.add('hidden');
-    if (folderChips) folderChips.classList.add('hidden');
     if (typeof renderGraph === 'function') {
       setTimeout(() => renderGraph(true), 50);
     }
   } else {
-    if (dataContainer) dataContainer.classList.remove('hidden');
-    if (graphContainer) {
-      graphContainer.classList.add('hidden');
-      graphContainer.classList.remove('flex');
-    }
-    if (searchBox) searchBox.classList.remove('hidden');
-    if (folderChips && (type === 'all' || type === 'files' || type === 'images')) {
+    // files, images, prompts, links, trash
+    if (viewDataList) viewDataList.classList.remove('hidden');
+    if (emptyTrashBtn) emptyTrashBtn.classList.toggle('hidden', type !== 'trash');
+    if (emptyTrashBtn) emptyTrashBtn.classList.toggle('inline-flex', type === 'trash');
+
+    if (folderChips && (type === 'files' || type === 'images')) {
       renderFolderChips();
     } else if (folderChips) {
       folderChips.classList.add('hidden');
@@ -222,8 +272,156 @@ function setFilter(type) {
   }
 }
 
+// ── Overview Rendering Helper ───────────────────────────────────────────────
+function renderOverview() {
+  // 1. Recent Files (5 items)
+  const filesContainer = document.getElementById('overviewRecentFiles');
+  if (filesContainer) {
+    const sortedFiles = [...(allData.files || [])].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 5);
+    if (sortedFiles.length === 0) {
+      filesContainer.innerHTML = `
+        <div class="py-8 text-center text-xs font-mono text-zinc-400">
+          Belum ada berkas tersimpan. Klik "+ Buat Baru" untuk mengunggah.
+        </div>
+      `;
+    } else {
+      filesContainer.innerHTML = sortedFiles.map(f => {
+        const safeId = escapeHtml(String(f.id));
+        const safeTitle = escapeHtml(f.original_name || 'Tanpa Judul');
+        const cat = getFileCategoryIcon(f.mime_type, f.original_name);
+        const folderName = f.folder_name || (f.is_inbox ? 'inbox' : 'root');
+        const downloadUrl = `/api/files/${safeId}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
+
+        return `
+          <div class="py-2.5 px-3 flex items-center justify-between gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: ${cat.color}15; color: ${cat.color};">
+                <i data-lucide="${cat.icon}" class="w-4 h-4"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate cursor-pointer hover:underline" onclick="openPreview('FILE', '${safeId}')" title="${safeTitle}">
+                  ${safeTitle}
+                </div>
+                <div class="flex items-center gap-2 text-[10px] font-mono text-zinc-400">
+                  <span class="truncate max-w-[80px]">${escapeHtml(folderName)}</span>
+                  <span>•</span>
+                  <span>${formatBytes(f.size)}</span>
+                  <span>•</span>
+                  <span>${formatDate(f.created_at)}</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 flex-shrink-0">
+              <button type="button" onclick="openPreview('FILE', '${safeId}')" title="Pratinjau"
+                      class="p-1.5 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors">
+                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+              </button>
+              <a href="${downloadUrl}" title="Unduh" target="_blank" rel="noopener noreferrer"
+                 class="p-1.5 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              </a>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 2. Recent Prompts / Notes (3 items)
+  const promptsContainer = document.getElementById('overviewRecentPrompts');
+  if (promptsContainer) {
+    const sortedPrompts = [...(allData.prompts || [])].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 3);
+    if (sortedPrompts.length === 0) {
+      promptsContainer.innerHTML = `
+        <div class="py-8 text-center text-xs font-mono text-zinc-400">
+          Belum ada catatan atau prompt. Klik "+ Buat Baru" untuk menulis.
+        </div>
+      `;
+    } else {
+      promptsContainer.innerHTML = sortedPrompts.map(p => {
+        const safeId = escapeHtml(String(p.id));
+        const safeTitle = escapeHtml(p.title || 'Tanpa Judul');
+        const category = escapeHtml(p.category || 'General');
+        const snippet = escapeHtml((p.content || '').slice(0, 90));
+
+        return `
+          <div class="py-2.5 px-3 flex flex-col gap-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 rounded-lg transition-colors">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">${safeTitle}</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">${category}</span>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <button type="button" onclick="handleCopyPrompt('${safeId}', this)" title="Salin Catatan"
+                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors text-xs font-mono flex items-center gap-1">
+                  <i data-lucide="copy" class="w-3 h-3"></i>
+                </button>
+                <button type="button" onclick="openPreview('PROMPT', '${safeId}')" title="Buka Detail"
+                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors">
+                  <i data-lucide="eye" class="w-3 h-3"></i>
+                </button>
+              </div>
+            </div>
+            ${snippet ? `<div class="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 font-mono">${snippet}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  refreshIcons();
+}
+
+// ── Modal & Mobile Sidebar Helpers ──────────────────────────────────────────
+function openCreateModal(tab = 'upload') {
+  const modal = document.getElementById('createModalBackdrop');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    if (typeof switchCreateTab === 'function') {
+      switchCreateTab(tab);
+    }
+    refreshIcons();
+  }
+}
+
+function closeCreateModal() {
+  const modal = document.getElementById('createModalBackdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+function toggleMobileSidebar(isOpen) {
+  const sidebar = document.getElementById('mainSidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (!sidebar) return;
+
+  const show = isOpen !== undefined ? isOpen : sidebar.classList.contains('-translate-x-full');
+  if (show) {
+    sidebar.classList.remove('-translate-x-full');
+    sidebar.classList.add('translate-x-0');
+    if (backdrop) backdrop.classList.remove('hidden');
+  } else {
+    sidebar.classList.add('-translate-x-full');
+    sidebar.classList.remove('translate-x-0');
+    if (backdrop) backdrop.classList.add('hidden');
+  }
+}
+
 function handleSearch(val) {
   searchQuery = val.trim().toLowerCase();
+  const desktopSearch = document.getElementById('searchInput');
+  const mobileSearch = document.getElementById('searchInputMobile');
+  if (desktopSearch && desktopSearch.value !== val) desktopSearch.value = val;
+  if (mobileSearch && mobileSearch.value !== val) mobileSearch.value = val;
+
+  // If in overview, switch to files tab when searching
+  if (currentFilter === 'overview' && searchQuery) {
+    setFilter('files');
+    return;
+  }
   render();
 }
 
@@ -244,9 +442,9 @@ function render() {
       const q = searchQuery;
       imageFiles = imageFiles.filter(f => {
         return (f.original_name || '').toLowerCase().includes(q)
-            || (f.description   || '').toLowerCase().includes(q)
-            || (f.folder_name   || '').toLowerCase().includes(q)
-            || (f.tags          || '').toLowerCase().includes(q);
+          || (f.description || '').toLowerCase().includes(q)
+          || (f.folder_name || '').toLowerCase().includes(q)
+          || (f.tags || '').toLowerCase().includes(q);
       });
     }
 
@@ -269,34 +467,34 @@ function render() {
     container.innerHTML = `
       <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 p-2.5 sm:p-4">
         ${imageFiles.map(f => {
-          const safeId = escapeHtml(String(f.id));
-          const safeTitle = escapeHtml(f.original_name || 'Tanpa Judul');
-          const deleteId = `del-FILE-${safeId}`;
-          const downloadUrl = `/api/files/${safeId}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
-          const viewUrl = f.public_url || f.publicUrl || `${downloadUrl}${downloadUrl.includes('?') ? '&' : '?'}inline=1`;
-          const ext = (f.original_name || '').split('.').pop().toLowerCase();
-          const category = f.folder_name || (f.is_inbox ? 'inbox' : 'root');
+      const safeId = escapeHtml(String(f.id));
+      const safeTitle = escapeHtml(f.original_name || 'Tanpa Judul');
+      const deleteId = `del-FILE-${safeId}`;
+      const downloadUrl = `/api/files/${safeId}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
+      const viewUrl = f.public_url || f.publicUrl || `${downloadUrl}${downloadUrl.includes('?') ? '&' : '?'}inline=1`;
+      const ext = (f.original_name || '').split('.').pop().toLowerCase();
+      const category = f.folder_name || (f.is_inbox ? 'inbox' : 'root');
 
-          let aiBadge = '';
-          if (f.ai_analyzed) {
-            aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="bot" class="w-3 h-3"></i> AI</span>';
-          }
+      let aiBadge = '';
+      if (f.ai_analyzed) {
+        aiBadge = '<span class="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/25"><i data-lucide="bot" class="w-3 h-3"></i> AI</span>';
+      }
 
-          let suggestBtns = '';
-          if (f.suggested_name && f.suggested_name !== f.original_name) {
-            suggestBtns = `
+      let suggestBtns = '';
+      if (f.suggested_name && f.suggested_name !== f.original_name) {
+        suggestBtns = `
               <button class="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30 transition-colors inline-flex items-center gap-1"
                       title="Ganti nama AI: ${escapeHtml(f.suggested_name)}"
                       data-id="${safeId}" data-value="${escapeHtml(f.suggested_name)}" onclick="handleApplyRename(this)">
                 <i data-lucide="pen-line" class="w-3 h-3"></i> <span>Ganti Nama</span>
               </button>
             `;
-          }
-          if (f.suggested_folder && (!f.folder_name || f.folder_name !== f.suggested_folder) && !f.is_trash) {
-            triggerSilentAutoOrganize(f.id, f.suggested_folder);
-          }
+      }
+      if (f.suggested_folder && (!f.folder_name || f.folder_name !== f.suggested_folder) && !f.is_trash) {
+        triggerSilentAutoOrganize(f.id, f.suggested_folder);
+      }
 
-          return `
+      return `
             <div class="group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-lg overflow-hidden flex flex-col transition-all duration-200 hover:-translate-y-0.5 shadow-sm" id="row-FILE-${safeId}">
               <div class="relative h-32 sm:h-44 w-full bg-zinc-100 dark:bg-zinc-950 overflow-hidden cursor-pointer flex items-center justify-center" onclick="openPreview('FILE', '${safeId}')" title="Buka pratinjau: ${safeTitle}">
                 <img src="${viewUrl}" alt="${safeTitle}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='/placeholder-image.svg';">
@@ -337,7 +535,7 @@ function render() {
               </div>
             </div>
           `;
-        }).join('')}
+    }).join('')}
       </div>
     `;
     refreshIcons();
@@ -352,15 +550,15 @@ function render() {
       const category = f.folder_name || (f.is_inbox ? 'inbox' : 'root');
       if (!currentFolderFilter || category === currentFolderFilter) {
         combined.push({
-          type:      'FILE',
-          id:        f.id,
-          title:     f.original_name || 'Tanpa Judul',
-          category:  category,
-          desc:      f.description  || '',
+          type: 'FILE',
+          id: f.id,
+          title: f.original_name || 'Tanpa Judul',
+          category: category,
+          desc: f.description || '',
           metaRight: formatBytes(f.size),
-          date:      f.created_at,
-          subInfo:   f.tags ? `tags: ${f.tags}` : '',
-          raw:       f
+          date: f.created_at,
+          subInfo: f.tags ? `tags: ${f.tags}` : '',
+          raw: f
         });
       }
     });
@@ -369,15 +567,15 @@ function render() {
   if (currentFilter === 'all' || currentFilter === 'prompts') {
     if (!currentFolderFilter) {
       allData.prompts.forEach(p => combined.push({
-        type:      'PROMPT',
-        id:        p.id,
-        title:     p.title || 'Tanpa Judul',
-        category:  p.category || 'General',
-        desc:      p.content  || '',
+        type: 'PROMPT',
+        id: p.id,
+        title: p.title || 'Tanpa Judul',
+        category: p.category || 'General',
+        desc: p.content || '',
         metaRight: p.tags ? (Array.isArray(p.tags) ? `tags: ${p.tags.join(', ')}` : `tags: ${p.tags}`) : '',
-        date:      p.created_at,
-        subInfo:   '',
-        raw:       p
+        date: p.created_at,
+        subInfo: '',
+        raw: p
       }));
     }
   }
@@ -385,42 +583,42 @@ function render() {
   if (currentFilter === 'all' || currentFilter === 'links') {
     if (!currentFolderFilter) {
       allData.links.forEach(l => combined.push({
-        type:      'LINK',
-        id:        l.id,
-        title:     l.title || l.domain || l.url || 'Tanpa Judul',
-        category:  l.category || 'General',
-        desc:      l.description || l.url || '',
+        type: 'LINK',
+        id: l.id,
+        title: l.title || l.domain || l.url || 'Tanpa Judul',
+        category: l.category || 'General',
+        desc: l.description || l.url || '',
         metaRight: l.domain || '',
-        date:      l.created_at,
-        url:       l.url,
-        subInfo:   l.tags ? (Array.isArray(l.tags) ? `tags: ${l.tags.join(', ')}` : `tags: ${l.tags}`) : '',
-        raw:       l
+        date: l.created_at,
+        url: l.url,
+        subInfo: l.tags ? (Array.isArray(l.tags) ? `tags: ${l.tags.join(', ')}` : `tags: ${l.tags}`) : '',
+        raw: l
       }));
     }
   }
 
   if (currentFilter === 'trash') {
     allData.trash.forEach(f => combined.push({
-      type:      'TRASH',
-      id:        f.id,
-      title:     f.original_name || 'Tanpa Judul',
-      category:  f.folder_name || 'Sampah',
-      desc:      f.description || '',
+      type: 'TRASH',
+      id: f.id,
+      title: f.original_name || 'Tanpa Judul',
+      category: f.folder_name || 'Sampah',
+      desc: f.description || '',
       metaRight: formatBytes(f.size),
-      date:      f.updated_at || f.created_at,
-      subInfo:   'File di tempat sampah',
-      raw:       f
+      date: f.updated_at || f.created_at,
+      subInfo: 'File di tempat sampah',
+      raw: f
     }));
   }
 
   if (searchQuery) {
     const q = searchQuery;
     combined = combined.filter(item => {
-      return (item.title    || '').toLowerCase().includes(q)
-          || (item.desc     || '').toLowerCase().includes(q)
-          || (item.category || '').toLowerCase().includes(q)
-          || (item.subInfo  || '').toLowerCase().includes(q)
-          || (item.url      || '').toLowerCase().includes(q);
+      return (item.title || '').toLowerCase().includes(q)
+        || (item.desc || '').toLowerCase().includes(q)
+        || (item.category || '').toLowerCase().includes(q)
+        || (item.subInfo || '').toLowerCase().includes(q)
+        || (item.url || '').toLowerCase().includes(q);
     });
   }
 
@@ -439,9 +637,9 @@ function render() {
   }
 
   container.innerHTML = combined.map(item => {
-    const safeId    = escapeHtml(String(item.id));
+    const safeId = escapeHtml(String(item.id));
     const safeTitle = escapeHtml(item.title);
-    const deleteId  = `del-${item.type}-${safeId}`;
+    const deleteId = `del-${item.type}-${safeId}`;
 
     let actionBtn = '';
     let aiBadge = '';
@@ -551,8 +749,8 @@ function render() {
 
 // ── CRUD Actions ────────────────────────────────────────────────────────────
 function handleDelete(btn) {
-  const type  = btn.dataset.type;
-  const id    = btn.dataset.id;
+  const type = btn.dataset.type;
+  const id = btn.dataset.id;
   const btnId = btn.dataset.btnid;
 
   if (!deleteConfirmState[btnId]) {
@@ -573,13 +771,13 @@ function handleDelete(btn) {
 
   delete deleteConfirmState[btnId];
   btn.textContent = 'menghapus...';
-  btn.disabled    = true;
+  btn.disabled = true;
 
   let endpoint = '';
-  if      (type === 'FILE')   endpoint = `/api/files/${id}`;
-  else if (type === 'TRASH')  endpoint = `/api/files/${id}?permanent=true`;
+  if (type === 'FILE') endpoint = `/api/files/${id}`;
+  else if (type === 'TRASH') endpoint = `/api/files/${id}?permanent=true`;
   else if (type === 'PROMPT') endpoint = `/api/prompts/${id}`;
-  else if (type === 'LINK')   endpoint = `/api/links/${id}`;
+  else if (type === 'LINK') endpoint = `/api/links/${id}`;
 
   authFetch(endpoint, { method: 'DELETE' })
     .then(r => r.json())
@@ -678,9 +876,9 @@ async function triggerSilentAutoOrganize(fileId, folderName) {
 
 async function checkAndTriggerBatchAutoOrganize() {
   if (isAutoOrganizingBatch) return;
-  const unorganized = (allData.files || []).filter(f => 
-    f.suggested_folder && 
-    (!f.folder_name || f.folder_name !== f.suggested_folder) && 
+  const unorganized = (allData.files || []).filter(f =>
+    f.suggested_folder &&
+    (!f.folder_name || f.folder_name !== f.suggested_folder) &&
     !f.is_trash
   );
   if (unorganized.length === 0) return;
@@ -719,7 +917,7 @@ async function processAutoAnalysisQueue() {
           f.suggested_name = json.data.suggestedName || f.suggested_name;
           f.suggested_folder = json.data.suggestedFolder || f.suggested_folder;
         }
-      } catch {}
+      } catch { }
     }
     render();
   } finally {

@@ -40,16 +40,21 @@ function updateUserUI(user) {
   const hasDrive = Boolean(pt);
 
   badge.innerHTML = `
-    <div class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md text-xs font-mono text-zinc-700 dark:text-zinc-300">
-      ${avatar ? `<img src="${escapeHtml(avatar)}" alt="Avatar" class="w-4 h-4 rounded-full object-cover flex-shrink-0" referrerpolicy="no-referrer">` : '<i data-lucide="user" class="w-3.5 h-3.5 text-zinc-400 flex-shrink-0"></i>'}
-      <span class="font-medium max-w-[70px] sm:max-w-[140px] truncate text-zinc-800 dark:text-zinc-200">${escapeHtml(name)}</span>
+    <div class="flex items-center justify-between w-full py-0.5">
+      <div class="flex items-center gap-2 min-w-0">
+        ${avatar ? `<img src="${escapeHtml(avatar)}" alt="Avatar" class="w-7 h-7 rounded-full object-cover flex-shrink-0" referrerpolicy="no-referrer">` : `<div class="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 text-xs shrink-0"><i data-lucide="user" class="w-4 h-4"></i></div>`}
+        <div class="flex flex-col min-w-0">
+          <span class="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">${escapeHtml(name)}</span>
+          <span class="text-[10px] text-zinc-400 font-mono truncate">${hasDrive ? 'Drive Terhubung' : 'Lokal'}</span>
+        </div>
+      </div>
       ${hasDrive 
-        ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex-shrink-0" title="File disimpan di Google Drive pribadi"><i data-lucide="hard-drive" class="w-3 h-3"></i><span class="hidden sm:inline"> Drive</span></span>`
-        : `<button type="button" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 transition-colors flex-shrink-0 shadow-sm" onclick="handleGoogleLogin()" title="Hubungkan Google Drive"><i data-lucide="link" class="w-3 h-3 text-amber-500 dark:text-amber-400"></i><span class="hidden sm:inline"> Hubungkan Drive</span><span class="sm:hidden"> Hubungkan</span></button>`
+        ? `<span class="inline-flex items-center gap-1 p-1 rounded-md text-emerald-600 dark:text-emerald-400" title="File disimpan di Google Drive pribadi"><i data-lucide="hard-drive" class="w-4 h-4"></i></span>`
+        : `<button type="button" class="inline-flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-colors flex-shrink-0 font-mono" onclick="handleGoogleLogin()" title="Hubungkan Google Drive"><i data-lucide="link" class="w-3 h-3"></i><span>Hubungkan</span></button>`
       }
     </div>
   `;
-  badge.style.display = 'inline-flex';
+  badge.style.display = 'flex';
   refreshIcons();
 }
 
@@ -172,6 +177,9 @@ function showDashboard() {
   const dash = document.getElementById('dashboard');
   if (dash) dash.classList.remove('hidden');
   refreshIcons();
+  if (typeof setFilter === 'function') {
+    setFilter('overview');
+  }
   loadStatus();
   fetchAllData();
 }

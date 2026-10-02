@@ -12,12 +12,18 @@ window.addEventListener('DOMContentLoaded', () => {
     const isTyping = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
     const isModalOpen = !document.getElementById('previewModalBackdrop')?.classList.contains('hidden');
 
-    // 1. ESC: Close modal
+    // 1. ESC: Close modal or mobile sidebar
     if (e.key === 'Escape') {
+      const isCreateOpen = !document.getElementById('createModalBackdrop')?.classList.contains('hidden');
       if (isModalOpen) {
         closePreview();
         return;
       }
+      if (isCreateOpen) {
+        closeCreateModal();
+        return;
+      }
+      toggleMobileSidebar(false);
     }
 
     // 2. Arrow Left & Right: Navigate images / files in preview modal
@@ -66,15 +72,26 @@ window.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // 6. Number keys (1-7): Quick Tab Switching
+    // 6. 'c' or 'C': Open Create Modal
+    if (e.key === 'c' || e.key === 'C') {
+      const isDashboardVisible = !document.getElementById('dashboard')?.classList.contains('hidden');
+      if (isDashboardVisible) {
+        e.preventDefault();
+        openCreateModal('upload');
+      }
+      return;
+    }
+
+    // 7. Number keys (1-8): Quick Menu Switching
     const tabKeys = {
-      '1': 'all',
+      '1': 'overview',
       '2': 'files',
       '3': 'images',
       '4': 'prompts',
       '5': 'links',
-      '6': 'trash',
-      '7': 'graph'
+      '6': 'ai',
+      '7': 'graph',
+      '8': 'trash'
     };
     if (tabKeys[e.key]) {
       const isDashboardVisible = !document.getElementById('dashboard')?.classList.contains('hidden');

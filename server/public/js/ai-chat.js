@@ -38,14 +38,8 @@ function focusAiChat() {
     return;
   }
 
-  const body = document.getElementById('aiAssistantBody');
-  if (aiSectionCollapsed && body) {
-    toggleAiSectionCollapse();
-  }
-
-  const section = document.getElementById('aiAssistantSection');
-  if (section) {
-    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (typeof setFilter === 'function') {
+    setFilter('ai');
   }
 
   setTimeout(() => {
@@ -54,7 +48,7 @@ function focusAiChat() {
       input.focus();
       aiChatAutoResize(input);
     }
-  }, 150);
+  }, 120);
 }
 
 // Backward-compatible alias for any keyboard shortcuts or triggers
@@ -127,6 +121,11 @@ function formatAiResponse(text) {
 }
 
 function addAiMessage(role, text) {
+  const emptyHero = document.getElementById('aiEmptyHero');
+  if (emptyHero) {
+    emptyHero.classList.add('hidden');
+  }
+
   const scrollArea = document.getElementById('aiMessagesScroll');
   if (scrollArea) {
     scrollArea.classList.remove('hidden');
@@ -234,9 +233,9 @@ async function resetAiChat() {
   const container = document.getElementById('aiChatMessages');
   if (container) container.innerHTML = '';
 
-  const scrollArea = document.getElementById('aiMessagesScroll');
-  if (scrollArea) {
-    scrollArea.classList.add('hidden');
+  const emptyHero = document.getElementById('aiEmptyHero');
+  if (emptyHero) {
+    emptyHero.classList.remove('hidden');
   }
 
   const input = document.getElementById('aiChatInput');

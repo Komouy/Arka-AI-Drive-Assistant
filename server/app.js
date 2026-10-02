@@ -46,7 +46,7 @@ app.get(['/upload', '/viewer', '/data'], (_req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 app.get('/privacy', (_req, res) => res.sendFile(path.join(PUBLIC_DIR, 'privacy.html')));
-app.get('/terms',   (_req, res) => res.sendFile(path.join(PUBLIC_DIR, 'terms.html')));
+app.get('/terms', (_req, res) => res.sendFile(path.join(PUBLIC_DIR, 'terms.html')));
 
 // ── REST API ──────────────────────────────────────────────────────────────────
 app.use('/api', apiRoutes);
@@ -60,24 +60,24 @@ app.get('/', (req, res) => {
     return res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
   }
   res.json({
-    status: 'online',
+    status: 'core online',
     name: APP.name,
     version: APP.version,
     database: isSupabaseConfigured() ? 'supabase' : 'sqlite',
     endpoints: {
-      status:   'GET  /api/status',
-      folders:  'GET  /api/folders · POST /api/folders · PATCH/DELETE /api/folders/:id',
-      files:    'GET  /api/files · GET /api/files/:id · PATCH/DELETE /api/files/:id',
-      upload:   'POST /api/files/upload',
-      analyze:  'POST /api/files/:id/analyze',
+      status: 'GET  /api/status',
+      folders: 'GET  /api/folders · POST /api/folders · PATCH/DELETE /api/folders/:id',
+      files: 'GET  /api/files · GET /api/files/:id · PATCH/DELETE /api/files/:id',
+      upload: 'POST /api/files/upload',
+      analyze: 'POST /api/files/:id/analyze',
       download: 'GET  /api/files/:id/download',
-      trash:    'DELETE /api/trash',
-      inbox:    'GET  /api/inbox · POST /api/inbox/:id/organize',
-      prompts:  'GET/POST /api/prompts · PATCH/DELETE /api/prompts/:id',
-      links:    'GET/POST /api/links · PATCH/DELETE /api/links/:id',
+      trash: 'DELETE /api/trash',
+      inbox: 'GET  /api/inbox · POST /api/inbox/:id/organize',
+      prompts: 'GET/POST /api/prompts · PATCH/DELETE /api/prompts/:id',
+      links: 'GET/POST /api/links · PATCH/DELETE /api/links/:id',
       aiStatus: 'GET  /api/ai/status',
-      aiAsk:    'POST /api/ai/ask',
-      aiReset:  'POST /api/ai/reset'
+      aiAsk: 'POST /api/ai/ask',
+      aiReset: 'POST /api/ai/reset'
     }
   });
 });

@@ -181,7 +181,8 @@ function setupDragAndDrop() {
     dragCounter = 0;
     if (globalOverlay) globalOverlay.classList.remove('active');
     if (e.dataTransfer?.files?.length) {
-      switchCreateTab('upload');
+      if (typeof openCreateModal === 'function') openCreateModal('upload');
+      else switchCreateTab('upload');
       addFilesToUpload(Array.from(e.dataTransfer.files));
       showToast('success', `${e.dataTransfer.files.length} file ditambahkan ke antrean.`);
     }
@@ -216,7 +217,8 @@ function setupClipboardPaste() {
     }
 
     if (files.length > 0) {
-      switchCreateTab('upload');
+      if (typeof openCreateModal === 'function') openCreateModal('upload');
+      else switchCreateTab('upload');
       addFilesToUpload(files);
       showToast('success', `${files.length} gambar dari clipboard ditambahkan.`);
     }
@@ -251,6 +253,10 @@ function switchCreateTab(tab) {
 }
 
 function toggleCreatePanel() {
+  if (typeof openCreateModal === 'function') {
+    openCreateModal('upload');
+    return;
+  }
   const body      = document.getElementById('createPanelBody');
   const toggleBtn = document.getElementById('panelToggleBtn');
   if (!body) return;
@@ -319,6 +325,7 @@ async function handleUploadSubmit(e) {
       setFormStatus('uploadStatus', 'success', `${count} file berhasil diunggah.`);
       clearUploadSelection();
       document.getElementById('uploadProject').value = '';
+      if (typeof closeCreateModal === 'function') closeCreateModal();
       await fetchAllData();
       await loadStatus();
       if (hasOnlyImages) {
@@ -372,6 +379,7 @@ async function handleNoteSubmit(e) {
       document.getElementById('noteTitle').value = '';
       document.getElementById('noteContent').value = '';
       document.getElementById('noteTags').value = '';
+      if (typeof closeCreateModal === 'function') closeCreateModal();
       await fetchAllData();
       await loadStatus();
       setFilter('prompts');
@@ -416,6 +424,7 @@ async function handleLinkSubmit(e) {
       document.getElementById('linkUrl').value = '';
       document.getElementById('linkTitle').value = '';
       document.getElementById('linkDesc').value = '';
+      if (typeof closeCreateModal === 'function') closeCreateModal();
       await fetchAllData();
       await loadStatus();
       setFilter('links');

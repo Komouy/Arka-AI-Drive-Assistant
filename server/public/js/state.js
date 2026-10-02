@@ -13,7 +13,7 @@ let allData = {
   trash: []
 };
 
-let currentFilter = 'all';
+let currentFilter = 'overview';
 let currentFolderFilter = null; // null = semua folder, string = filter folder tertentu
 let searchQuery = '';
 let deleteConfirmState = {};
