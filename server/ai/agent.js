@@ -464,6 +464,59 @@ async function executeTool(name, args, userId = null) {
   }
 }
 
+// ── Programmatic Fallback: Deteksi aksi perapian jika model berhalusinasi ────
+async function autoDetectCleanupActions(userId) {
+  try {
+    const useSupabase = isSupabaseConfigured();
+    let folders = [];
+    if (useSupabase) {
+      const supabase = getSupabaseClient();
+      let query = supabase.from('folders').select('id, name, parent_id');
+      let filesQuery = supabase.from('files').select('folder_id').eq('is_trash', false);
+      query = scopeToUser(query, userId);
+      filesQuery = scopeToUser(filesQuery, userId);
+      const [{ data: rows = [] }, { data: files = [] }] = await Promise.all([
+        query.order('name'),
+        filesQuery
+      ]);
+      const countMap = {};
+      for (const f of (files || [])) {
+        if (f.folder_id) countMap[f.folder_id] = (countMap[f.folder_id] || 0) + 1;
+      }
+      folders = (rows || []).map(r => ({
+        id: r.id,
+        name: r.name,
+        file_count: countMap[r.id] || 0
+      }));
+    } else {
+      folders = db.prepare(`
+        SELECT f.id, f.name, f.parent_id,
+               (SELECT COUNT(*) FROM files WHERE folder_id = f.id AND is_trash = 0) as file_count
+        FROM folders f
+      `).all();
+    }
+
+    const emptyFolders = folders.filter(f => f.file_count === 0);
+    if (!emptyFolders.length) return null;
+
+    return {
+      message: `Saya menemukan ${emptyFolders.length} folder kosong di workspace Anda. Silakan setujui tindakan penghapusan berikut:`,
+      actions: emptyFolders.slice(0, 15).map(f => ({
+        type: 'delete_folder',
+        label: `Hapus Folder "${f.name}"`,
+        details: {
+          folder_id: f.id,
+          current_name: f.name,
+          reason: 'Folder kosong tanpa file'
+        }
+      }))
+    };
+  } catch (err) {
+    console.warn('[ARKA AI] autoDetectCleanupActions error:', err.message);
+    return null;
+  }
+}
+
 // ── Format tool result for LLM context ───────────────────────────────────────
 function formatToolResult(name, result) {
   if (name === 'search_files') {
@@ -628,7 +681,8 @@ Aturan:
   2. Gunakan ID yang tertera di [ID:xxx] secara persis untuk parameter file_id atau folder_id.
   3. Untuk current_name dan label, gunakan HANYA nama bersih file/folder tanpa menambahkan kata perintah "Hapus" atau tanda petik (contoh: "Cloud Projects", bukan "Hapus Cloud Projects").
   4. JANGAN MEMINTA KONFIRMASI DENGAN TEKS seperti "Apakah kamu setuju? Balas ya semua". LANGSUNG PANGGIL tool 'request_user_permission'! Tombol [Izinkan] dan [Tolak] pada kartu aksi ITULAH tempat pengguna memberikan persetujuannya secara interaktif!
-  5. Setelah memanggil tool 'request_user_permission', beri penjelasan singkat dan persilakan pengguna menekan tombol Izinkan pada kartu tersebut.
+  5. Jika pengguna meminta "ajukan izin", "ya semua", "oke", atau "bersihkan", KAMU WAJIB MEMANGGIL tool 'request_user_permission' pada giliran ini. JANGAN HANYA MENULIS TEKS yang mengklaim izin sudah diajukan tanpa memanggil tool!
+  6. Setelah memanggil tool 'request_user_permission', beri penjelasan singkat dan persilakan pengguna menekan tombol Izinkan pada kartu tersebut.
   JANGAN menolak dengan mengatakan kamu tidak bisa atau read-only jika aksi tersebut dapat diajukan via 'request_user_permission'!
 - Untuk permintaan perapian/triage, pakai list_inbox dulu lalu sarankan langkah di dashboard web.`;
 
@@ -642,10 +696,20 @@ Aturan:
   let toolResult = null;
   let pendingPermission = null;
   let steps = 0;
-  const MAX_STEPS = 3;
+  const MAX_STEPS = 4;
+  let nextToolChoice = 'auto';
+
+  // Jika pengguna secara eksplisit meminta mengajukan izin atau menampilkan kartu, paksa pemanggilan tool
+  const isExplicitActionTrigger = /^(ajukan\s+izin|ajukan|minta\s+izin|tampilkan\s+kartu|munculkan\s+kartu)\b/i.test(userQuery.trim());
+  if (isExplicitActionTrigger) {
+    nextToolChoice = 'required';
+  }
 
   while (steps < MAX_STEPS) {
     steps++;
+
+    const currentToolChoice = nextToolChoice;
+    nextToolChoice = 'auto';
 
     const groq = getGroq();
     let response;
@@ -654,7 +718,7 @@ Aturan:
         model:       MODELS.groq.fast,
         messages,
         tools:       TOOLS,
-        tool_choice: 'auto',
+        tool_choice: currentToolChoice,
         max_tokens:  AGENT_MAX_TOKENS,
         temperature: 0.2
       });
@@ -770,6 +834,26 @@ Aturan:
     }
 
     if (msg.content) {
+      // Deteksi jika model berhalusinasi mengklaim kartu izin sudah diajukan atau berjanji akan mengajukan izin, padahal belum memanggil tool request_user_permission
+      const claimsActionCard = /(kartu\s+aksi|kartu\s+persetujuan|kartu\s+di\s+atas|tombol\s+.*\[?izinkan\]?|izin.*diajukan|tekan\s+.*izinkan|(aku|saya)\s+akan\s+(ajukan|mengajukan)\s+izin)/i.test(msg.content);
+      if (claimsActionCard && !pendingPermission && steps < MAX_STEPS) {
+        messages.push({ role: 'assistant', content: msg.content });
+        messages.push({
+          role: 'user',
+          content: 'Peringatan Sistem: Kamu belum memanggil tool "request_user_permission", sehingga kartu aksi dan tombol konfirmasi BELUM muncul di layar pengguna! SEKARANG juga panggil tool request_user_permission dengan daftar aksi (actions) yang kamu sebutkan agar kartunya benar-benar tampil!'
+        });
+        nextToolChoice = { type: 'function', function: { name: 'request_user_permission' } };
+        continue;
+      }
+
+      // Lapisan Pengaman Programatik: jika model tetap tidak memanggil request_user_permission padahal ada klaim aksi atau permintaan izin
+      if (!pendingPermission && (claimsActionCard || isExplicitActionTrigger || /^(ya|ya\s+semua|hapus\s+semua|bersihkan)\b/i.test(userQuery.trim()))) {
+        const fallback = await autoDetectCleanupActions(userId);
+        if (fallback) {
+          pendingPermission = fallback;
+        }
+      }
+
       return {
         answer:            msg.content,
         toolCalled,
@@ -782,6 +866,14 @@ Aturan:
     }
 
     break;
+  }
+
+  // Lapisan Pengaman Programatik Terakhir sebelum return
+  if (!pendingPermission && (isExplicitActionTrigger || /^(ya|ya\s+semua|hapus\s+semua|bersihkan)\b/i.test(userQuery.trim()))) {
+    const fallback = await autoDetectCleanupActions(userId);
+    if (fallback) {
+      pendingPermission = fallback;
+    }
   }
 
   const forced = await askForFinalText(messages);
