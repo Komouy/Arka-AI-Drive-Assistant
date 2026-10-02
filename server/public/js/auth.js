@@ -98,54 +98,135 @@ async function handleGoogleLogin() {
   }
 }
 
+// ── Tab switching on login screen (Login ↔ Register) ─────────────────────────
+function switchAuthTab(tab) {
+  const loginTab  = document.getElementById('authTabLogin');
+  const signupTab = document.getElementById('authTabSignup');
+  const loginForm  = document.getElementById('loginFormSection');
+  const signupForm = document.getElementById('signupFormSection');
+  const errorEl    = document.getElementById('loginError');
+  if (errorEl) errorEl.classList.add('hidden');
+
+  if (tab === 'login') {
+    loginTab?.classList.add('border-zinc-900', 'dark:border-zinc-100', 'text-zinc-900', 'dark:text-zinc-100');
+    loginTab?.classList.remove('border-transparent', 'text-zinc-400');
+    signupTab?.classList.remove('border-zinc-900', 'dark:border-zinc-100', 'text-zinc-900', 'dark:text-zinc-100');
+    signupTab?.classList.add('border-transparent', 'text-zinc-400');
+    loginForm?.classList.remove('hidden');
+    signupForm?.classList.add('hidden');
+  } else {
+    signupTab?.classList.add('border-zinc-900', 'dark:border-zinc-100', 'text-zinc-900', 'dark:text-zinc-100');
+    signupTab?.classList.remove('border-transparent', 'text-zinc-400');
+    loginTab?.classList.remove('border-zinc-900', 'dark:border-zinc-100', 'text-zinc-900', 'dark:text-zinc-100');
+    loginTab?.classList.add('border-transparent', 'text-zinc-400');
+    signupForm?.classList.remove('hidden');
+    loginForm?.classList.add('hidden');
+  }
+}
+
 async function handleLogin(e) {
   e.preventDefault();
-  const username = document.getElementById('loginUsername').value.trim();
+  const email    = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   const errorEl  = document.getElementById('loginError');
   const btn      = document.getElementById('loginBtn');
 
   if (errorEl) errorEl.classList.add('hidden');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Masuk...';
-  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Masuk...'; }
 
   try {
     const res  = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ email, password })
     });
     const json = await res.json();
 
     if (res.ok && json.success && json.token) {
       saveToken(json.token);
-      updateUserUI({ username: 'Dhaifan (Owner)' });
+      updateUserUI(json.user || { email });
       showDashboard();
     } else {
       if (errorEl) {
-        errorEl.textContent = json.error || 'Login gagal. Periksa username dan sandi.';
+        errorEl.textContent = json.error || 'Login gagal. Periksa email dan kata sandi.';
         errorEl.classList.remove('hidden');
       }
-      const passInput = document.getElementById('loginPassword');
-      if (passInput) {
-        passInput.value = '';
-        passInput.focus();
-      }
+      document.getElementById('loginPassword')?.select();
     }
-  } catch (err) {
+  } catch {
     if (errorEl) {
       errorEl.textContent = 'Kesalahan jaringan — server mungkin tidak tersedia.';
       errorEl.classList.remove('hidden');
     }
   } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Masuk dengan Kata Sandi';
-    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Masuk'; }
   }
 }
+
+async function handleSignup(e) {
+  e.preventDefault();
+  const name     = document.getElementById('signupName').value.trim();
+  const email    = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+  const confirmP = document.getElementById('signupConfirm').value;
+  const errorEl  = document.getElementById('loginError');
+  const btn      = document.getElementById('signupBtn');
+
+  if (errorEl) errorEl.classList.add('hidden');
+
+  if (password !== confirmP) {
+    if (errorEl) { errorEl.textContent = 'Kata sandi tidak cocok.'; errorEl.classList.remove('hidden'); }
+    return;
+  }
+  if (password.length < 6) {
+    if (errorEl) { errorEl.textContent = 'Kata sandi minimal 6 karakter.'; errorEl.classList.remove('hidden'); }
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Mendaftar...'; }
+
+  try {
+    const res  = await fetch(`${API_BASE}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name })
+    });
+    const json = await res.json();
+
+    if (res.ok && json.success) {
+      if (json.needsEmailConfirmation) {
+        // Show success message, ask user to check email
+        if (errorEl) {
+          errorEl.className = 'text-xs text-emerald-600 dark:text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg';
+          errorEl.textContent = '✅ ' + json.message;
+          errorEl.classList.remove('hidden');
+        }
+        switchAuthTab('login');
+        const emailInput = document.getElementById('loginEmail');
+        if (emailInput) emailInput.value = email;
+      } else if (json.token) {
+        // Auto-confirmed — log in directly
+        saveToken(json.token);
+        updateUserUI(json.user || { email });
+        showDashboard();
+      }
+    } else {
+      if (errorEl) {
+        errorEl.className = 'text-xs text-red-500 dark:text-red-400 font-mono bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg';
+        errorEl.textContent = json.error || 'Pendaftaran gagal.';
+        errorEl.classList.remove('hidden');
+      }
+    }
+  } catch {
+    if (errorEl) {
+      errorEl.textContent = 'Kesalahan jaringan — server mungkin tidak tersedia.';
+      errorEl.classList.remove('hidden');
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Daftar'; }
+  }
+}
+
 
 async function handleLogout() {
   try {

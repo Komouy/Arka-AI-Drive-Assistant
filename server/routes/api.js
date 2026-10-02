@@ -15,6 +15,7 @@ const router = express.Router();
 
 // ── Public: Auth (no token required) ──────────────────────────────────────────
 router.get('/auth/config', authController.getConfig);
+router.post('/auth/signup', authController.signup);
 router.post('/auth/login', authController.login);
 router.get('/auth/verify', requireAuth, authController.verify);
 
