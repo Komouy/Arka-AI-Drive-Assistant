@@ -143,6 +143,7 @@ const TOOLS = [
                 },
                 details: {
                   type: 'object',
+                  properties: {
                     file_id: { type: 'string', description: 'ID file target (dari [ID:xxx])' },
                     folder_id: { type: 'string', description: 'ID folder target (harus berupa ID dari [ID:xxx] hasil list_folders)' },
                     current_name: { type: 'string', description: 'Nama asli/murni file atau folder saat ini tanpa awalan kata perintah (contoh: "Cloud Projects")' },
@@ -500,7 +501,7 @@ function formatToolResult(name, result) {
 }
 
 // ── Main Agent Run ──────────────────────────────────────────────────────────
-const AGENT_MAX_TOKENS = Number(getEnv('ARKA_AGENT_MAX_TOKENS')) || 2400;
+const AGENT_MAX_TOKENS = Number(getEnv('ARKA_AGENT_MAX_TOKENS')) || 800;
 
 function looksCut(text = '') {
   const t = String(text).trim();
