@@ -136,6 +136,12 @@ function updateCounts() {
   if (badgePrompts) badgePrompts.textContent = allData.prompts.length;
   if (badgeLinks) badgeLinks.textContent = allData.links.length;
   if (badgeTrash) badgeTrash.textContent = allData.trash.length;
+
+  const favCount = ((allData.files || []).filter(f => f.is_favorite && !f.is_trash).length)
+    + ((allData.prompts || []).filter(p => p.is_favorite).length)
+    + ((allData.links || []).filter(l => l.is_favorite).length);
+  const badgeFavorites = document.getElementById('badgeFavorites');
+  if (badgeFavorites) badgeFavorites.textContent = favCount;
 }
 
 // ── Folder Quick-Filter Chips (UX Kenyamanan Ekstra) ─────────────────────────
@@ -186,7 +192,7 @@ function setFilter(type) {
   currentFilter = type;
   saveCurrentFilter(type);
 
-  const navTabs = ['overview', 'files', 'images', 'prompts', 'links', 'ai', 'trash'];
+  const navTabs = ['overview', 'files', 'images', 'favorites', 'prompts', 'links', 'ai', 'trash'];
   navTabs.forEach(t => {
     const btn = document.getElementById(`nav${t.charAt(0).toUpperCase() + t.slice(1)}`);
     if (btn) {
@@ -206,6 +212,7 @@ function setFilter(type) {
     overview: { title: 'Beranda', subtitle: 'Ringkasan aktivitas dan berkas terkini' },
     files: { title: 'Berkas & Dokumen', subtitle: 'Kelola seluruh berkas dan dokumen di Drive Anda' },
     images: { title: 'Galeri Gambar', subtitle: 'Koleksi foto dan gambar dengan pratinjau langsung' },
+    favorites: { title: 'Favorit & Disematkan', subtitle: 'Berkas, catatan, dan tautan yang Anda beri tanda bintang' },
     prompts: { title: 'Catatan & Prompt', subtitle: 'Koleksi prompt AI, instruksi, dan catatan kerja' },
     links: { title: 'Tautan Tersimpan', subtitle: 'Daftar bookmark tautan web dan referensi' },
     ai: { title: 'Arka AI Assistant', subtitle: 'Tanya asisten cerdas berbasis Groq & Gemini' },
@@ -431,7 +438,12 @@ function render() {
       });
     }
 
-    imageFiles.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    imageFiles.sort((a, b) => {
+      if (Boolean(b.is_favorite) !== Boolean(a.is_favorite)) {
+        return b.is_favorite ? 1 : -1;
+      }
+      return new Date(b.created_at || 0) - new Date(a.date || a.created_at || 0);
+    });
 
     if (imageFiles.length === 0) {
       container.innerHTML = `
@@ -482,6 +494,7 @@ function render() {
               <div class="relative h-40 sm:h-48 w-full bg-zinc-100 dark:bg-zinc-950 overflow-hidden cursor-pointer flex items-center justify-center" onclick="openPreview('FILE', '${safeId}')" title="Buka pratinjau: ${safeTitle}">
                 <img src="${viewUrl}" alt="${safeTitle}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.onerror=null; this.src='/placeholder-image.svg';">
                 <span class="absolute top-2 left-2 inline-flex items-center justify-center h-5 px-2 text-[10px] font-mono font-bold uppercase bg-white/90 dark:bg-black/70 text-zinc-800 dark:text-zinc-200 rounded-md backdrop-blur-md shadow-sm border border-transparent">${escapeHtml(ext.toUpperCase() || 'IMG')}</span>
+                ${f.is_favorite ? '<span class="absolute top-2 right-2 inline-flex items-center justify-center w-6 h-6 rounded-md bg-amber-500/90 text-white backdrop-blur-md shadow-sm" title="Disematkan di Favorit"><i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i></span>' : ''}
                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-3">
                   <span class="text-xs text-white font-medium flex items-center gap-1.5 drop-shadow-md"><i data-lucide="maximize-2" class="w-4 h-4"></i> <span class="hidden sm:inline">Lihat Penuh</span></span>
                 </div>
@@ -504,6 +517,9 @@ function render() {
                 <div class="flex items-center justify-between gap-2 pt-3 mt-auto border-t border-zinc-100 dark:border-zinc-800">
                   <span class="inline-flex items-center h-5 text-[10px] font-mono text-zinc-400 dark:text-zinc-500">${formatDate(f.created_at)}</span>
                   <div class="flex items-center gap-1">
+                    <button type="button" onclick="toggleFavorite('FILE', '${safeId}', event)" class="p-1.5 rounded-md ${f.is_favorite ? 'text-amber-500 bg-amber-500/10' : 'text-zinc-500 hover:text-amber-500 dark:text-zinc-400 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'} transition-colors flex items-center justify-center" title="${f.is_favorite ? 'Lepas Pin / Hapus dari Favorit' : 'Sematkan ke Favorit ⭐'}">
+                      <i data-lucide="star" class="w-4 h-4 ${f.is_favorite ? 'text-amber-400 fill-amber-400' : ''}"></i>
+                    </button>
                     <button type="button" onclick="downloadFile('${safeId}', '${escapeHtml(f.original_name || 'unduhan')}')" class="p-1.5 rounded-md text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center" title="Unduh gambar">
                       <i data-lucide="download" class="w-4 h-4"></i>
                     </button>
@@ -531,6 +547,55 @@ function render() {
   // ── 2. Tab Umum: List View Bersih
   let combined = [];
 
+  if (currentFilter === 'favorites') {
+    (allData.files || []).filter(f => f.is_favorite && !f.is_trash).forEach(f => {
+      const category = f.folder_name || (f.is_inbox ? 'inbox' : 'root');
+      combined.push({
+        type: 'FILE',
+        id: f.id,
+        title: f.original_name || 'Tanpa Judul',
+        category: category,
+        desc: f.description || '',
+        metaRight: formatBytes(f.size),
+        date: f.created_at,
+        subInfo: f.tags ? `tags: ${f.tags}` : '',
+        is_favorite: true,
+        raw: f
+      });
+    });
+
+    (allData.prompts || []).filter(p => p.is_favorite).forEach(p => {
+      combined.push({
+        type: 'PROMPT',
+        id: p.id,
+        title: p.title || 'Tanpa Judul',
+        category: p.category || 'General',
+        desc: p.content || '',
+        metaRight: p.tags ? (Array.isArray(p.tags) ? `tags: ${p.tags.join(', ')}` : `tags: ${p.tags}`) : '',
+        date: p.created_at,
+        subInfo: '',
+        is_favorite: true,
+        raw: p
+      });
+    });
+
+    (allData.links || []).filter(l => l.is_favorite).forEach(l => {
+      combined.push({
+        type: 'LINK',
+        id: l.id,
+        title: l.title || l.domain || l.url || 'Tanpa Judul',
+        category: l.category || 'General',
+        desc: l.description || l.url || '',
+        metaRight: l.domain || '',
+        date: l.created_at,
+        url: l.url,
+        subInfo: l.tags ? (Array.isArray(l.tags) ? `tags: ${l.tags.join(', ')}` : `tags: ${l.tags}`) : '',
+        is_favorite: true,
+        raw: l
+      });
+    });
+  }
+
   if (currentFilter === 'all' || currentFilter === 'files') {
     allData.files.forEach(f => {
       const category = f.folder_name || (f.is_inbox ? 'inbox' : 'root');
@@ -544,6 +609,7 @@ function render() {
           metaRight: formatBytes(f.size),
           date: f.created_at,
           subInfo: f.tags ? `tags: ${f.tags}` : '',
+          is_favorite: Boolean(f.is_favorite),
           raw: f
         });
       }
@@ -561,6 +627,7 @@ function render() {
         metaRight: p.tags ? (Array.isArray(p.tags) ? `tags: ${p.tags.join(', ')}` : `tags: ${p.tags}`) : '',
         date: p.created_at,
         subInfo: '',
+        is_favorite: Boolean(p.is_favorite),
         raw: p
       }));
     }
@@ -578,6 +645,7 @@ function render() {
         date: l.created_at,
         url: l.url,
         subInfo: l.tags ? (Array.isArray(l.tags) ? `tags: ${l.tags.join(', ')}` : `tags: ${l.tags}`) : '',
+        is_favorite: Boolean(l.is_favorite),
         raw: l
       }));
     }
@@ -593,6 +661,7 @@ function render() {
       metaRight: formatBytes(f.size),
       date: f.updated_at || f.created_at,
       subInfo: 'File di tempat sampah',
+      is_favorite: false,
       raw: f
     }));
   }
@@ -608,9 +677,29 @@ function render() {
     });
   }
 
-  combined.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  // Pinned & Favorited items float to the very top, followed by newest date
+  combined.sort((a, b) => {
+    if (Boolean(b.is_favorite) !== Boolean(a.is_favorite)) {
+      return b.is_favorite ? 1 : -1;
+    }
+    return new Date(b.date || 0) - new Date(a.date || 0);
+  });
 
   if (combined.length === 0) {
+    if (currentFilter === 'favorites') {
+      container.innerHTML = `
+        <div class="py-16 text-center text-zinc-500 font-sans flex flex-col items-center justify-center gap-2">
+          <div class="w-12 h-12 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center mb-1 border border-amber-500/20">
+            <i data-lucide="star" class="w-6 h-6 fill-amber-400/20"></i>
+          </div>
+          <div class="font-medium text-zinc-800 dark:text-zinc-300 text-sm">Belum ada item favorit atau disematkan</div>
+          <div class="text-xs text-zinc-500 max-w-sm">Klik ikon bintang ⭐ pada berkas, catatan, atau tautan untuk menyematkannya di bagian atas dan menyimpannya di sini.</div>
+        </div>
+      `;
+      refreshIcons();
+      return;
+    }
+
     container.innerHTML = `
       <div class="py-16 text-center text-zinc-500 font-sans flex flex-col items-center justify-center gap-1">
         <i data-lucide="inbox" class="w-8 h-8 text-zinc-400 dark:text-zinc-600 mb-1"></i>
@@ -697,13 +786,23 @@ function render() {
       : `<span class="text-zinc-900 dark:text-zinc-200">${safeTitle}</span>`;
     const deleteLabel = item.type === 'TRASH' ? 'hapus permanen' : 'hapus';
 
+    const starBtn = item.type !== 'TRASH' ? `
+      <button type="button" onclick="toggleFavorite('${item.type}', '${safeId}', event)"
+              class="p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors flex-shrink-0 flex items-center justify-center"
+              title="${item.is_favorite ? 'Lepas Pin / Hapus dari Favorit' : 'Sematkan ke Favorit ⭐'}">
+        <i data-lucide="star" class="w-3.5 h-3.5 sm:w-4 sm:h-4 ${item.is_favorite ? 'text-amber-400 fill-amber-400' : 'text-zinc-300 dark:text-zinc-600 hover:text-amber-400'}"></i>
+      </button>
+    ` : '';
+
     return `
-      <div class="px-3 sm:px-4 py-3 sm:py-3.5 border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors flex flex-col gap-1.5" id="row-${item.type}-${safeId}">
+      <div class="px-3 sm:px-4 py-3 sm:py-3.5 border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors flex flex-col gap-1.5 ${item.is_favorite ? 'bg-amber-500/[0.03] dark:bg-amber-500/[0.03]' : ''}" id="row-${item.type}-${safeId}">
         <div class="flex items-start sm:items-center justify-between gap-2 sm:gap-3 flex-col sm:flex-row">
           <div class="flex items-center gap-2 flex-wrap min-w-0 flex-1 w-full sm:w-auto">
+            ${starBtn}
             ${miniThumbHtml}
             <span class="text-[10px] sm:text-[11px] font-mono text-zinc-400 dark:text-zinc-500 flex-shrink-0">#${safeId.length > 8 ? safeId.slice(0, 8) + '...' : safeId}</span>
             <span class="text-xs sm:text-sm font-medium text-zinc-900 dark:text-zinc-200 truncate max-w-[200px] sm:max-w-md">${titleHtml}</span>
+            ${item.is_favorite ? '<span class="inline-flex items-center gap-0.5 text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 flex-shrink-0"><i data-lucide="pin" class="w-2.5 h-2.5"></i> PIN</span>' : ''}
             <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60 flex-shrink-0">${item.type === 'TRASH' ? 'SAMPAH' : item.type}</span>
             <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700/40 flex-shrink-0 max-w-[80px] sm:max-w-none truncate">${escapeHtml(item.category)}</span>
             ${aiBadge}
@@ -731,6 +830,62 @@ function render() {
   }).join('');
 
   refreshIcons();
+}
+
+// ── Quick Star / Pin Favorite Action ───────────────────────────────────────
+async function toggleFavorite(type, id, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  let item = null;
+  let endpoint = '';
+  if (type === 'FILE') {
+    item = (allData.files || []).find(f => String(f.id) === String(id)) || (allData.trash || []).find(f => String(f.id) === String(id));
+    endpoint = `/api/files/${id}`;
+  } else if (type === 'PROMPT') {
+    item = (allData.prompts || []).find(p => String(p.id) === String(id));
+    endpoint = `/api/prompts/${id}`;
+  } else if (type === 'LINK') {
+    item = (allData.links || []).find(l => String(l.id) === String(id));
+    endpoint = `/api/links/${id}`;
+  }
+
+  if (!item) return;
+
+  const prevFav = Boolean(item.is_favorite);
+  const nextFav = !prevFav;
+
+  // Optimistic UI update
+  item.is_favorite = nextFav;
+  updateCounts();
+  if (currentFilter === 'overview') {
+    renderOverview();
+  } else {
+    render();
+  }
+
+  showToast('info', nextFav ? '⭐ Disematkan ke Favorit' : 'Dilepas dari Favorit');
+
+  try {
+    const res = await authFetch(endpoint, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_favorite: nextFav })
+    });
+    const json = await res.json();
+    if (!res.ok || json.success === false) {
+      throw new Error(json.error || 'Gagal menyimpan status favorit');
+    }
+  } catch (err) {
+    // Rollback state if network failed
+    item.is_favorite = prevFav;
+    updateCounts();
+    if (currentFilter === 'overview') renderOverview();
+    else render();
+    showToast('error', 'Gagal memperbarui status favorit: ' + err.message);
+  }
 }
 
 // ── CRUD Actions ────────────────────────────────────────────────────────────

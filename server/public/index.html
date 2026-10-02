@@ -256,6 +256,16 @@
           <span id="badgeImages" class="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-mono text-zinc-500">0</span>
         </button>
 
+        <!-- 4. Favorit & Disematkan -->
+        <button type="button" onclick="setFilter('favorites')" id="navFavorites"
+                class="nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="star" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
+            <span>Favorit & Pin</span>
+          </div>
+          <span id="badgeFavorites" class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-mono border border-amber-500/20">0</span>
+        </button>
+
         <!-- 4. Catatan & Prompts -->
         <button type="button" onclick="setFilter('prompts')" id="navPrompts"
                 class="nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">

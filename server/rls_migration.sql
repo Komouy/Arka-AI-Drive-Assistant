@@ -16,6 +16,11 @@ ALTER TABLE folders ADD COLUMN IF NOT EXISTS user_id TEXT;
 ALTER TABLE prompts ADD COLUMN IF NOT EXISTS user_id TEXT;
 ALTER TABLE links   ADD COLUMN IF NOT EXISTS user_id TEXT;
 
+-- Pastikan kolom is_favorite tersedia untuk fitur Quick Pin / Star
+ALTER TABLE files   ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT FALSE;
+ALTER TABLE prompts ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT FALSE;
+ALTER TABLE links   ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT FALSE;
+
 -- 2. Buat index user_id agar query per-user sangat cepat
 CREATE INDEX IF NOT EXISTS idx_files_user_id   ON files(user_id);
 CREATE INDEX IF NOT EXISTS idx_folders_user_id ON folders(user_id);

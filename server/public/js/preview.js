@@ -250,6 +250,7 @@ function openPreview(type, id, buildList = true) {
 
     viewerContainer.innerHTML = `<pre class="font-mono text-xs p-4 bg-zinc-50 dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap max-h-96 overflow-y-auto leading-relaxed">${escapeHtml(item.content)}</pre>`;
     footerActions.innerHTML = `
+      <button class="px-3 py-1.5 rounded text-xs font-mono transition-colors inline-flex items-center gap-1.5 ${item.is_favorite ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30' : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700'}" onclick="toggleFavorite('PROMPT', '${escapeHtml(String(item.id))}', event); openPreview('PROMPT', '${escapeHtml(String(item.id))}', false);"><i data-lucide="star" class="w-3.5 h-3.5 ${item.is_favorite ? 'fill-amber-400 text-amber-400' : ''}"></i> <span>${item.is_favorite ? 'Favorit ⭐' : 'Tandai Favorit'}</span></button>
       <button class="px-3 py-1.5 rounded text-xs font-mono bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 transition-colors inline-flex items-center gap-1.5" onclick="handleCopyPrompt('${escapeHtml(String(item.id))}', this)"><i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Salin Prompt</span></button>
     `;
   } else if (type === 'LINK') {
@@ -268,6 +269,7 @@ function openPreview(type, id, buildList = true) {
       <div class="text-[11px] font-mono text-zinc-500 text-center mt-1">Jika situs dibatasi di dalam iframe, gunakan tombol Buka Tautan di bawah.</div>
     `;
     footerActions.innerHTML = `
+      <button class="px-3 py-1.5 rounded text-xs font-mono transition-colors inline-flex items-center gap-1.5 ${item.is_favorite ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30' : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700'}" onclick="toggleFavorite('LINK', '${escapeHtml(String(item.id))}', event); openPreview('LINK', '${escapeHtml(String(item.id))}', false);"><i data-lucide="star" class="w-3.5 h-3.5 ${item.is_favorite ? 'fill-amber-400 text-amber-400' : ''}"></i> <span>${item.is_favorite ? 'Favorit ⭐' : 'Tandai Favorit'}</span></button>
       <button class="px-3 py-1.5 rounded text-xs font-mono bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 transition-colors inline-flex items-center gap-1.5" onclick="handleCopyLink('${escapeHtml(String(item.id))}', this)"><i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Salin URL</span></button>
       <a href="${safeUrl}" class="px-3 py-1.5 rounded text-xs font-mono bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 font-medium transition-colors inline-flex items-center gap-1.5" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link" class="w-3.5 h-3.5"></i> <span>Buka Asli</span></a>
     `;
@@ -338,7 +340,15 @@ function openPreview(type, id, buildList = true) {
       `;
     }
 
+    const starBtnModal = type !== 'TRASH' ? `
+      <button type="button" onclick="toggleFavorite('FILE', '${escapeHtml(String(item.id))}', event); openPreview('FILE', '${escapeHtml(String(item.id))}', false);" class="px-3 py-1.5 rounded text-xs font-mono transition-colors inline-flex items-center gap-1.5 ${item.is_favorite ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30' : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700'}" title="${item.is_favorite ? 'Lepas Pin / Hapus dari Favorit' : 'Sematkan ke Favorit ⭐'}">
+        <i data-lucide="star" class="w-3.5 h-3.5 ${item.is_favorite ? 'fill-amber-400 text-amber-400' : ''}"></i>
+        <span>${item.is_favorite ? 'Favorit ⭐' : 'Tandai Favorit'}</span>
+      </button>
+    ` : '';
+
     footerActions.innerHTML = `
+      ${starBtnModal}
       <button type="button" onclick="downloadFile('${escapeHtml(String(item.id))}', '${escapeHtml(item.original_name || 'unduhan')}')" class="px-3.5 py-1.5 rounded text-xs font-mono bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 font-medium transition-colors inline-flex items-center gap-1.5"><i data-lucide="download" class="w-3.5 h-3.5"></i> <span>Unduh File</span></button>
     `;
   }

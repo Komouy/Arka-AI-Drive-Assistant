@@ -77,6 +77,7 @@ Isi: Judul, Kategori, Konten (teks bebas), Tag (Opsional), lalu klik "Simpan Cat
 Cocok untuk menyimpan: prompt ChatGPT/Gemini, catatan riset, snippet teks penting.
 Filter "Prompt" di toolbar untuk menampilkan hanya prompt.
 Tombol "salin prompt" menyalin isinya ke clipboard; "pratinjau" membuka detail lengkap.
+Tombol bintang ⭐ untuk menyematkan prompt ke Favorit (PIN di paling atas).
 Prompt ikut dicari lewat kotak pencarian utama.`
   },
 
@@ -86,6 +87,7 @@ Prompt ikut dicari lewat kotak pencarian utama.`
 Isi: URL (wajib), Judul (Opsional — terisi otomatis dari halaman), Kategori, Deskripsi (Opsional), lalu klik "Simpan Tautan".
 Analisis AI untuk tautan: klik "Analisis AI" pada baris tautan → AI mengisi judul, deskripsi, kategori, dan tag dari isi halaman web.
 Filter "Tautan" di toolbar untuk menampilkan hanya tautan.
+Tombol bintang ⭐ untuk menyematkan tautan ke Favorit (PIN di paling atas).
 Domain halaman terdeteksi otomatis; "buka tautan" membuka halaman aslinya di tab baru.`
   },
 
