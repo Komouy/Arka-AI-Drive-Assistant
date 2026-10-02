@@ -134,7 +134,7 @@ const TOOLS = [
               properties: {
                 type: {
                   type: 'string',
-                  enum: ['rename_file', 'move_file', 'delete_file', 'open_preview', 'navigate'],
+                  enum: ['rename_file', 'move_file', 'delete_file', 'delete_folder', 'open_preview', 'navigate'],
                   description: 'Tipe aksi'
                 },
                 label: {
@@ -145,7 +145,8 @@ const TOOLS = [
                   type: 'object',
                   properties: {
                     file_id: { type: 'string', description: 'ID file target' },
-                    current_name: { type: 'string', description: 'Nama file saat ini' },
+                    folder_id: { type: 'string', description: 'ID folder target (untuk aksi folder)' },
+                    current_name: { type: 'string', description: 'Nama file atau folder saat ini' },
                     new_name: { type: 'string', description: 'Nama baru file yang diusulkan (untuk rename_file)' },
                     target_folder_id: { type: 'string', description: 'ID atau nama folder tujuan (untuk move_file)' },
                     target_folder_name: { type: 'string', description: 'Nama folder tujuan yang akan ditampilkan' },
@@ -599,7 +600,7 @@ Aturan:
 - Percakapan sebelumnya disertakan. Jika pesan adalah lanjutan ("yang lebih detail", "yg kedua"), lanjutkan topik itu.
 - JANGAN pernah mengarang fitur, URL, atau opsi yang tidak ada. Sebutkan hanya yang ada di panduan atau hasil tool.
 - KONTROL WORKSPACE & PERIZINAN AKSI (Human-in-the-Loop):
-  Jika pengguna meminta kamu melakukan perubahan atau kontrol workspace (seperti mengganti nama file, memindahkan file ke folder, menghapus file/pindah ke tong sampah, membuka pratinjau file, atau berpindah navigasi):
+  Jika pengguna meminta kamu melakukan perubahan atau kontrol workspace (seperti mengganti nama file, memindahkan file ke folder, menghapus file atau folder, membuka pratinjau file, atau berpindah navigasi):
   1. Cari dulu data file atau folder terkait menggunakan tool (search_files, list_folders).
   2. Panggil tool 'request_user_permission' untuk mengajukan proposal aksi kepada pengguna dengan rincian file_id, nama lama, nama baru, folder tujuan, dsb.
   3. Jelaskan proposalmu secara singkat dan sopan dalam teks jawaban, lalu ajak pengguna menekan tombol konfirmasi ("Izinkan") pada kartu chat yang muncul.

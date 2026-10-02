@@ -246,6 +246,14 @@ function renderPermissionCard(msgEl, actions, message) {
           Hapus "${escapeHtmlAi(act.details?.current_name || act.label)}" ke Tong Sampah
         </div>
       `;
+    } else if (act.type === 'delete_folder') {
+      typeIcon = 'folder-minus';
+      typeTitle = 'Hapus Folder';
+      detailsHtml = `
+        <div class="text-xs text-rose-600 dark:text-rose-400 font-medium">
+          Hapus Folder "${escapeHtmlAi(act.details?.current_name || act.label)}" beserta isinya
+        </div>
+      `;
     } else if (act.type === 'open_preview') {
       typeIcon = 'eye';
       typeTitle = 'Buka Pratinjau';
@@ -393,6 +401,25 @@ async function executeAiAction(action, containerEl) {
         `;
       }
       showToast('success', 'Berkas dipindahkan ke Tong Sampah.');
+      await fetchAllData();
+      refreshIcons();
+
+    } else if (type === 'delete_folder') {
+      const folderId = details.folder_id || details.file_id;
+      if (!folderId) throw new Error('ID folder tidak ditemukan');
+
+      const res = await authFetch(`${API_BASE}/folders/${folderId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Gagal menghapus folder');
+
+      if (containerEl) {
+        containerEl.innerHTML = `
+          <span class="inline-flex items-center gap-1 text-xs text-rose-500 font-medium">
+            <i data-lucide="folder-minus" class="w-3.5 h-3.5"></i> Folder Dihapus
+          </span>
+        `;
+      }
+      showToast('success', data.message || 'Folder berhasil dihapus.');
       await fetchAllData();
       refreshIcons();
 

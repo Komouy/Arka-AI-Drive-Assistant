@@ -160,12 +160,12 @@ function renderFolderChips() {
   container.classList.remove('hidden');
   container.innerHTML = `
     <div class="flex items-center gap-1.5 overflow-x-auto py-1 text-xs font-mono scrollbar-none">
-      <span class="text-zinc-500 flex items-center gap-1 text-[11px] uppercase mr-1"><i data-lucide="folder" class="w-3 h-3"></i> Folder:</span>
-      <button type="button" class="px-2.5 py-1 rounded text-xs transition-colors ${!currentFolderFilter ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700 shadow-sm font-medium' : 'bg-zinc-200/70 dark:bg-zinc-900/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent'}" onclick="setFolderFilter(null)">
+      <span class="text-zinc-500 flex-shrink-0 flex items-center gap-1 text-[11px] uppercase mr-1 whitespace-nowrap"><i data-lucide="folder" class="w-3 h-3"></i> Folder:</span>
+      <button type="button" class="whitespace-nowrap flex-shrink-0 px-2.5 py-1 rounded text-xs transition-colors ${!currentFolderFilter ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700 shadow-sm font-medium' : 'bg-zinc-200/70 dark:bg-zinc-900/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent'}" onclick="setFolderFilter(null)">
         Semua Folder
       </button>
       ${folders.map(fName => `
-        <button type="button" class="px-2.5 py-1 rounded text-xs transition-colors ${currentFolderFilter === fName ? 'bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 shadow-sm font-medium' : 'bg-zinc-200/70 dark:bg-zinc-900/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent'}" onclick="setFolderFilter('${escapeHtml(fName)}')">
+        <button type="button" class="whitespace-nowrap flex-shrink-0 px-2.5 py-1 rounded text-xs transition-colors ${currentFolderFilter === fName ? 'bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 shadow-sm font-medium' : 'bg-zinc-200/70 dark:bg-zinc-900/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent'}" onclick="setFolderFilter('${escapeHtml(fName)}')">
           ${escapeHtml(fName)}
         </button>
       `).join('')}
