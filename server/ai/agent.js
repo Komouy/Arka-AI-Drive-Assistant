@@ -143,10 +143,9 @@ const TOOLS = [
                 },
                 details: {
                   type: 'object',
-                  properties: {
-                    file_id: { type: 'string', description: 'ID file target' },
-                    folder_id: { type: 'string', description: 'ID folder target (untuk aksi folder)' },
-                    current_name: { type: 'string', description: 'Nama file atau folder saat ini' },
+                    file_id: { type: 'string', description: 'ID file target (dari [ID:xxx])' },
+                    folder_id: { type: 'string', description: 'ID folder target (harus berupa ID dari [ID:xxx] hasil list_folders)' },
+                    current_name: { type: 'string', description: 'Nama asli/murni file atau folder saat ini tanpa awalan kata perintah (contoh: "Cloud Projects")' },
                     new_name: { type: 'string', description: 'Nama baru file yang diusulkan (untuk rename_file)' },
                     target_folder_id: { type: 'string', description: 'ID atau nama folder tujuan (untuk move_file)' },
                     target_folder_name: { type: 'string', description: 'Nama folder tujuan yang akan ditampilkan' },
@@ -491,7 +490,7 @@ function formatToolResult(name, result) {
   if (name === 'list_folders') {
     if (result.count === 0) return 'Belum ada folder.';
     return result.folders.map(f =>
-      `${f.parent_name ? f.parent_name + '/' : ''}${f.name} (${f.file_count} file)`
+      `[ID:${f.id}] ${f.parent_name ? f.parent_name + '/' : ''}${f.name} (${f.file_count} file)`
     ).join('\n');
   }
   if (name === 'request_user_permission') {
@@ -612,8 +611,10 @@ Aturan:
 - KONTROL WORKSPACE & PERIZINAN AKSI (Human-in-the-Loop):
   Jika pengguna meminta kamu melakukan perubahan atau kontrol workspace (seperti mengganti nama file, memindahkan file ke folder, menghapus file atau folder, membuka pratinjau file, atau berpindah navigasi):
   1. Cari dulu data file atau folder terkait menggunakan tool (search_files, list_folders) untuk mendapatkan ID-nya.
-  2. KAMU WAJIB MEMANGGIL tool 'request_user_permission' untuk mengajukan proposal aksi. JANGAN HANYA MENULIS TEKS menyuruh pengguna menekan tombol. Jika kamu tidak memanggil tool-nya, tombolnya tidak akan pernah muncul!
-  3. Setelah memanggil tool tersebut, baru kamu boleh memberikan teks jawaban singkat.
+  2. Gunakan ID yang tertera di [ID:xxx] secara persis untuk parameter file_id atau folder_id.
+  3. Untuk current_name dan label, gunakan HANYA nama bersih file/folder tanpa menambahkan kata perintah "Hapus" atau tanda petik (contoh: "Cloud Projects", bukan "Hapus Cloud Projects").
+  4. KAMU WAJIB MEMANGGIL tool 'request_user_permission' untuk mengajukan proposal aksi. JANGAN HANYA MENULIS TEKS menyuruh pengguna menekan tombol. Jika kamu tidak memanggil tool-nya, tombolnya tidak akan pernah muncul!
+  5. Setelah memanggil tool tersebut, baru kamu boleh memberikan teks jawaban singkat.
   JANGAN menolak dengan mengatakan kamu tidak bisa atau read-only jika aksi tersebut dapat diajukan via 'request_user_permission'!
 - Untuk permintaan perapian/triage, pakai list_inbox dulu lalu sarankan langkah di dashboard web.`;
 

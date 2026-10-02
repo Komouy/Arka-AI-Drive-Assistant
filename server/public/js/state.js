@@ -154,10 +154,14 @@ function showToast(type, message, duration = 3500) {
   const borderCol = isErr ? 'border-red-500/40 text-red-600 dark:text-red-300' : isWarn ? 'border-amber-500/40 text-amber-600 dark:text-amber-300' : 'border-emerald-500/40 text-emerald-600 dark:text-emerald-300';
   const bgCol = 'bg-white/95 dark:bg-zinc-900/95';
 
+  const cleanMsg = typeof message === 'string'
+    ? message
+    : (message?.message || (message && typeof message === 'object' ? JSON.stringify(message) : String(message || '')));
+
   toast.className = `flex items-center gap-2.5 px-4 py-2.5 rounded-lg border shadow-xl dark:shadow-2xl backdrop-blur-md text-xs font-mono text-zinc-800 dark:text-zinc-200 ${bgCol} ${borderCol} transition-all duration-300 transform translate-y-3 opacity-0`;
   toast.innerHTML = `
     <i data-lucide="${iconName}" class="w-4 h-4 flex-shrink-0"></i>
-    <span class="flex-1">${escapeHtml(message)}</span>
+    <span class="flex-1">${escapeHtml(cleanMsg)}</span>
     <button type="button" class="ml-2 text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200" onclick="this.parentElement.remove()">
       <i data-lucide="x" class="w-3.5 h-3.5"></i>
     </button>

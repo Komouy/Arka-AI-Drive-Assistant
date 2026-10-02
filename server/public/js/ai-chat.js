@@ -241,17 +241,21 @@ function renderPermissionCard(msgEl, actions, message) {
     } else if (act.type === 'delete_file') {
       typeIcon = 'trash-2';
       typeTitle = 'Pindahkan ke Tong Sampah';
+      const rawTarget = act.details?.current_name || act.label || '';
+      const cleanTarget = rawTarget.replace(/^hapus\s+(file\s+|berkas\s+)?/i, '').replace(/["']/g, '').trim() || rawTarget;
       detailsHtml = `
         <div class="text-xs text-rose-600 dark:text-rose-400 font-medium">
-          Hapus "${escapeHtmlAi(act.details?.current_name || act.label)}" ke Tong Sampah
+          Hapus "${escapeHtmlAi(cleanTarget)}" ke Tong Sampah
         </div>
       `;
     } else if (act.type === 'delete_folder') {
       typeIcon = 'folder-minus';
       typeTitle = 'Hapus Folder';
+      const rawTarget = act.details?.current_name || act.label || '';
+      const cleanTarget = rawTarget.replace(/^hapus\s+(folder\s+)?/i, '').replace(/["']/g, '').trim() || rawTarget;
       detailsHtml = `
         <div class="text-xs text-rose-600 dark:text-rose-400 font-medium">
-          Hapus Folder "${escapeHtmlAi(act.details?.current_name || act.label)}" beserta isinya
+          Hapus Folder "${escapeHtmlAi(cleanTarget)}" beserta isinya
         </div>
       `;
     } else if (act.type === 'open_preview') {
@@ -405,12 +409,15 @@ async function executeAiAction(action, containerEl) {
       refreshIcons();
 
     } else if (type === 'delete_folder') {
-      const folderId = details.folder_id || details.file_id;
-      if (!folderId) throw new Error('ID folder tidak ditemukan');
+      const folderId = details.folder_id || details.file_id || details.current_name || action.label;
+      if (!folderId) throw new Error('ID atau nama folder tidak ditemukan');
 
-      const res = await authFetch(`${API_BASE}/folders/${folderId}`, { method: 'DELETE' });
+      const res = await authFetch(`${API_BASE}/folders/${encodeURIComponent(folderId)}`, { method: 'DELETE' });
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Gagal menghapus folder');
+      if (!data.success) {
+        const errTxt = typeof data.error === 'string' ? data.error : (data.error?.message || JSON.stringify(data.error) || 'Gagal menghapus folder');
+        throw new Error(errTxt);
+      }
 
       if (containerEl) {
         containerEl.innerHTML = `
@@ -444,12 +451,13 @@ async function executeAiAction(action, containerEl) {
       }
     }
   } catch (err) {
+    const errorMsg = typeof err === 'string' ? err : (err?.message || (typeof err === 'object' ? JSON.stringify(err) : 'Terjadi kesalahan sistem'));
     if (containerEl) {
       containerEl.innerHTML = `
-        <span class="text-xs text-rose-500 font-medium">Gagal: ${escapeHtmlAi(err.message)}</span>
+        <span class="text-xs text-rose-500 font-medium">Gagal: ${escapeHtmlAi(errorMsg)}</span>
       `;
     }
-    showToast('error', err.message);
+    showToast('error', errorMsg);
   }
 }
 

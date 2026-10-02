@@ -6,9 +6,15 @@
  * These helpers keep the API error shape identical everywhere.
  */
 
-/** 500 (or custom status) JSON error response. */
 export function fail(res, error, status = 500) {
-  const message = error instanceof Error ? error.message : String(error || 'Kesalahan server internal');
+  let message = 'Kesalahan server internal';
+  if (typeof error === 'string') {
+    message = error;
+  } else if (error instanceof Error) {
+    message = error.message;
+  } else if (error && typeof error === 'object') {
+    message = error.message || error.details || error.hint || error.error_description || (error.code ? `Database error [${error.code}]` : JSON.stringify(error));
+  }
   return res.status(status).json({ success: false, error: message });
 }
 

@@ -145,41 +145,66 @@ export function getFolderPath(folderId) {
   return parts.length ? parts.join('/') : null;
 }
 
+const inflightResolutions = new Map();
+
 /**
  * Resolve or create destination folder in Supabase mode (supports hierarchical "Projects/Instagram" paths).
+ * Includes concurrency lock to avoid creating duplicate folders during parallel auto-organize operations.
  */
 export async function resolveTargetFolderSupabase(supabase, projectName, userId = null) {
   if (!projectName) return null;
-  const segments = splitFolderPath(projectName);
-  if (segments.length === 0) return null;
-
-  let currentParentId = null;
-  for (const segment of segments) {
-    let query = supabase.from('folders').select('id').ilike('name', segment);
-    if (currentParentId) {
-      query = query.eq('parent_id', currentParentId);
-    } else {
-      query = query.is('parent_id', null);
-    }
-    if (userId) {
-      query = query.or(`user_id.eq.${userId},user_id.is.null`);
-    }
-    const { data: existingRows } = await query.limit(1);
-    const existing = existingRows?.[0] || null;
-
-    if (existing) {
-      currentParentId = existing.id;
-    } else {
-      const { data: inserted, error } = await supabase.from('folders').insert({
-        name: segment,
-        parent_id: currentParentId,
-        user_id: userId
-      }).select('id').single();
-      if (error || !inserted) return currentParentId;
-      currentParentId = inserted.id;
-    }
+  const lockKey = `${userId || 'anon'}:${String(projectName).trim().toLowerCase()}`;
+  if (inflightResolutions.has(lockKey)) {
+    return inflightResolutions.get(lockKey);
   }
-  return currentParentId;
+
+  const promise = (async () => {
+    const segments = splitFolderPath(projectName);
+    if (segments.length === 0) return null;
+
+    let currentParentId = null;
+    for (const segment of segments) {
+      let query = supabase.from('folders').select('id').ilike('name', segment);
+      if (currentParentId) {
+        query = query.eq('parent_id', currentParentId);
+      } else {
+        query = query.is('parent_id', null);
+      }
+      if (userId) {
+        query = query.or(`user_id.eq.${userId},user_id.is.null`);
+      }
+      const { data: existingRows } = await query.limit(1);
+      const existing = existingRows?.[0] || null;
+
+      if (existing) {
+        currentParentId = existing.id;
+      } else {
+        const { data: inserted, error } = await supabase.from('folders').insert({
+          name: segment,
+          parent_id: currentParentId,
+          user_id: userId
+        }).select('id').single();
+        if (error || !inserted) {
+          // If insert failed due to concurrent insert, re-query existing
+          const { data: retryRows } = await query.limit(1);
+          if (retryRows?.[0]) {
+            currentParentId = retryRows[0].id;
+            continue;
+          }
+          return currentParentId;
+        }
+        currentParentId = inserted.id;
+      }
+    }
+    return currentParentId;
+  })();
+
+  inflightResolutions.set(lockKey, promise);
+  try {
+    return await promise;
+  } finally {
+    inflightResolutions.delete(lockKey);
+  }
 }
 
 export default { resolveTargetFolder, resolveTargetFolderSupabase, findFolder, getFolderPath, getFolderSubtreeIds, splitFolderPath, sanitizeFolderSegment };
