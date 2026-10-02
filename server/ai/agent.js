@@ -553,57 +553,132 @@ async function resolveActionTargets(actions, userId) {
   });
 }
 
-// ── Programmatic Fallback: Deteksi aksi perapian jika model berhalusinasi ────
+// ── Programmatic Fallback: Deteksi aksi perapian & duplikat menyeluruh ────────
 async function autoDetectCleanupActions(userId) {
   try {
     const useSupabase = isSupabaseConfigured();
     let folders = [];
+    let files = [];
+
     if (useSupabase) {
       const supabase = getSupabaseClient();
       let query = supabase.from('folders').select('id, name, parent_id');
-      let filesQuery = supabase.from('files').select('folder_id').eq('is_trash', false);
+      let filesQuery = supabase.from('files').select('id, original_name, folder_id, size, is_inbox').eq('is_trash', false);
       query = scopeToUser(query, userId);
       filesQuery = scopeToUser(filesQuery, userId);
-      const [{ data: rows = [] }, { data: files = [] }] = await Promise.all([
+      const [{ data: fRows = [] }, { data: flRows = [] }] = await Promise.all([
         query.order('name'),
         filesQuery
       ]);
-      const countMap = {};
-      for (const f of (files || [])) {
-        if (f.folder_id) countMap[f.folder_id] = (countMap[f.folder_id] || 0) + 1;
-      }
-      folders = (rows || []).map(r => ({
-        id: r.id,
-        name: r.name,
-        file_count: countMap[r.id] || 0
-      }));
+      folders = fRows || [];
+      files = flRows || [];
     } else {
-      folders = db.prepare(`
-        SELECT f.id, f.name, f.parent_id,
-               (SELECT COUNT(*) FROM files WHERE folder_id = f.id AND is_trash = 0) as file_count
-        FROM folders f
-      `).all();
+      folders = db.prepare('SELECT id, name, parent_id FROM folders').all();
+      files = db.prepare('SELECT id, original_name, folder_id, size, is_inbox FROM files WHERE is_trash = 0').all();
     }
 
-    const emptyFolders = folders.filter(f => f.file_count === 0);
-    if (!emptyFolders.length) return null;
+    const nameMap = Object.fromEntries(folders.map(f => [f.id, f.name]));
+    const countMap = {};
+    for (const f of files) {
+      if (f.folder_id) countMap[f.folder_id] = (countMap[f.folder_id] || 0) + 1;
+    }
+    const childMap = {};
+    for (const f of folders) {
+      if (f.parent_id) childMap[f.parent_id] = (childMap[f.parent_id] || 0) + 1;
+    }
 
-    return {
-      message: `Saya menemukan ${emptyFolders.length} folder kosong di workspace Anda. Silakan setujui tindakan penghapusan berikut:`,
-      actions: emptyFolders.slice(0, 15).map(f => ({
+    const actions = [];
+
+    // 1. Deteksi file duplikat (misal nama dan ukuran sama atau file ganda di inbox)
+    const fileGroups = {};
+    for (const f of files) {
+      const norm = f.original_name.toLowerCase().replace(/[-_0-9]{8,}/g, '').trim();
+      const key = `${norm}_${f.size}`;
+      if (!fileGroups[key]) fileGroups[key] = [];
+      fileGroups[key].push(f);
+    }
+    for (const [key, group] of Object.entries(fileGroups)) {
+      if (group.length > 1) {
+        const sorted = [...group].sort((a, b) => (a.is_inbox ? -1 : 1));
+        const dupToRemove = sorted[0];
+        actions.push({
+          type: 'delete_file',
+          label: `Hapus File Duplikat "${dupToRemove.original_name}"`,
+          details: {
+            file_id: dupToRemove.id,
+            current_name: dupToRemove.original_name,
+            reason: `Berkas duplikat identik (${(dupToRemove.size / 1024).toFixed(0)} KB)`
+          }
+        });
+      }
+    }
+
+    // 2. Deteksi folder kosong leaf (tanpa berkas dan tanpa subfolder)
+    const emptyLeafFolders = folders.filter(f => !countMap[f.id] && !childMap[f.id]);
+
+    const folderNameCounts = {};
+    for (const f of emptyLeafFolders) {
+      const parentName = nameMap[f.parent_id] || 'Root';
+      const key = `${parentName}/${f.name}`;
+      folderNameCounts[key] = (folderNameCounts[key] || 0) + 1;
+    }
+
+    for (const f of emptyLeafFolders) {
+      const parentName = nameMap[f.parent_id] || 'Root';
+      const key = `${parentName}/${f.name}`;
+      const isDuplicate = folderNameCounts[key] > 1;
+      actions.push({
         type: 'delete_folder',
-        label: `Hapus Folder "${f.name}"`,
+        label: `Hapus Folder "${f.name}" (${parentName})`,
         details: {
           folder_id: f.id,
           current_name: f.name,
-          reason: 'Folder kosong tanpa file'
+          reason: isDuplicate ? `Folder duplikat ganda tanpa berkas di ${parentName}` : `Folder kosong tanpa berkas di ${parentName}`
         }
-      }))
+      });
+    }
+
+    // 3. Deteksi folder kosong non-leaf yang namanya redundant (Development, Tests, Notocoding)
+    const remainingEmpty = folders.filter(f => !countMap[f.id] && !emptyLeafFolders.some(lf => lf.id === f.id));
+    for (const f of remainingEmpty) {
+      const parentName = nameMap[f.parent_id] || 'Root';
+      if (['Development', 'Tests', 'Notocoding'].includes(f.name)) {
+        actions.push({
+          type: 'delete_folder',
+          label: `Hapus Folder "${f.name}" (${parentName})`,
+          details: {
+            folder_id: f.id,
+            current_name: f.name,
+            reason: `Folder kosong tanpa berkas di ${parentName}`
+          }
+        });
+      }
+    }
+
+    if (!actions.length) return null;
+
+    return {
+      message: `Saya telah memeriksa workspace Anda dan menemukan ${actions.length} item perapian (folder kosong & berkas duplikat). Silakan tinjau kartu aksi interaktif di bawah ini dan tekan tombol [Izinkan] untuk mengeksekusi:`,
+      actions: actions.slice(0, 15)
     };
   } catch (err) {
     console.warn('[ARKA AI] autoDetectCleanupActions error:', err.message);
     return null;
   }
+}
+
+function isCleanupOrActionIntent(query = '', history = []) {
+  const q = String(query).toLowerCase().trim();
+  const pattern = /(rapikan|bersihkan|hapus|duplikat|buang|kosongkan|kamu\s+yang\s+hapus|hapus\s+aja|eksekusi|lanjutkan|mana|ajukan|tampilkan\s+kartu|minta\s+izin|bereskan|tindak\s*lanjuti|proses|ya|ya\s+semua|oke|siap)/i;
+  if (pattern.test(q)) return true;
+
+  if (Array.isArray(history) && history.length > 0) {
+    const last3 = history.slice(-3).map(m => String(m.content || '').toLowerCase()).join(' ');
+    if (/(folder\s+kosong|duplikat|rapikan|bersihkan|hapus)/i.test(last3) && q.length < 25) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // ── Format tool result for LLM context ───────────────────────────────────────
@@ -773,7 +848,7 @@ Aturan:
   5. Jika pengguna meminta "ajukan izin", "ya semua", "oke", atau "bersihkan", KAMU WAJIB MEMANGGIL tool 'request_user_permission' pada giliran ini. JANGAN HANYA MENULIS TEKS yang mengklaim izin sudah diajukan tanpa memanggil tool!
   6. Setelah memanggil tool 'request_user_permission', beri penjelasan singkat dan persilakan pengguna menekan tombol Izinkan pada kartu tersebut.
   JANGAN menolak dengan mengatakan kamu tidak bisa atau read-only jika aksi tersebut dapat diajukan via 'request_user_permission'!
-- Untuk permintaan perapian/triage, pakai list_inbox dulu lalu sarankan langkah di dashboard web.`;
+- PENTING: Jika pengguna meminta merapikan file/folder atau membersihkan duplikat/folder kosong, JANGAN meminta pengguna merapikan sendiri di dashboard! SEGERA PANGGIL tool 'request_user_permission' untuk mengajukan izin hapus/pindah! DILARANG mencetak teks yang hanya menunda atau meminta konfirmasi manual di teks chat.`;
 
   const messages = [
     { role: 'system',  content: systemPrompt },
@@ -788,8 +863,8 @@ Aturan:
   const MAX_STEPS = 4;
   let nextToolChoice = 'auto';
 
-  // Jika pengguna secara eksplisit meminta mengajukan izin atau menampilkan kartu, paksa pemanggilan tool
-  const isExplicitActionTrigger = /^(ajukan\s+izin|ajukan|minta\s+izin|tampilkan\s+kartu|munculkan\s+kartu)\b/i.test(userQuery.trim());
+  // Jika pengguna meminta perapian, penghapusan, duplikasi, atau konfirmasi, paksa pemanggilan tool
+  const isExplicitActionTrigger = isCleanupOrActionIntent(userQuery, history);
   if (isExplicitActionTrigger) {
     nextToolChoice = 'required';
   }
@@ -828,13 +903,24 @@ Aturan:
         });
         const ans = geminiRes.text || geminiRes.candidates?.[0]?.content?.parts?.[0]?.text;
         if (ans) {
+          let fallbackPermission = null;
+          const claimsCard = /(kartu\s+aksi|kartu\s+persetujuan|kartu\s+di\s+atas|tombol\s+.*\[?izinkan\]?|izin.*diajukan|tekan\s+.*izinkan)/i.test(ans);
+          if (isExplicitActionTrigger || claimsCard) {
+            fallbackPermission = await autoDetectCleanupActions(userId);
+          }
+
+          let finalAnswer = ans.trim();
+          if (fallbackPermission && /(mana\s+yang\s+kamu\s+maksud|buka\s+dashboard|sebutkan\s+nama)/i.test(finalAnswer)) {
+            finalAnswer = fallbackPermission.message;
+          }
+
           return {
-            answer: ans.trim(),
+            answer: finalAnswer,
             toolCalled: 'gemini_fallback',
             toolResult: null,
             steps,
-            proposedActions: null,
-            permissionMessage: null
+            proposedActions: fallbackPermission?.actions || null,
+            permissionMessage: fallbackPermission?.message || null
           };
         }
       } catch (geminiErr) {
@@ -935,11 +1021,17 @@ Aturan:
         continue;
       }
 
+      // Deteksi respons menghindar / menunda / halusinasi dari model
+      const isEvasiveResponse = /(buka\s+dashboard|memeriksa\s+file|sebutkan\s+nama|tidak\s+bisa\s+melihat|mana\s+yang\s+kamu\s+maksud|\*\s*\(\s*memeriksa)/i.test(msg.content);
+
       // Lapisan Pengaman Programatik: jika model tetap tidak memanggil request_user_permission padahal ada klaim aksi atau permintaan izin
-      if (!pendingPermission && (claimsActionCard || isExplicitActionTrigger || /^(ya|ya\s+semua|hapus\s+semua|bersihkan)\b/i.test(userQuery.trim()))) {
+      if (!pendingPermission && (claimsActionCard || isExplicitActionTrigger || isEvasiveResponse)) {
         const fallback = await autoDetectCleanupActions(userId);
         if (fallback) {
           pendingPermission = fallback;
+          if (isEvasiveResponse || claimsActionCard) {
+            msg.content = fallback.message;
+          }
         }
       }
 
@@ -958,7 +1050,7 @@ Aturan:
   }
 
   // Lapisan Pengaman Programatik Terakhir sebelum return
-  if (!pendingPermission && (isExplicitActionTrigger || /^(ya|ya\s+semua|hapus\s+semua|bersihkan)\b/i.test(userQuery.trim()))) {
+  if (!pendingPermission && isExplicitActionTrigger) {
     const fallback = await autoDetectCleanupActions(userId);
     if (fallback) {
       pendingPermission = fallback;
