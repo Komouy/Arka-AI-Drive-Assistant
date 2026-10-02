@@ -66,11 +66,13 @@ export const aiController = {
 
       return ok(res, {
         data: {
-          answer:     result.answer,
-          toolCalled: result.toolCalled,
-          toolResult: result.toolResult,
-          steps:      result.steps,
-          truncated:  !!result.truncated
+          answer:            result.answer,
+          toolCalled:        result.toolCalled,
+          toolResult:        result.toolResult,
+          steps:             result.steps,
+          truncated:         !!result.truncated,
+          proposedActions:   result.proposedActions || null,
+          permissionMessage: result.permissionMessage || null
         }
       });
     } catch (err) {

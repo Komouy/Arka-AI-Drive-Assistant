@@ -164,7 +164,8 @@ export async function resolveTargetFolderSupabase(supabase, projectName, userId 
     if (userId) {
       query = query.or(`user_id.eq.${userId},user_id.is.null`);
     }
-    const { data: existing } = await query.maybeSingle();
+    const { data: existingRows } = await query.limit(1);
+    const existing = existingRows?.[0] || null;
 
     if (existing) {
       currentParentId = existing.id;

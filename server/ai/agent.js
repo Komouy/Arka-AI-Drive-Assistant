@@ -117,6 +117,54 @@ const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'request_user_permission',
+      description: 'Minta izin pengguna (Human-in-the-Loop) sebelum mengeksekusi perubahan seperti ganti nama file, pindah folder, hapus file, buka pratinjau file, atau navigasi halaman. Cari filenya terlebih dahulu dengan search_files, lalu panggil tool ini untuk memunculkan tombol konfirmasi kepada pengguna.',
+      parameters: {
+        type: 'object',
+        properties: {
+          message: {
+            type: 'string',
+            description: 'Pesan penjelasan sopan kepada pengguna tentang aksi yang diajukan'
+          },
+          actions: {
+            type: 'array',
+            description: 'Daftar aksi yang butuh izin pengguna',
+            items: {
+              type: 'object',
+              properties: {
+                type: {
+                  type: 'string',
+                  enum: ['rename_file', 'move_file', 'delete_file', 'open_preview', 'navigate'],
+                  description: 'Tipe aksi'
+                },
+                label: {
+                  type: 'string',
+                  description: 'Label ringkas pada tombol aksi (contoh: "Ganti nama ke Proposal_2026.pdf")'
+                },
+                details: {
+                  type: 'object',
+                  properties: {
+                    file_id: { type: 'string', description: 'ID file target' },
+                    current_name: { type: 'string', description: 'Nama file saat ini' },
+                    new_name: { type: 'string', description: 'Nama baru file yang diusulkan (untuk rename_file)' },
+                    target_folder_id: { type: 'string', description: 'ID atau nama folder tujuan (untuk move_file)' },
+                    target_folder_name: { type: 'string', description: 'Nama folder tujuan yang akan ditampilkan' },
+                    target: { type: 'string', description: 'Target navigasi (overview, files, images, prompts, links, trash)' },
+                    reason: { type: 'string', description: 'Alasan perubahan' }
+                  }
+                }
+              },
+              required: ['type', 'label', 'details']
+            }
+          }
+        },
+        required: ['message', 'actions']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'answer',
       description: 'Jawab pengguna dengan teks biasa saat tidak perlu aksi tool.',
       parameters: {
@@ -398,6 +446,14 @@ async function executeTool(name, args, userId = null) {
       return { topic: String(args.topic || 'overview'), guide: getGuideText(args.topic) };
     }
 
+    case 'request_user_permission': {
+      return {
+        status: 'pending_user_approval',
+        message: args.message || 'Permintaan izin aksi workspace',
+        actions: Array.isArray(args.actions) ? args.actions : []
+      };
+    }
+
     case 'answer': {
       return { text: args.text };
     }
@@ -437,8 +493,8 @@ function formatToolResult(name, result) {
       `${f.parent_name ? f.parent_name + '/' : ''}${f.name} (${f.file_count} file)`
     ).join('\n');
   }
-  if (name === 'get_usage_guide') {
-    return result.guide || 'Panduan untuk topik itu belum tersedia.';
+  if (name === 'request_user_permission') {
+    return 'Permintaan izin aksi telah diajukan ke antarmuka pengguna dalam bentuk kartu persetujuan interaktif. Berikan penjelasan ramah kepada pengguna tentang apa yang kamu usulkan dan minta mereka menekan tombol Izinkan pada kartu tersebut.';
   }
   return JSON.stringify(result);
 }
@@ -542,7 +598,12 @@ Aturan:
 - Jawaban harus SINGKAT dan LENGKAP: maksimal ~100 kata / 6 baris poin, selalu akhiri dengan kalimat yang utuh — jangan terputus.
 - Percakapan sebelumnya disertakan. Jika pesan adalah lanjutan ("yang lebih detail", "yg kedua"), lanjutkan topik itu.
 - JANGAN pernah mengarang fitur, URL, atau opsi yang tidak ada. Sebutkan hanya yang ada di panduan atau hasil tool.
-- Kamu bersifat read-only: kamu tidak bisa memindah, mengganti nama, menghapus, atau mengunggah file. Sarankan pengguna memakai UI web untuk aksi tersebut.
+- KONTROL WORKSPACE & PERIZINAN AKSI (Human-in-the-Loop):
+  Jika pengguna meminta kamu melakukan perubahan atau kontrol workspace (seperti mengganti nama file, memindahkan file ke folder, menghapus file/pindah ke tong sampah, membuka pratinjau file, atau berpindah navigasi):
+  1. Cari dulu data file atau folder terkait menggunakan tool (search_files, list_folders).
+  2. Panggil tool 'request_user_permission' untuk mengajukan proposal aksi kepada pengguna dengan rincian file_id, nama lama, nama baru, folder tujuan, dsb.
+  3. Jelaskan proposalmu secara singkat dan sopan dalam teks jawaban, lalu ajak pengguna menekan tombol konfirmasi ("Izinkan") pada kartu chat yang muncul.
+  JANGAN menolak dengan mengatakan kamu tidak bisa atau read-only jika aksi tersebut dapat diajukan via 'request_user_permission'!
 - Untuk permintaan perapian/triage, pakai list_inbox dulu lalu sarankan langkah di dashboard web.`;
 
   const messages = [
@@ -553,6 +614,7 @@ Aturan:
 
   let toolCalled = null;
   let toolResult = null;
+  let pendingPermission = null;
   let steps = 0;
   const MAX_STEPS = 3;
 
@@ -591,7 +653,9 @@ Aturan:
             answer: ans.trim(),
             toolCalled: 'gemini_fallback',
             toolResult: null,
-            steps
+            steps,
+            proposedActions: null,
+            permissionMessage: null
           };
         }
       } catch (geminiErr) {
@@ -602,7 +666,9 @@ Aturan:
         toolCalled: null,
         toolResult: null,
         steps,
-        error: describeAIError(err)
+        error: describeAIError(err),
+        proposedActions: null,
+        permissionMessage: null
       };
     }
 
@@ -638,6 +704,13 @@ Aturan:
           toolResult = { error: toolErr.message };
         }
 
+        if (name === 'request_user_permission' && toolResult?.status === 'pending_user_approval') {
+          pendingPermission = {
+            message: toolResult.message,
+            actions: toolResult.actions
+          };
+        }
+
         messages.push({
           role: 'tool',
           tool_call_id: call.id,
@@ -657,11 +730,13 @@ Aturan:
 
       if (answers.length) {
         return {
-          answer:     answers[0],
-          toolCalled: 'answer',
+          answer:            answers[0],
+          toolCalled:        'answer',
           toolResult,
           steps,
-          truncated:  truncated || brokenArgs || looksCut(answers[0])
+          truncated:         truncated || brokenArgs || looksCut(answers[0]),
+          proposedActions:   pendingPermission?.actions || null,
+          permissionMessage: pendingPermission?.message || null
         };
       }
 
@@ -670,11 +745,13 @@ Aturan:
 
     if (msg.content) {
       return {
-        answer:     msg.content,
+        answer:            msg.content,
         toolCalled,
         toolResult,
         steps,
-        truncated:  truncated || looksCut(msg.content)
+        truncated:         truncated || looksCut(msg.content),
+        proposedActions:   pendingPermission?.actions || null,
+        permissionMessage: pendingPermission?.message || null
       };
     }
 
@@ -683,14 +760,24 @@ Aturan:
 
   const forced = await askForFinalText(messages);
   if (forced) {
-    return { answer: forced.answer, toolCalled, toolResult, steps, truncated: forced.truncated };
+    return {
+      answer:            forced.answer,
+      toolCalled,
+      toolResult,
+      steps,
+      truncated:         forced.truncated,
+      proposedActions:   pendingPermission?.actions || null,
+      permissionMessage: pendingPermission?.message || null
+    };
   }
 
   return {
-    answer:     'Aku belum bisa menjawab itu. Coba tulis pertanyaannya lebih lengkap.',
+    answer:            'Aku belum bisa menjawab itu. Coba tulis pertanyaannya lebih lengkap.',
     toolCalled,
-    toolResult: null,
-    steps
+    toolResult:        null,
+    steps,
+    proposedActions:   pendingPermission?.actions || null,
+    permissionMessage: pendingPermission?.message || null
   };
 }
 

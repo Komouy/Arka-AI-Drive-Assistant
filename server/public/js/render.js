@@ -85,9 +85,6 @@ async function fetchAllData() {
     } else {
       render();
     }
-    if (currentFilter === 'graph' && typeof renderGraph === 'function') {
-      setTimeout(() => renderGraph(true), 50);
-    }
     checkAndTriggerBatchAutoOrganize();
     processAutoAnalysisQueue();
   } catch (err) {
@@ -188,8 +185,7 @@ function setFilter(type) {
   if (type === 'all') type = 'overview';
   currentFilter = type;
 
-  // Sidebar navigation active highlight
-  const navTabs = ['overview', 'files', 'images', 'prompts', 'links', 'ai', 'graph', 'trash'];
+  const navTabs = ['overview', 'files', 'images', 'prompts', 'links', 'ai', 'trash'];
   navTabs.forEach(t => {
     const btn = document.getElementById(`nav${t.charAt(0).toUpperCase() + t.slice(1)}`);
     if (btn) {
@@ -212,7 +208,6 @@ function setFilter(type) {
     prompts: { title: 'Catatan & Prompt', subtitle: 'Koleksi prompt AI, instruksi, dan catatan kerja' },
     links: { title: 'Tautan Tersimpan', subtitle: 'Daftar bookmark tautan web dan referensi' },
     ai: { title: 'Arka AI Assistant', subtitle: 'Tanya asisten cerdas berbasis Groq & Gemini' },
-    graph: { title: 'Diagram Visual Hub', subtitle: 'Visualisasi interaktif relasi folder dan skema' },
     trash: { title: 'Tong Sampah', subtitle: 'Berkas terhapus yang dapat dipulihkan atau dibersihkan' }
   };
   if (pageTitle && titles[type]) pageTitle.textContent = titles[type].title;
@@ -222,7 +217,6 @@ function setFilter(type) {
   const viewOverview = document.getElementById('viewOverview');
   const viewDataList = document.getElementById('viewDataList');
   const viewAi = document.getElementById('viewAi');
-  const graphContainer = document.getElementById('graphContainer');
   const folderChips = document.getElementById('folderChipsBar');
   const emptyTrashBtn = document.getElementById('btnEmptyTrash');
 
@@ -230,10 +224,6 @@ function setFilter(type) {
   if (viewOverview) viewOverview.classList.add('hidden');
   if (viewDataList) viewDataList.classList.add('hidden');
   if (viewAi) viewAi.classList.add('hidden');
-  if (graphContainer) {
-    graphContainer.classList.add('hidden');
-    graphContainer.classList.remove('flex');
-  }
 
   // Close mobile sidebar if drawer is open
   toggleMobileSidebar(false);
@@ -249,14 +239,6 @@ function setFilter(type) {
       const input = document.getElementById('aiChatInput');
       if (input) input.focus();
     }, 100);
-  } else if (type === 'graph') {
-    if (graphContainer) {
-      graphContainer.classList.remove('hidden');
-      graphContainer.classList.add('flex');
-    }
-    if (typeof renderGraph === 'function') {
-      setTimeout(() => renderGraph(true), 50);
-    }
   } else {
     // files, images, prompts, links, trash
     if (viewDataList) viewDataList.classList.remove('hidden');

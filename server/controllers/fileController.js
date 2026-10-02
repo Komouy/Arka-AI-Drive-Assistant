@@ -18,12 +18,33 @@ function normalizeLimit(value, fallback = 200, max = 1000) {
 }
 
 /**
+ * Mengambil seluruh nama folder yang sudah ada di workspace
+ */
+async function getExistingFolderNames(userId = null) {
+  try {
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      let query = supabase.from('folders').select('name');
+      if (userId) query = query.or(`user_id.eq.${userId},user_id.is.null`);
+      const { data } = await query;
+      return (data || []).map(f => f.name).filter(Boolean);
+    }
+    const rows = db.prepare('SELECT name FROM folders').all();
+    return (rows || []).map(r => r.name).filter(Boolean);
+  } catch (err) {
+    console.warn('[ARKA] getExistingFolderNames error:', err.message);
+    return [];
+  }
+}
+
+/**
  * Run AI analysis for an uploaded file and persist the result.
  */
 async function triggerAIAnalysis(fileId, filePath, mimeType, filename, userId = null) {
   try {
+    const existingFolders = await getExistingFolderNames(userId);
     const { analyzeFile } = await import('../ai/analyzer.js');
-    const metadata = await analyzeFile(filePath, mimeType, filename);
+    const metadata = await analyzeFile(filePath, mimeType, filename, { existingFolders });
 
     if (!metadata.ok) {
       console.warn(`[ARKA AI] ⚠️  Analysis failed for file ID ${fileId} (${filename}): ${metadata.error}. Metadata NOT saved.`);
@@ -1078,8 +1099,9 @@ export const fileController = {
             return res.status(500).json({ success: false, error: 'Gagal menyiapkan file untuk analisis' });
           }
 
+          const existingFolders = await getExistingFolderNames(file.user_id);
           const { analyzeFile } = await import('../ai/analyzer.js');
-          const metadata = await analyzeFile(tempPath, file.mime_type, file.original_name);
+          const metadata = await analyzeFile(tempPath, file.mime_type, file.original_name, { existingFolders });
 
           if (!metadata.ok) {
             return res.status(502).json({
@@ -1122,8 +1144,9 @@ export const fileController = {
       const physPath = physicalPathOf(file);
       if (!fs.existsSync(physPath)) return notFound(res, 'File fisik tidak ditemukan di disk');
 
+      const existingFolders = await getExistingFolderNames(null);
       const { analyzeFile } = await import('../ai/analyzer.js');
-      const metadata = await analyzeFile(physPath, file.mime_type, file.original_name);
+      const metadata = await analyzeFile(physPath, file.mime_type, file.original_name, { existingFolders });
 
       if (!metadata.ok) {
         return res.status(502).json({
@@ -1213,7 +1236,7 @@ export const fileController = {
   update: async (req, res) => {
     try {
       const { id } = req.params;
-      const { original_name, folder_id, is_favorite, is_inbox, is_trash } = req.body;
+      const { original_name, folder_id, folder_name, is_favorite, is_inbox, is_trash } = req.body;
 
       if (isSupabaseConfigured()) {
         const supabase = getSupabaseClient();
@@ -1233,7 +1256,33 @@ export const fileController = {
           if (!newName) return badRequest(res, 'Nama file tidak boleh kosong');
           updates.original_name = newName;
         }
-        if (folder_id !== undefined) updates.folder_id = folder_id || null;
+
+        if (folder_name !== undefined || folder_id !== undefined) {
+          if (!folder_name && !folder_id) {
+            updates.folder_id = null;
+          } else if (folder_name) {
+            const targetId = await resolveTargetFolderSupabase(supabase, String(folder_name).trim(), userId);
+            updates.folder_id = targetId || null;
+            if (updates.folder_id) updates.is_inbox = false;
+          } else {
+            // Bisa berupa ID numerik/UUID atau nama string
+            const isPlainId = /^[0-9a-fA-F-]+$/.test(String(folder_id).trim());
+            if (isPlainId) {
+              const { data: folderExists } = await supabase.from('folders').select('id').eq('id', folder_id).maybeSingle();
+              if (folderExists) {
+                updates.folder_id = folder_id;
+              } else {
+                const targetId = await resolveTargetFolderSupabase(supabase, String(folder_id).trim(), userId);
+                updates.folder_id = targetId || null;
+              }
+            } else {
+              const targetId = await resolveTargetFolderSupabase(supabase, String(folder_id).trim(), userId);
+              updates.folder_id = targetId || null;
+            }
+            if (updates.folder_id) updates.is_inbox = false;
+          }
+        }
+
         if (is_favorite !== undefined) updates.is_favorite = Boolean(is_favorite);
         if (is_inbox !== undefined) updates.is_inbox = Boolean(is_inbox);
         if (is_trash !== undefined) updates.is_trash = Boolean(is_trash);
@@ -1293,18 +1342,34 @@ export const fileController = {
       if (!newName) return badRequest(res, 'Nama file tidak boleh kosong');
 
       let newFolderId = file.folder_id;
-      if (folder_id !== undefined) {
-        if (!folder_id) {
+      let newInbox = is_inbox !== undefined ? (is_inbox ? 1 : 0) : file.is_inbox;
+
+      if (folder_name !== undefined || folder_id !== undefined) {
+        if (!folder_name && !folder_id) {
           newFolderId = null;
+        } else if (folder_name) {
+          const resolved = resolveTargetFolder(null, String(folder_name).trim());
+          newFolderId = resolved || null;
+          if (newFolderId) newInbox = 0;
         } else {
-          newFolderId = Number(folder_id);
-          const folder = db.prepare('SELECT id FROM folders WHERE id = ?').get(newFolderId);
-          if (!folder) return badRequest(res, `Folder ID ${folder_id} does not exist`);
+          const numericId = Number(folder_id);
+          if (Number.isInteger(numericId) && numericId > 0) {
+            const folder = db.prepare('SELECT id FROM folders WHERE id = ?').get(numericId);
+            if (folder) {
+              newFolderId = numericId;
+            } else {
+              newFolderId = resolveTargetFolder(null, String(folder_id).trim()) || null;
+            }
+          } else if (typeof folder_id === 'string' && folder_id.trim()) {
+            newFolderId = resolveTargetFolder(null, folder_id.trim()) || null;
+          } else {
+            newFolderId = null;
+          }
+          if (newFolderId) newInbox = 0;
         }
       }
 
       const newFavorite = is_favorite !== undefined ? (is_favorite ? 1 : 0) : file.is_favorite;
-      const newInbox = is_inbox !== undefined ? (is_inbox ? 1 : 0) : file.is_inbox;
       const newTrash = is_trash !== undefined ? (is_trash ? 1 : 0) : file.is_trash;
 
       let newStoredPath = file.path;

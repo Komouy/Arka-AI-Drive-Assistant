@@ -58,177 +58,7 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover {
   animation: fadeInFast 0.2s ease-out;
 }
 
-/* ── Interactive Graph Canvas Engine (Supabase ERD Style) ──────────────── */
-#graphContainer,
-.graph-container {
-  display: flex !important;
-  flex-direction: column;
-  height: 720px;
-  min-height: 520px;
-  max-height: 82vh;
-  position: relative;
-  overflow: hidden;
-}
 
-#graphContainer.hidden,
-.graph-container.hidden {
-  display: none !important;
-}
-
-.graph-viewport {
-  flex: 1 1 0%;
-  width: 100%;
-  height: 100%;
-  min-height: 460px;
-  position: relative;
-  overflow: hidden;
-  background-color: #08080a;
-  background-image: 
-    radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-    radial-gradient(circle, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 24px 24px, 120px 120px;
-  cursor: grab;
-  user-select: none;
-}
-.graph-viewport:active {
-  cursor: grabbing;
-}
-
-.graph-world {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 6000px;
-  height: 6000px;
-  transform-origin: 0 0;
-  pointer-events: none;
-}
-
-.graph-svg-layer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 6000px;
-  height: 6000px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.graph-nodes-layer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 6000px;
-  height: 6000px;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.graph-wire {
-  fill: none;
-  stroke-width: 2.2px;
-  transition: stroke 0.2s ease, stroke-width 0.2s ease;
-  pointer-events: stroke;
-}
-.graph-wire.relation-folder {
-  stroke: #10b981;
-  stroke-dasharray: 5 4;
-}
-.graph-wire.relation-meta {
-  stroke: #f97316;
-}
-.graph-wire:hover {
-  stroke-width: 3.5px;
-  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
-}
-
-.graph-port-dot {
-  pointer-events: none;
-  transition: r 0.15s ease;
-}
-.graph-port-dot.folder { fill: #10b981; stroke: #09090b; stroke-width: 1.5px; }
-.graph-port-dot.meta { fill: #f97316; stroke: #09090b; stroke-width: 1.5px; }
-
-.graph-node {
-  position: absolute;
-  background: #121215;
-  border: 1px solid #27272a;
-  border-radius: 8px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
-  pointer-events: auto;
-  cursor: move;
-  width: 250px;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
-}
-.graph-node:hover {
-  border-color: #52525b;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85);
-}
-.graph-node.active-drag {
-  border-color: #f97316;
-  box-shadow: 0 16px 40px rgba(249, 115, 22, 0.25);
-  z-index: 100 !important;
-}
-
-.graph-node-header {
-  padding: 0.65rem 0.85rem;
-  background: #18181b;
-  border-bottom: 1px solid #27272a;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-top-left-radius: 7px;
-  border-top-right-radius: 7px;
-}
-.graph-node-header.folder { border-left: 3px solid #10b981; }
-.graph-node-header.file { border-left: 3px solid #38bdf8; }
-.graph-node-header.prompt { border-left: 3px solid #a855f7; }
-.graph-node-header.link { border-left: 3px solid #f97316; }
-
-.graph-node-title {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #f4f4f5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 160px;
-}
-.graph-node-badge {
-  font-size: 0.65rem;
-  font-family: 'JetBrains Mono', monospace;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: #27272a;
-  color: #a1a1aa;
-}
-.graph-node-body {
-  padding: 0.5rem 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  color: #a1a1aa;
-  font-family: 'JetBrains Mono', monospace;
-}
-.graph-node-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 2px 0;
-}
-.graph-node-footer {
-  padding: 0.4rem 0.75rem;
-  background: #0d0d10;
-  border-top: 1px solid #1f1f23;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.68rem;
-  color: #71717a;
-  border-bottom-left-radius: 7px;
-  border-bottom-right-radius: 7px;
-}
 
 /* ── Spreadsheet Preview Table ─────────────────────────────────────────── */
 .excel-table {
@@ -393,51 +223,13 @@ button, a, input, textarea, select {
 
 /* Mobile-friendly breakpoint tweaks */
 @media (max-width: 639px) {
-  .graph-node {
-    width: 210px;
-  }
+
   .modal-window {
     border-radius: 0.75rem;
   }
 }
 
-/* ── Light Mode Canvas & Graph Overrides ───────────────────────────────── */
-html:not(.dark) .graph-viewport {
-  background-color: #f8fafc;
-  background-image: 
-    radial-gradient(circle, rgba(0, 0, 0, 0.12) 1px, transparent 1px),
-    radial-gradient(circle, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
-}
-html:not(.dark) .graph-node {
-  background: #ffffff;
-  border: 1px solid #e4e4e7;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-html:not(.dark) .graph-node:hover {
-  border-color: #a1a1aa;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
-}
-html:not(.dark) .graph-node-header {
-  background: #f4f4f5;
-  border-bottom: 1px solid #e4e4e7;
-}
-html:not(.dark) .graph-node-title {
-  color: #18181b;
-}
-html:not(.dark) .graph-node-badge {
-  background: #e4e4e7;
-  color: #52525b;
-}
-html:not(.dark) .graph-node-body {
-  color: #52525b;
-}
-html:not(.dark) .graph-node-footer {
-  background: #fafafa;
-  border-top: 1px solid #f4f4f5;
-  color: #71717a;
-}
-html:not(.dark) .graph-port-dot.folder { stroke: #ffffff; }
-html:not(.dark) .graph-port-dot.meta { stroke: #ffffff; }
+
 
 /* ── Light Mode Document & Spreadsheet Previews ────────────────────────── */
 html:not(.dark) .excel-table {
@@ -502,8 +294,7 @@ html:not(.dark) .code-content-pre {
 /* ── Modern Sidebar & View Transition Enhancements ───────────────────────── */
 #viewOverview,
 #viewDataList,
-#viewAi,
-#graphContainer {
+#viewAi {
   animation: fadeInFast 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
