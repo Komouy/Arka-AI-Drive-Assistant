@@ -399,7 +399,8 @@ function handleSelectAllToggle(checkbox) {
 }
 
 function refreshSelectionUI() {
-  document.querySelectorAll('input[type="checkbox"][onchange*="toggleSelectFile"]').forEach(cb => {
+  const visibleCheckboxes = document.querySelectorAll('input[type="checkbox"][onchange*="toggleSelectFile"]');
+  visibleCheckboxes.forEach(cb => {
     const match = cb.getAttribute('onchange')?.match(/'([^']+)'/);
     if (match && match[1]) {
       cb.checked = selectedFileIds.has(match[1]);
@@ -407,8 +408,10 @@ function refreshSelectionUI() {
   });
   const selectAllCb = document.getElementById('selectAllCheckbox');
   if (selectAllCb) {
-    const activeFiles = (allData.files || []).filter(f => !f.is_trash);
-    selectAllCb.checked = activeFiles.length > 0 && selectedFileIds.size >= activeFiles.length;
+    const countVisible = visibleCheckboxes.length;
+    const countChecked = Array.from(visibleCheckboxes).filter(cb => cb.checked).length;
+    selectAllCb.checked = countVisible > 0 && countChecked === countVisible;
+    selectAllCb.indeterminate = countChecked > 0 && countChecked < countVisible;
   }
 }
 
@@ -511,6 +514,7 @@ async function handleBatchDownloadZip() {
   showToast('info', `Menyiapkan ${fileIds.length} berkas ke dalam ZIP...`);
   const zip = new JSZip();
 
+  const usedNames = new Set();
   let packed = 0;
   for (const id of fileIds) {
     const f = (allData.files || []).find(item => String(item.id) === String(id));
@@ -520,7 +524,19 @@ async function handleBatchDownloadZip() {
       const res = await authFetch(downloadUrl);
       if (res.ok) {
         const blob = await res.blob();
-        zip.file(f.original_name || `file_${id}`, blob);
+        let fileName = f.original_name || `file_${id}`;
+        if (usedNames.has(fileName)) {
+          const dotIdx = fileName.lastIndexOf('.');
+          const base = dotIdx !== -1 ? fileName.slice(0, dotIdx) : fileName;
+          const ext = dotIdx !== -1 ? fileName.slice(dotIdx) : '';
+          let count = 1;
+          while (usedNames.has(`${base}_(${count})${ext}`)) {
+            count++;
+          }
+          fileName = `${base}_(${count})${ext}`;
+        }
+        usedNames.add(fileName);
+        zip.file(fileName, blob);
         packed++;
       }
     } catch (err) {
@@ -613,6 +629,9 @@ function setFilter(type) {
   if (type === 'all') type = 'overview';
   currentFilter = type;
   saveCurrentFilter(type);
+  if (type !== 'files' && type !== 'images') {
+    clearFileSelection();
+  }
 
   const navTabs = ['overview', 'files', 'images', 'favorites', 'prompts', 'links', 'ai', 'trash'];
   navTabs.forEach(t => {
@@ -841,6 +860,17 @@ function handleSearch(val) {
 function render() {
   const container = document.getElementById('dataList');
   if (!container) return;
+
+  const headerBar = document.getElementById('dataListHeaderBar');
+  const pathLabel = document.getElementById('folderCurrentPathLabel');
+  if (headerBar) {
+    const showHeader = currentFilter === 'files' || currentFilter === 'images';
+    headerBar.classList.toggle('hidden', !showHeader);
+    headerBar.classList.toggle('flex', showHeader);
+    if (pathLabel) {
+      pathLabel.textContent = currentFolderFilter ? `Folder: ${currentFolderFilter}` : (currentFilter === 'images' ? 'Semua Gambar' : 'Semua Berkas');
+    }
+  }
 
   // ── 1. Tab Khusus Gambar: Galeri Visual Card dengan Preview Langsung
   if (currentFilter === 'images') {

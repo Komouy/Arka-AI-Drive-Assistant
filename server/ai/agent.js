@@ -332,6 +332,12 @@ async function executeTool(name, args, userId = null) {
             return { error: `Gagal mengunduh dokumen dari penyimpanan cloud: ${dlErr?.message || 'unknown'}` };
           }
           buffer = Buffer.from(await blob.arrayBuffer());
+        } else if (file.gdrive_file_id || file.storage_provider === 'gdrive') {
+          return {
+            file_id: file.id,
+            filename: file.original_name,
+            error: `Berkas "${file.original_name}" tersimpan di Google Drive. Silakan buka langsung pratinjau berkas atau unduh terlebih dahulu untuk dibaca oleh AI.`
+          };
         }
 
         const extractRes = await extractDocumentContent({

@@ -48,11 +48,16 @@ function toggleSelectFile(fileId, event) {
 }
 
 function selectAllFiles() {
-  const fileItems = (allData.files || []).filter(f => !f.is_trash);
-  if (currentFolderFilter) {
-    fileItems.filter(f => (f.folder_name || (f.is_inbox ? 'inbox' : 'root')) === currentFolderFilter)
-      .forEach(f => selectedFileIds.add(String(f.id)));
+  const visibleCheckboxes = document.querySelectorAll('input[type="checkbox"][onchange*="toggleSelectFile"]');
+  if (visibleCheckboxes.length > 0) {
+    visibleCheckboxes.forEach(cb => {
+      const match = cb.getAttribute('onchange')?.match(/'([^']+)'/);
+      if (match && match[1]) {
+        selectedFileIds.add(match[1]);
+      }
+    });
   } else {
+    const fileItems = (allData.files || []).filter(f => !f.is_trash);
     fileItems.forEach(f => selectedFileIds.add(String(f.id)));
   }
   updateBatchActionBar();

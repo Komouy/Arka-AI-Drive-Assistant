@@ -1195,7 +1195,21 @@ export const fileController = {
         if (!file) return notFound(res, 'File tidak ditemukan');
 
         let buffer = null;
-        if (file.storage_path) {
+        const isGDrive = file.storage_provider === 'gdrive' || Boolean(file.gdrive_file_id);
+        if (isGDrive && file.gdrive_file_id) {
+          if (!req.providerToken) {
+            return res.status(401).json({
+              success: false,
+              error: 'Token akses Google Drive tidak tersedia — silakan masuk dengan Google.'
+            });
+          }
+          try {
+            const { downloadFromGoogleDrive } = await import('../services/driveService.js');
+            buffer = await downloadFromGoogleDrive(req.providerToken, file.gdrive_file_id);
+          } catch (dlErr) {
+            return res.status(502).json({ success: false, error: `Gagal mengunduh berkas Google Drive: ${dlErr.message}` });
+          }
+        } else if (file.storage_path) {
           const { data: blob, error: dlErr } = await supabase.storage.from(BUCKET_NAME).download(file.storage_path);
           if (dlErr || !blob) {
             return res.status(502).json({ success: false, error: 'Gagal mengunduh file dari penyimpanan cloud' });

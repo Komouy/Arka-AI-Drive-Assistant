@@ -285,10 +285,14 @@ async function renderTextCodePreview(url, container, fileName, ext) {
 
     if (typeof hljs !== 'undefined') {
       try {
+        const textToHighlight = text.length > 100000 ? text.slice(0, 100000) : text;
         if (targetLang && hljs.getLanguage(targetLang)) {
-          highlightedCode = hljs.highlight(text, { language: targetLang }).value;
+          highlightedCode = hljs.highlight(textToHighlight, { language: targetLang }).value;
         } else {
-          highlightedCode = hljs.highlightAuto(text).value;
+          highlightedCode = hljs.highlightAuto(textToHighlight).value;
+        }
+        if (text.length > 100000) {
+          highlightedCode += '\n\n' + escapeHtml(text.slice(100000));
         }
       } catch {
         highlightedCode = escapeHtml(text);
