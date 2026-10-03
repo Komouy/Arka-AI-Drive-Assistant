@@ -1,19 +1,956 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='20' height='16' x='2' y='4' rx='2'/><path d='m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7'/></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ARKA — Personal AI Workspace & Drive Assistant</title>
-    <meta name="description" content="ARKA — Asisten ruang kerja personal cerdas berbasis AI Groq & Gemini dengan penyimpanan cloud Supabase." />
-    <!-- Google Fonts: Outfit & Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-BD3WW7LE.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-3w2LGzhA.css">
-  </head>
-  <body class="bg-zinc-950 text-zinc-100 antialiased selection:bg-blue-500/20 selection:text-blue-400">
-    <div id="root"></div>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARKA — AI Drive Assistant</title>
+  <link rel="icon" type="image/png" href="/arka-white-logo.png">
+
+  <!-- Instant Theme Initializer (Anti-FOUC) -->
+  <script>
+    try {
+      var savedTheme = localStorage.getItem('arka_theme');
+      if (savedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+      } else {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) {}
+  </script>
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            arka: {
+              50: '#fafafa',
+              100: '#f4f4f5',
+              200: '#e4e4e7',
+              300: '#d4d4d8',
+              400: '#a1a1aa',
+              500: '#71717a',
+              600: '#52525b',
+              700: '#3f3f46',
+              800: '#27272a',
+              850: '#1e1e24',
+              900: '#121215',
+              950: '#09090b',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Core Icon & Preview Libraries -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <!-- PDF.js Engine -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  <!-- Highlight.js Code Syntax Engine -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <!-- Custom Styles for Graph Canvas, Previews, & Scrollbars -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-zinc-100 text-zinc-900 dark:bg-arka-950 dark:text-zinc-100 min-h-screen font-sans selection:bg-zinc-300 dark:selection:bg-zinc-800 selection:text-zinc-900 dark:selection:text-white antialiased transition-colors duration-150 overflow-x-hidden">
+
+  <!-- ── Global Drag & Drop Overlay ────────────────────────────────────────── -->
+  <div id="globalDragOverlay" class="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] hidden items-center justify-center pointer-events-none transition-opacity">
+    <div class="flex flex-col items-center gap-3 p-8 rounded-2xl border-2 border-dashed border-zinc-600 bg-zinc-900/90 text-center max-w-md shadow-2xl">
+      <div class="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-300">
+        <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+      </div>
+      <div class="text-lg font-semibold text-zinc-100">Lepaskan file di sini</div>
+      <div class="text-xs text-zinc-400">File akan otomatis ditambahkan ke antrean unggah</div>
+    </div>
+  </div>
+
+  <!-- ── Toast Notifications Container ─────────────────────────────────────── -->
+  <div id="toastContainer" class="fixed bottom-4 right-3 left-3 sm:left-auto sm:right-5 sm:bottom-5 z-[9998] flex flex-col gap-2 pointer-events-none max-w-sm sm:w-full"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- ── 1. LOGIN SCREEN ──────────────────────────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="loginScreen" class="flex min-h-screen items-center justify-center p-3 sm:p-4 bg-zinc-100 dark:bg-arka-950 transition-colors duration-150 relative">
+    <div class="absolute top-4 right-4 sm:top-6 sm:right-6">
+      <button type="button" onclick="toggleTheme()" title="Ganti Mode Tema"
+              class="p-2 rounded-lg bg-white hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 shadow-sm transition-colors">
+        <i data-lucide="sun" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
+      </button>
+    </div>
+    <div class="w-full max-w-md bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-xl dark:shadow-2xl">
+      <div class="flex flex-col items-center mb-6 text-center">
+        <img src="/arka-white-logo.png" alt="ARKA Logo" class="h-10 sm:h-12 w-auto mb-3 object-contain invert dark:invert-0 transition-[filter]">
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">ARKA Assistant</h1>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Ruang kerja dan asisten drive cerdas</p>
+      </div>
+
+      <!-- Google OAuth Login Button -->
+      <button type="button" id="btnGoogleLogin" onclick="handleGoogleLogin()"
+              class="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 text-zinc-800 dark:text-white text-sm font-medium rounded-xl border border-zinc-200 dark:border-zinc-700 transition-all duration-150 mb-5 shadow-xs">
+        <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span>Lanjutkan dengan Google</span>
+      </button>
+
+      <div class="relative flex items-center justify-center my-5">
+        <div class="border-t border-zinc-200 dark:border-zinc-800 w-full"></div>
+        <span class="bg-white dark:bg-arka-900 px-3 text-[11px] font-mono text-zinc-400 dark:text-zinc-500 uppercase">atau</span>
+      </div>
+
+      <!-- Login / Register Tab Headers -->
+      <div class="flex border-b border-zinc-200 dark:border-zinc-800 mb-5">
+        <button type="button" id="authTabLogin" onclick="switchAuthTab('login')"
+                class="flex-1 pb-2.5 text-xs font-semibold font-mono uppercase tracking-wide border-b-2 border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 transition-colors">
+          Masuk
+        </button>
+        <button type="button" id="authTabSignup" onclick="switchAuthTab('signup')"
+                class="flex-1 pb-2.5 text-xs font-semibold font-mono uppercase tracking-wide border-b-2 border-transparent text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
+          Daftar
+        </button>
+      </div>
+
+      <!-- Error / Success Message (shared) -->
+      <div id="loginError" class="hidden text-xs text-red-500 dark:text-red-400 font-mono bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg mb-4"></div>
+
+      <!-- ── LOGIN FORM ── -->
+      <div id="loginFormSection">
+        <form onsubmit="handleLogin(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider" for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" required autocomplete="email" placeholder="kamu@email.com"
+                   class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider" for="loginPassword">Kata Sandi</label>
+            <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="••••••••"
+                   class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors">
+          </div>
+          <button type="submit" id="loginBtn"
+                  class="w-full py-2.5 px-4 bg-zinc-900 hover:bg-black dark:bg-zinc-200 dark:hover:bg-white text-white dark:text-zinc-950 text-sm font-semibold rounded-xl shadow-sm transition-colors">
+            Masuk
+          </button>
+        </form>
+        <p class="text-center text-xs text-zinc-400 mt-4">Belum punya akun? <button type="button" onclick="switchAuthTab('signup')" class="text-zinc-600 dark:text-zinc-300 font-semibold hover:underline">Daftar sekarang</button></p>
+      </div>
+
+      <!-- ── REGISTER FORM ── -->
+      <div id="signupFormSection" class="hidden">
+        <form onsubmit="handleSignup(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider" for="signupName">Nama Lengkap</label>
+            <input type="text" id="signupName" autocomplete="name" placeholder="Nama kamu"
+                   class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider" for="signupEmail">Email</label>
+            <input type="email" id="signupEmail" required autocomplete="email" placeholder="kamu@email.com"
+                   class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider" for="signupPassword">Kata Sandi <span class="normal-case text-zinc-400">(min 6 karakter)</span></label>
+            <input type="password" id="signupPassword" required autocomplete="new-password" placeholder="••••••••"
+                   class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider" for="signupConfirm">Konfirmasi Kata Sandi</label>
+            <input type="password" id="signupConfirm" required autocomplete="new-password" placeholder="••••••••"
+                   class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors">
+          </div>
+          <button type="submit" id="signupBtn"
+                  class="w-full py-2.5 px-4 bg-zinc-900 hover:bg-black dark:bg-zinc-200 dark:hover:bg-white text-white dark:text-zinc-950 text-sm font-semibold rounded-xl shadow-sm transition-colors">
+            Daftar
+          </button>
+        </form>
+        <p class="text-center text-xs text-zinc-400 mt-4">Sudah punya akun? <button type="button" onclick="switchAuthTab('login')" class="text-zinc-600 dark:text-zinc-300 font-semibold hover:underline">Masuk</button></p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- ── 2. MAIN DASHBOARD (SIDEBAR + WORKSPACE LAYOUT) ────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="dashboard" class="hidden min-h-screen flex bg-zinc-100 dark:bg-arka-950 transition-colors">
+
+    <!-- ── Mobile Sidebar Overlay Backdrop ──────────────────────────────────── -->
+    <div id="sidebarBackdrop" onclick="toggleMobileSidebar(false)"
+         class="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs hidden lg:hidden transition-opacity"></div>
+
+    <!-- ── Modern Left Sidebar Navigation ──────────────────────────────────── -->
+    <aside id="mainSidebar"
+           class="fixed top-0 bottom-0 left-0 z-50 w-64 bg-white dark:bg-arka-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col transition-transform duration-200 ease-in-out -translate-x-full lg:translate-x-0 lg:static shrink-0 select-none">
+
+      <!-- Sidebar Brand Area -->
+      <div class="h-16 px-4 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <img src="/arka-white-logo.png" alt="ARKA Logo" class="h-7 w-auto object-contain invert dark:invert-0 transition-[filter]">
+          <div class="flex flex-col">
+            <span class="text-sm font-bold tracking-tight text-zinc-900 dark:text-white leading-none">ARKA</span>
+            <span class="text-[10px] font-mono text-zinc-500">AI Drive Assistant</span>
+          </div>
+        </div>
+        <!-- Mobile Drawer Close Button -->
+        <button type="button" onclick="toggleMobileSidebar(false)" class="lg:hidden p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Quick Action "+ Buat Baru" Button -->
+      <div class="p-3 border-b border-zinc-100 dark:border-zinc-800/60">
+        <button type="button" onclick="openCreateModal('upload')"
+                class="w-full flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 text-xs font-semibold shadow-xs transition-all active:scale-[0.98] group">
+          <i data-lucide="plus" class="w-4 h-4 transition-transform group-hover:rotate-90"></i>
+          <span>Buat Baru</span>
+        </button>
+      </div>
+
+      <!-- Navigation Menu Items -->
+      <nav class="flex-1 overflow-y-auto p-2.5 space-y-1 text-xs">
+        <div class="px-2 py-1 text-[10px] font-mono font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Menu Utama</div>
+
+        <!-- 1. Beranda / Overview -->
+        <button type="button" onclick="setFilter('overview')" id="navOverview"
+                class="nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="layout-dashboard" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i>
+            <span>Beranda</span>
+          </div>
+        </button>
+
+        <!-- 2. Dokumen -->
+        <button type="button" onclick="setFilter('files')" id="navFiles"
+                class="nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="file-text" class="w-4 h-4 text-blue-500 dark:text-blue-400"></i>
+            <span>Dokumen</span>
+          </div>
+          <span id="badgeFiles" class="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-mono text-zinc-500">0</span>
+        </button>
+
+        <!-- 3. Galeri Gambar -->
+        <button type="button" onclick="setFilter('images')" id="navImages"
+                class="nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="image" class="w-4 h-4 text-emerald-500 dark:text-emerald-400"></i>
+            <span>Galeri Gambar</span>
+          </div>
+          <span id="badgeImages" class="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-mono text-zinc-500">0</span>
+        </button>
+
+        <!-- 4. Favorit & Disematkan -->
+        <button type="button" onclick="setFilter('favorites')" id="navFavorites"
+                class="nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="star" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
+            <span>Favorit & Pin</span>
+          </div>
+          <span id="badgeFavorites" class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-mono border border-amber-500/20">0</span>
+        </button>
+
+        <!-- 4. Catatan & Prompts -->
+        <button type="button" onclick="setFilter('prompts')" id="navPrompts"
+                class="nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="terminal" class="w-4 h-4 text-purple-500 dark:text-purple-400"></i>
+            <span>Catatan & Prompt</span>
+          </div>
+          <span id="badgePrompts" class="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-mono text-zinc-500">0</span>
+        </button>
+
+        <!-- 5. Tautan -->
+        <button type="button" onclick="setFilter('links')" id="navLinks"
+                class="nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="bookmark" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
+            <span>Tautan Tersimpan</span>
+          </div>
+          <span id="badgeLinks" class="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-mono text-zinc-500">0</span>
+        </button>
+
+        <div class="pt-3 pb-1 px-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Fitur Cerdas</div>
+
+        <!-- 6. Arka AI Assistant -->
+        <button type="button" onclick="setFilter('ai')" id="navAi"
+                class="nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="bot-message-square" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
+            <span>Arka AI Assistant</span>
+          </div>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[9px] font-mono border border-amber-500/20">AI</span>
+        </button>
+
+        <!-- 7. Tong Sampah -->
+        <button type="button" onclick="setFilter('trash')" id="navTrash"
+                class="nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="trash-2" class="w-4 h-4 text-red-500 dark:text-red-400"></i>
+            <span>Tong Sampah</span>
+          </div>
+          <span id="badgeTrash" class="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-mono text-zinc-500">0</span>
+        </button>
+      </nav>
+
+      <!-- ── Sidebar Folder Tree Hierarchy ─────────────────────────────────── -->
+      <div id="sidebarFolderTreeSection" class="p-2 border-t border-zinc-200 dark:border-zinc-800 flex flex-col shrink-0">
+        <div class="flex items-center justify-between px-2 py-1 mb-1">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="folder-tree" class="w-3.5 h-3.5 text-blue-500 dark:text-blue-400"></i>
+            <span class="text-[10px] font-mono font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Pohon Folder</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button type="button" onclick="openNewFolderModal()" title="Buat Folder Baru"
+                    class="p-1 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" onclick="handlePruneEmptyFoldersUI()" title="Bersihkan Folder Kosong"
+                    class="p-1 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500/80"></i>
+            </button>
+          </div>
+        </div>
+        <div id="sidebarFolderTree" class="space-y-0.5 max-h-48 overflow-y-auto pr-1 text-xs select-none">
+          <div class="py-2 px-3 text-[11px] font-mono text-zinc-400">Memuat folder...</div>
+        </div>
+      </div>
+
+      <!-- Sidebar Footer: User Profile, Theme & Logout -->
+      <div class="p-3 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-2 shrink-0 bg-zinc-50/50 dark:bg-arka-900/50">
+        <!-- User profile badge container -->
+        <div id="userProfileBadge" class="flex items-center justify-between"></div>
+
+        <!-- Quick Controls: Server status, Theme, Logout -->
+        <div class="flex items-center justify-between pt-1 border-t border-zinc-200/60 dark:border-zinc-800/60">
+          <div class="flex items-center gap-1.5 text-[11px] font-mono text-zinc-500">
+            <span id="statusIndicator" class="w-2 h-2 rounded-full bg-zinc-400 dark:bg-zinc-600 transition-colors"></span>
+            <span id="statusText">memeriksa...</span>
+          </div>
+
+          <div class="flex items-center gap-1">
+            <button type="button" id="btnThemeToggle" onclick="toggleTheme()" title="Ganti Mode Tema"
+                    class="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition-colors">
+              <i data-lucide="sun" class="w-3.5 h-3.5 text-amber-500 dark:text-amber-400"></i>
+            </button>
+            <button type="button" onclick="handleLogout()" title="Keluar dari akun"
+                    class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 transition-colors">
+              <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── 3. Main Workspace Container ──────────────────────────────────────── -->
+    <div class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+
+      <!-- Top Header Bar -->
+      <header class="sticky top-0 z-30 bg-white/80 dark:bg-arka-950/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 h-14 sm:h-16 px-4 sm:px-6 flex items-center justify-between gap-3 shrink-0">
+        <div class="flex items-center gap-3 min-w-0">
+          <!-- Mobile Hamburger Toggle -->
+          <button type="button" onclick="toggleMobileSidebar(true)" class="lg:hidden p-2 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+            <i data-lucide="menu" class="w-5 h-5"></i>
+          </button>
+          <!-- Active Page Title -->
+          <div class="flex flex-col">
+            <h2 id="pageTitle" class="text-sm sm:text-base font-bold text-zinc-900 dark:text-white leading-tight truncate">Beranda</h2>
+            <span id="pageSubtitle" class="text-[11px] text-zinc-500 hidden sm:inline truncate">Ringkasan aktivitas dan berkas terkini</span>
+          </div>
+        </div>
+
+        <!-- Header Actions: Search, Refresh, "+ Buat Baru" -->
+        <div class="flex items-center gap-2">
+          <!-- Search Bar (Desktop) -->
+          <div class="relative hidden sm:block w-48 md:w-64">
+            <i data-lucide="search" class="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="searchInput" placeholder="Cari... (tekan /)" oninput="handleSearch(this.value)"
+                   class="w-full pl-8 pr-2.5 py-1.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors">
+          </div>
+
+          <!-- Refresh Data Button -->
+          <button type="button" id="btnRefresh" onclick="handleRefresh(this)" title="Muat ulang data (R)"
+                  class="p-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 transition-colors">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          </button>
+
+          <!-- Quick "+ Buat Baru" Button on Header -->
+          <button type="button" onclick="openCreateModal('upload')"
+                  class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 text-xs font-semibold shadow-xs transition-colors">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Buat Baru</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Mobile Search Bar (only shown on small screens) -->
+      <div class="sm:hidden px-4 pt-3 pb-1">
+        <div class="relative w-full">
+          <i data-lucide="search" class="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+          <input type="text" id="searchInputMobile" placeholder="Cari berkas, catatan, tautan..." oninput="handleSearch(this.value)"
+                 class="w-full pl-8 pr-2.5 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 transition-colors">
+        </div>
+      </div>
+
+      <!-- Main Views Scroll Area -->
+      <main class="flex-1 p-4 sm:p-6 space-y-5 max-w-7xl w-full mx-auto">
+
+        <!-- AI Schema Health Warning Notice (if applicable) -->
+        <div id="aiSchemaWarning" style="display:none;" class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono leading-relaxed">
+          <strong>Pemberitahuan Skema Database:</strong> Kolom AI <code>suggested_name</code> / <code>suggested_folder</code> belum terpasang di database. Jalankan file migrasi SQL di Supabase editor.
+        </div>
+
+        <!-- ═════════════════════════════════════════════════════════════════════ -->
+        <!-- ── VIEW 1: BERANDA (OVERVIEW) ────────────────────────────────────── -->
+        <!-- ═════════════════════════════════════════════════════════════════════ -->
+        <div id="viewOverview" class="space-y-5">
+          <!-- Stats Summary Strip -->
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <!-- 1. Dokumen -->
+            <div onclick="setFilter('files')" class="cursor-pointer group bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between shadow-xs transition-all">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Dokumen</span>
+                <div class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                </div>
+              </div>
+              <div id="statFiles" class="text-xl sm:text-2xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-2">0</div>
+            </div>
+
+            <!-- 2. Galeri Gambar -->
+            <div onclick="setFilter('images')" class="cursor-pointer group bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between shadow-xs transition-all">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Gambar</span>
+                <div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <i data-lucide="image" class="w-3.5 h-3.5"></i>
+                </div>
+              </div>
+              <div id="statImages" class="text-xl sm:text-2xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-2">0</div>
+            </div>
+
+            <!-- 3. Catatan & Prompt -->
+            <div onclick="setFilter('prompts')" class="cursor-pointer group bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between shadow-xs transition-all">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Catatan & Prompt</span>
+                <div class="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center">
+                  <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+                </div>
+              </div>
+              <div id="statPrompts" class="text-xl sm:text-2xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-2">0</div>
+            </div>
+
+            <!-- 4. Tautan -->
+            <div onclick="setFilter('links')" class="cursor-pointer group bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between shadow-xs transition-all">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Tautan</span>
+                <div class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                  <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+                </div>
+              </div>
+              <div id="statLinks" class="text-xl sm:text-2xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-2">0</div>
+            </div>
+
+            <!-- 5. Penyimpanan -->
+            <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between shadow-xs col-span-2 sm:col-span-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Penyimpanan</span>
+                <div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <i data-lucide="hard-drive" class="w-3.5 h-3.5"></i>
+                </div>
+              </div>
+              <div id="statStorage" class="text-xl sm:text-2xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-2 truncate">0 B</div>
+            </div>
+          </div>
+
+          <!-- Quick Shortcuts Banner -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button type="button" onclick="openCreateModal('upload')" class="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-arka-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 flex items-center gap-3 text-left transition-all group shadow-xs">
+              <div class="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-zinc-900 dark:text-white">Unggah Berkas Baru</div>
+                <div class="text-[11px] text-zinc-500">Multi-file, gambar, dokumen</div>
+              </div>
+            </button>
+            <button type="button" onclick="setFilter('ai')" class="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-arka-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 flex items-center gap-3 text-left transition-all group shadow-xs">
+              <div class="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <i data-lucide="bot-message-square" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-zinc-900 dark:text-white">Tanya Arka AI</div>
+                <div class="text-[11px] text-zinc-500">Pencarian cerdas & analisis drive</div>
+              </div>
+            </button>
+            <button type="button" onclick="openCreateModal('note')" class="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-arka-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 flex items-center gap-3 text-left transition-all group shadow-xs">
+              <div class="w-9 h-9 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-zinc-900 dark:text-white">Tulis Catatan / Prompt</div>
+                <div class="text-[11px] text-zinc-500">Simpan ide & instruksi AI</div>
+              </div>
+            </button>
+          </div>
+
+          <!-- Recent Items Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Recent Files Section -->
+            <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xs flex flex-col">
+              <div class="px-4 py-3 bg-zinc-50/70 dark:bg-zinc-950/70 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="file" class="w-4 h-4 text-blue-500"></i>
+                  <span class="text-xs font-semibold text-zinc-900 dark:text-white">Berkas Terbaru</span>
+                </div>
+                <button type="button" onclick="setFilter('files')" class="text-xs font-mono text-zinc-500 hover:text-zinc-900 dark:hover:text-white">Lihat Semua →</button>
+              </div>
+              <div id="overviewRecentFiles" class="p-2 divide-y divide-zinc-100 dark:divide-zinc-800/60 flex-1 min-h-[140px]">
+                <div class="p-6 text-center text-xs font-mono text-zinc-400">Memuat berkas terbaru...</div>
+              </div>
+            </div>
+
+            <!-- Recent Notes Section -->
+            <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xs flex flex-col">
+              <div class="px-4 py-3 bg-zinc-50/70 dark:bg-zinc-950/70 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="terminal" class="w-4 h-4 text-purple-500"></i>
+                  <span class="text-xs font-semibold text-zinc-900 dark:text-white">Catatan & Prompt Terbaru</span>
+                </div>
+                <button type="button" onclick="setFilter('prompts')" class="text-xs font-mono text-zinc-500 hover:text-zinc-900 dark:hover:text-white">Lihat Semua →</button>
+              </div>
+              <div id="overviewRecentPrompts" class="p-2 divide-y divide-zinc-100 dark:divide-zinc-800/60 flex-1 min-h-[140px]">
+                <div class="p-6 text-center text-xs font-mono text-zinc-400">Memuat catatan terbaru...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═════════════════════════════════════════════════════════════════════ -->
+        <!-- ── VIEW 2: DATA LIST (FILES, IMAGES, PROMPTS, LINKS, TRASH) ──────── -->
+        <!-- ═════════════════════════════════════════════════════════════════════ -->
+        <div id="viewDataList" class="hidden space-y-3.5">
+          <!-- Folder Chips & Action Bar -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <!-- Folder Quick-Filter Chips Bar -->
+            <div id="folderChipsBar" class="hidden"></div>
+            <!-- Empty Trash Action Button -->
+            <div class="ml-auto">
+              <button type="button" id="btnEmptyTrash" onclick="handleEmptyTrash()"
+                      class="hidden items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono text-red-500 hover:text-red-600 bg-red-500/10 border border-red-500/30 transition-colors">
+                <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+                <span>Kosongkan Sampah</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Main Data Table / Cards Container -->
+          <div class="data-table-container bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xs min-h-[340px]">
+            <!-- Batch Header Bar with Select All -->
+            <div id="dataListHeaderBar" class="hidden items-center justify-between px-3.5 py-2.5 bg-zinc-50/80 dark:bg-zinc-950/80 border-b border-zinc-200 dark:border-zinc-800 text-xs font-mono text-zinc-500">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="selectAllCheckbox" onchange="handleSelectAllToggle(this)" class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-0 cursor-pointer">
+                <label for="selectAllCheckbox" class="cursor-pointer select-none font-medium text-zinc-700 dark:text-zinc-300">Pilih Semua</label>
+              </div>
+              <div id="folderCurrentPathLabel" class="text-[11px] truncate text-zinc-400">Semua Berkas</div>
+            </div>
+            <div id="dataList" class="flex flex-col">
+              <div class="p-8 text-center text-xs font-mono text-zinc-500">Memuat data...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═════════════════════════════════════════════════════════════════════ -->
+        <!-- ── VIEW 3: ARKA AI ASSISTANT CHAT SCREEN ────────────────────────── -->
+        <!-- ═════════════════════════════════════════════════════════════════════ -->
+        <div id="viewAi" class="hidden flex flex-col h-[calc(100vh-9.5rem)] bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xs">
+          <!-- AI Header -->
+          <div class="flex items-center justify-between px-4 py-3 bg-zinc-50/80 dark:bg-zinc-950/70 border-b border-zinc-200 dark:border-zinc-800">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                <i data-lucide="bot-message-square" class="w-4 h-4 text-amber-500"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white">Arka AI Assistant</span>
+                  <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">Groq & Gemini</span>
+                </div>
+                <span class="text-[10px] text-zinc-500">Asisten cerdas untuk pencarian & ringkasan dokumen</span>
+              </div>
+            </div>
+            <button type="button" onclick="resetAiChat()" title="Bersihkan chat"
+                    class="px-2.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 text-xs font-mono transition-colors flex items-center gap-1.5">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+              <span class="hidden sm:inline">Reset Chat</span>
+            </button>
+          </div>
+
+          <!-- AI Messages Stream Area -->
+          <div id="aiMessagesScroll" class="flex-1 overflow-y-auto p-4 space-y-4">
+            <!-- Empty Hero State -->
+            <div id="aiEmptyHero" class="h-full flex flex-col items-center justify-center text-center p-6 max-w-md mx-auto">
+              <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-3">
+                <img src="/arka-white-logo.png" alt="ARKA Logo" class="w-7 h-7 object-contain invert dark:invert-0">
+              </div>
+              <h3 class="text-base font-bold text-zinc-900 dark:text-white mb-1">Ada yang bisa saya bantu?</h3>
+              <p class="text-xs text-zinc-500 mb-6">Tanyakan tentang berkas, minta ringkasan dokumen, atau tanyakan apa saja seputar drive Anda.</p>
+              <div id="aiSuggestionsWrap" class="flex flex-col gap-2 w-full">
+                <button type="button" onclick="sendAiSuggestion(this)" class="px-3.5 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-950 dark:hover:bg-zinc-850 text-xs text-left text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 transition-colors flex items-center justify-between">
+                  <span>Rangkum semua berkas di Drive saya</span>
+                  <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-zinc-400"></i>
+                </button>
+                <button type="button" onclick="sendAiSuggestion(this)" class="px-3.5 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-950 dark:hover:bg-zinc-850 text-xs text-left text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 transition-colors flex items-center justify-between">
+                  <span>Cari berkas yang belum dirapikan</span>
+                  <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-zinc-400"></i>
+                </button>
+                <button type="button" onclick="sendAiSuggestion(this)" class="px-3.5 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-950 dark:hover:bg-zinc-850 text-xs text-left text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 transition-colors flex items-center justify-between">
+                  <span>Bagaimana cara otomatisasi folder & tag?</span>
+                  <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-zinc-400"></i>
+                </button>
+              </div>
+            </div>
+            <div id="aiChatMessages" class="space-y-4"></div>
+          </div>
+
+          <!-- Bottom Chat Input Bar -->
+          <div class="p-3 sm:p-4 bg-zinc-50/70 dark:bg-zinc-950/70 border-t border-zinc-200 dark:border-zinc-800">
+            <div class="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl p-2 shadow-xs focus-within:border-zinc-500 dark:focus-within:border-zinc-600 transition-colors">
+              <textarea id="aiChatInput" rows="1" placeholder="Tanyakan apa saja kepada Arka Assistant..." onkeydown="aiChatKeydown(event)" oninput="aiChatAutoResize(this)"
+                        class="flex-1 bg-transparent border-none outline-none text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 px-2 resize-none max-h-28"></textarea>
+              <button type="button" id="aiChatSendBtn" onclick="sendAiMessage()" disabled
+                      class="w-8 h-8 rounded-lg bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white disabled:bg-zinc-200 disabled:text-zinc-400 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 dark:text-zinc-950 flex items-center justify-center transition-colors flex-shrink-0">
+                <i data-lucide="arrow-up" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <div class="text-[10px] font-mono text-zinc-400 mt-1.5 flex justify-between px-1">
+              <span>Tekan Enter untuk kirim • Shift+Enter baris baru</span>
+              <span id="aiChatStatusHint">Siap membantu pengelolaan drive</span>
+            </div>
+          </div>
+        </div>
+
+
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- ── 3. CLEAN CREATION MODAL ("+ BUAT BARU") ──────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="createModalBackdrop" class="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-xs hidden items-center justify-center p-3 sm:p-4 transition-all">
+    <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <!-- Modal Header with Clean Tabs -->
+      <div class="flex items-center justify-between p-3 sm:px-5 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 gap-2">
+        <div class="flex items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+          <button type="button" id="tabUploadBtn" onclick="switchCreateTab('upload')"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700 shadow-xs transition-colors shrink-0">
+            <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+            <span>Unggah Berkas</span>
+          </button>
+          <button type="button" id="tabNoteBtn" onclick="switchCreateTab('note')"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent transition-colors shrink-0">
+            <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+            <span>Catatan / Prompt</span>
+          </button>
+          <button type="button" id="tabLinkBtn" onclick="switchCreateTab('link')"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent transition-colors shrink-0">
+            <i data-lucide="link" class="w-3.5 h-3.5"></i>
+            <span>Tautan</span>
+          </button>
+        </div>
+
+        <button type="button" onclick="closeCreateModal()" title="Tutup (Esc)"
+                class="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Creation Forms Body -->
+      <div id="createPanelBody" class="p-4 sm:p-6 overflow-y-auto flex-1">
+        <!-- 1. Upload Form -->
+        <form id="uploadForm" onsubmit="handleUploadSubmit(event)" class="space-y-4">
+          <!-- Drop Zone Area -->
+          <div id="dropZone" onclick="document.getElementById('fileInput').click()"
+               class="border-2 border-dashed border-zinc-300 hover:border-zinc-500 dark:border-zinc-700 dark:hover:border-zinc-500 bg-zinc-50/50 hover:bg-zinc-50 dark:bg-zinc-950/50 dark:hover:bg-zinc-950 rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5">
+            <input type="file" id="fileInput" name="files" multiple class="hidden" onchange="handleFileSelected(this)">
+            <div class="w-12 h-12 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 shadow-xs">
+              <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+            </div>
+            <div id="dropZoneTitle" class="text-xs sm:text-sm font-semibold text-zinc-800 dark:text-zinc-200">Ketuk untuk memilih file atau seret ke sini</div>
+            <div class="text-[11px] text-zinc-500 font-mono">
+              <span>Maksimal 500 MB per file</span>
+              <span class="hidden sm:inline">• Tekan <kbd class="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 text-[10px]">Ctrl+V</kbd> untuk paste gambar</span>
+            </div>
+            <div id="selectedFilesList" class="hidden text-xs font-mono text-emerald-600 dark:text-emerald-400 mt-2"></div>
+          </div>
+
+          <!-- Upload Live Preview Queue -->
+          <div id="uploadPreviewContainer" class="hidden bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 space-y-2.5">
+            <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800/80 pb-2">
+              <div class="flex items-center gap-2 text-xs font-mono text-zinc-600 dark:text-zinc-400">
+                <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+                <span id="uploadPreviewSummary">0 file dipilih</span>
+              </div>
+              <button type="button" onclick="clearUploadSelection(event)" class="text-xs font-mono text-red-500 dark:text-red-400 hover:text-red-600 flex items-center gap-1">
+                <i data-lucide="trash-2" class="w-3 h-3"></i> <span>Bersihkan</span>
+              </button>
+            </div>
+            <div id="uploadPreviewGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-52 overflow-y-auto pr-1"></div>
+          </div>
+
+          <!-- Optional Folder Destination Input -->
+          <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+            <div class="w-full sm:flex-1">
+              <label for="uploadProject" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Folder / Proyek (Opsional)</label>
+              <input type="text" id="uploadProject" list="folderSuggestions" placeholder="contoh: Dokumentasi, Desain, Pekerjaan"
+                     class="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors">
+              <datalist id="folderSuggestions"></datalist>
+            </div>
+            <button type="submit" id="btnUploadSubmit"
+                    class="w-full sm:w-auto px-6 py-2.5 bg-zinc-900 hover:bg-black dark:bg-zinc-200 dark:hover:bg-white text-white dark:text-zinc-950 text-xs font-semibold rounded-xl shadow-xs transition-colors whitespace-nowrap text-center">
+              Unggah File
+            </button>
+          </div>
+
+          <!-- Upload Progress Bar -->
+          <div id="uploadProgressWrap" class="hidden space-y-1.5 pt-1">
+            <div class="w-full h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+              <div id="uploadProgressFill" class="h-full bg-emerald-500 transition-all duration-150" style="width:0%;"></div>
+            </div>
+            <div id="uploadProgressLabel" class="text-[11px] font-mono text-zinc-500">Mengunggah...</div>
+          </div>
+          <div id="uploadStatus"></div>
+        </form>
+
+        <!-- 2. Note / Prompt Form -->
+        <form id="noteForm" onsubmit="handleNoteSubmit(event)" class="hidden space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="sm:col-span-2">
+              <label for="noteTitle" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Judul</label>
+              <input type="text" id="noteTitle" required placeholder="contoh: Catatan Meeting, Ringkasan Proyek..."
+                     class="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors">
+            </div>
+            <div>
+              <label for="noteCategory" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Kategori</label>
+              <input type="text" id="noteCategory" value="General" placeholder="General, Ide, Kode"
+                     class="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors">
+            </div>
+          </div>
+          <div>
+            <label for="noteContent" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Konten Catatan / Prompt</label>
+            <textarea id="noteContent" required rows="4" placeholder="Tulis instruksi atau catatan di sini..."
+                      class="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-xs font-mono text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors"></textarea>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-end">
+            <div class="w-full sm:w-1/2">
+              <label for="noteTags" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Tag (Pisahkan koma)</label>
+              <input type="text" id="noteTags" placeholder="backend, referensi, penting"
+                     class="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors">
+            </div>
+            <button type="submit" id="btnNoteSubmit"
+                    class="w-full sm:w-auto px-6 py-2.5 bg-zinc-900 hover:bg-black dark:bg-zinc-200 dark:hover:bg-white text-white dark:text-zinc-950 text-xs font-semibold rounded-xl shadow-xs transition-colors whitespace-nowrap text-center">
+              Simpan Catatan
+            </button>
+          </div>
+          <div id="noteStatus"></div>
+        </form>
+
+        <!-- 3. Link Form -->
+        <form id="linkForm" onsubmit="handleLinkSubmit(event)" class="hidden space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label for="linkUrl" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">URL Tautan</label>
+              <input type="url" id="linkUrl" required placeholder="https://example.com/docs"
+                     class="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors">
+            </div>
+            <div>
+              <label for="linkTitle" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Judul (Opsional)</label>
+              <input type="text" id="linkTitle" placeholder="Terisi otomatis jika kosong"
+                     class="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors">
+            </div>
+            <div>
+              <label for="linkCategory" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Kategori</label>
+              <input type="text" id="linkCategory" value="General" placeholder="General, Referensi..."
+                     class="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors">
+            </div>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-end">
+            <div class="w-full sm:w-2/3">
+              <label for="linkDesc" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Deskripsi (Opsional)</label>
+              <input type="text" id="linkDesc" placeholder="Konteks singkat tentang tautan ini"
+                     class="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors">
+            </div>
+            <button type="submit" id="btnLinkSubmit"
+                    class="w-full sm:w-auto px-6 py-2.5 bg-zinc-900 hover:bg-black dark:bg-zinc-200 dark:hover:bg-white text-white dark:text-zinc-950 text-xs font-semibold rounded-xl shadow-xs transition-colors whitespace-nowrap text-center">
+              Simpan Tautan
+            </button>
+          </div>
+          <div id="linkStatus"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- ── 4. MULTI-FORMAT PREVIEW MODAL ────────────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="previewModalBackdrop" class="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-md hidden items-center justify-center p-2 sm:p-4">
+    <div class="modal-window bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-4xl max-h-[96vh] sm:max-h-[92vh] flex flex-col shadow-2xl overflow-hidden transition-all">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-3 sm:p-4 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 gap-2 sm:gap-3">
+        <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+          <span id="previewModalTypeBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700 flex-shrink-0">FILE</span>
+          <span id="previewModalCategoryBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-700/60 flex-shrink-0 max-w-[80px] sm:max-w-none truncate">root</span>
+          <h3 id="previewModalTitle" class="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">Pratinjau</h3>
+        </div>
+
+        <!-- Next / Prev Controls -->
+        <div class="hidden flex items-center gap-1 sm:gap-1.5 font-mono text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900 px-1.5 sm:px-2 py-1 rounded-md border border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+          <button type="button" onclick="navigatePreview(-1)" title="Sebelumnya (←)" class="hover:text-zinc-900 dark:hover:text-white p-1 sm:p-0.5">
+            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          </button>
+          <span id="previewNavIndicator" class="text-[10px] sm:text-[11px] text-zinc-600 dark:text-zinc-400 px-0.5 sm:px-1">1 / 1</span>
+          <button type="button" onclick="navigatePreview(1)" title="Berikutnya (→)" class="hover:text-zinc-900 dark:hover:text-white p-1 sm:p-0.5">
+            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+          <button type="button" id="previewModalExpandBtn" onclick="togglePreviewExpand()" title="Perbesar Layar"
+                  class="p-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-800 transition-colors">
+            <i data-lucide="maximize-2" class="w-4 h-4"></i>
+          </button>
+          <button type="button" onclick="closePreview()" title="Tutup (Esc)"
+                  class="p-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 transition-colors">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-3 sm:p-5 overflow-y-auto space-y-4 flex-1">
+        <div id="previewViewerContainer"></div>
+        <div id="previewMetaContainer"></div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div id="previewFooterActions" class="p-3 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-end gap-2 flex-wrap"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- ── 5. FLOATING BATCH ACTIONS BAR ────────────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="batchActionBar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-zinc-900/95 dark:bg-zinc-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl border border-zinc-700/80 px-4 py-2.5 hidden items-center gap-3 animate-fade-in-fast max-w-[95vw] sm:max-w-xl">
+    <div class="flex items-center gap-2 pr-3 border-r border-zinc-700">
+      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span id="batchSelectedCount" class="text-xs font-mono font-semibold whitespace-nowrap">0 dipilih</span>
+    </div>
+    <div class="flex items-center gap-1.5 overflow-x-auto">
+      <button type="button" onclick="openBatchMoveModal()" class="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-mono flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs">
+        <i data-lucide="folder-input" class="w-3.5 h-3.5 text-blue-400"></i>
+        <span>Pindah</span>
+      </button>
+      <button type="button" onclick="handleBatchDownloadZip()" class="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-mono flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs">
+        <i data-lucide="archive" class="w-3.5 h-3.5 text-emerald-400"></i>
+        <span>Unduh ZIP</span>
+      </button>
+      <button type="button" onclick="handleBatchDelete()" class="px-2.5 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-mono flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-400"></i>
+        <span>Hapus</span>
+      </button>
+      <button type="button" onclick="clearFileSelection()" title="Batalkan pilihan (Esc)" class="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- ── 6. BATCH MOVE MODAL ─────────────────────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="batchMoveModalBackdrop" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
+        <div class="flex items-center gap-2">
+          <i data-lucide="folder-input" class="w-4 h-4 text-blue-500"></i>
+          <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Pindahkan Berkas Terpilih</h3>
+        </div>
+        <button type="button" onclick="closeBatchMoveModal()" class="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-4 space-y-3">
+        <div class="text-xs text-zinc-500 dark:text-zinc-400">Pilih folder tujuan untuk berkas yang dipilih:</div>
+        <div id="batchMoveFolderList" class="space-y-1 max-h-56 overflow-y-auto font-mono text-xs pr-1"></div>
+      </div>
+      <div class="p-3 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2">
+        <button type="button" onclick="closeBatchMoveModal()" class="px-3 py-1.5 rounded-lg text-xs font-mono bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- ── 7. NEW FOLDER MODAL ─────────────────────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="newFolderModalBackdrop" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
+        <div class="flex items-center gap-2">
+          <i data-lucide="folder-plus" class="w-4 h-4 text-blue-500"></i>
+          <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Buat Folder Baru</h3>
+        </div>
+        <button type="button" onclick="closeNewFolderModal()" class="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <form onsubmit="handleCreateFolderSubmit(event)" class="p-4 space-y-3">
+        <div>
+          <label for="newFolderNameInput" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Nama Folder</label>
+          <input type="text" id="newFolderNameInput" required placeholder="contoh: Projects/Website"
+                 class="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors">
+          <p class="text-[10px] text-zinc-400 mt-1">Dapat menggunakan garis miring untuk folder bersarang (contoh: <code>Kerja/2026</code>).</p>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeNewFolderModal()" class="px-3 py-1.5 rounded-lg text-xs font-mono bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors">Batal</button>
+          <button type="submit" id="btnSubmitNewFolder" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-zinc-900 hover:bg-black dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-950 shadow-xs transition-colors">Buat Folder</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Modular Scripts Execution Order ───────────────────────────────────── -->
+  <script src="/js/state.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/upload.js"></script>
+  <script src="/js/render.js"></script>
+  <script src="/js/preview.js"></script>
+  <script src="/js/ai-chat.js"></script>
+  <script src="/js/app.js"></script>
+</body>
 </html>
