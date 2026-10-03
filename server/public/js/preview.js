@@ -385,6 +385,8 @@ function openPreview(type, id, buildList = true) {
   if (buildList) {
     if (type === 'FILE' && currentFilter === 'images') {
       currentPreviewList = (allData.files || []).filter(isImageFile).map(f => ({ type: 'FILE', id: f.id }));
+    } else if (type === 'FILE' && currentFilter === 'files') {
+      currentPreviewList = (allData.files || []).filter(f => !isImageFile(f)).map(f => ({ type: 'FILE', id: f.id }));
     } else if (type === 'FILE') {
       currentPreviewList = (allData.files || []).map(f => ({ type: 'FILE', id: f.id }));
     } else {

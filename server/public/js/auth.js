@@ -138,12 +138,13 @@ async function handleLogin(e) {
     const res  = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, username: email, password })
     });
     const json = await res.json();
 
     if (res.ok && json.success && json.token) {
       saveToken(json.token);
+      if (json.providerToken) saveProviderToken(json.providerToken);
       updateUserUI(json.user || { email });
       showDashboard();
     } else {
@@ -305,6 +306,7 @@ async function checkAuthOnLoad() {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (res.ok) {
+      saveToken(token);
       const data = await res.json();
       if (data.user) updateUserUI(data.user);
       showDashboard();
@@ -312,6 +314,9 @@ async function checkAuthOnLoad() {
       clearToken();
     }
   } catch {
-    if (token) showDashboard();
+    if (token) {
+      saveToken(token);
+      showDashboard();
+    }
   }
 }

@@ -65,3 +65,50 @@ export async function requireAuth(req, res, next) {
   }
 }
 
+/**
+ * Express middleware — attempts to populate `req.user` if a Bearer token is
+ * provided, but does not reject the request if absent or expired.
+ */
+export async function optionalAuth(req, res, next) {
+  const authHeader = req.headers['authorization'] || '';
+  let token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  if (!token && req.query?.token) {
+    token = String(req.query.token).trim();
+  }
+
+  if (!token) return next();
+
+  const providerToken = req.headers['x-provider-token'] || null;
+
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { data, error } = await supabase.auth.getUser(token);
+        if (data?.user && !error) {
+          req.user = {
+            id: data.user.id,
+            sub: data.user.email || data.user.id,
+            email: data.user.email,
+            role: 'authenticated',
+            user_metadata: data.user.user_metadata || {}
+          };
+          req.providerToken = providerToken;
+          return next();
+        }
+      }
+    } catch {
+      // Fall through to local verification
+    }
+  }
+
+  try {
+    const decoded = jwt.verify(token, getJwtSecret());
+    req.user = decoded;
+    req.providerToken = providerToken;
+  } catch {
+    // Leave req.user empty for optional auth
+  }
+
+  return next();
+}

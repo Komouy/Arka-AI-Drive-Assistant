@@ -9,11 +9,12 @@ import { aiController } from '../controllers/aiController.js';
 import { authController } from '../controllers/authController.js';
 import { driveController } from '../controllers/driveController.js';
 import { uploadMiddleware } from '../middlewares/upload.js';
-import { requireAuth } from '../middlewares/auth.js';
+import { requireAuth, optionalAuth } from '../middlewares/auth.js';
 
 const router = express.Router();
 
-// ── Public: Auth (no token required) ──────────────────────────────────────────
+// ── Public / Health / Auth ──────────────────────────────────────────────────
+router.get('/status', optionalAuth, systemController.getStatus);
 router.get('/auth/config', authController.getConfig);
 router.post('/auth/signup', authController.signup);
 router.post('/auth/login', authController.login);
@@ -21,9 +22,6 @@ router.get('/auth/verify', requireAuth, authController.verify);
 
 // ── All routes below require a valid JWT ──────────────────────────────────────
 router.use(requireAuth);
-
-// System
-router.get('/status', systemController.getStatus);
 
 // Folders
 router.get('/folders', folderController.getAll);

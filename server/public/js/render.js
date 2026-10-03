@@ -3,21 +3,18 @@
 async function loadStatus() {
   try {
     const res = await authFetch(`${API_BASE}/status`);
-    if (res.status === 401) { handleLogout(); return; }
+    if (res.status === 401 && !loadToken()) {
+      handleLogout();
+      return;
+    }
     const json = await res.json();
     if (json.success && json.data) {
       const stats = json.data.stats || {};
-      const statFiles = document.getElementById('statFiles');
-      const statPrompts = document.getElementById('statPrompts');
-      const statLinks = document.getElementById('statLinks');
       const statStorage = document.getElementById('statStorage');
       const statusInd = document.getElementById('statusIndicator');
       const statusTxt = document.getElementById('statusText');
 
-      if (statFiles) statFiles.textContent = stats.totalFiles || 0;
-      if (statPrompts) statPrompts.textContent = stats.prompts || 0;
-      if (statLinks) statLinks.textContent = stats.links || 0;
-      if (statStorage) statStorage.textContent = formatBytes(stats.totalBytes);
+      if (statStorage && stats.totalBytes !== undefined) statStorage.textContent = formatBytes(stats.totalBytes);
       if (statusInd) {
         statusInd.classList.remove('bg-red-500', 'bg-amber-500');
         statusInd.classList.add('bg-emerald-500');
@@ -108,8 +105,11 @@ async function handleRefresh(btn) {
 }
 
 function updateCounts() {
-  const total = allData.files.length + allData.prompts.length + allData.links.length;
-  const imageCount = (allData.files || []).filter(isImageFile).length;
+  const docFiles = (allData.files || []).filter(f => !f.is_trash && !isImageFile(f));
+  const imageFiles = (allData.files || []).filter(f => !f.is_trash && isImageFile(f));
+  const docCount = docFiles.length;
+  const imageCount = imageFiles.length;
+  const total = docCount + imageCount + (allData.prompts || []).length + (allData.links || []).length;
 
   const countAll = document.getElementById('countAll');
   const countFiles = document.getElementById('countFiles');
@@ -118,12 +118,22 @@ function updateCounts() {
   const countLinks = document.getElementById('countLinks');
   const countTrash = document.getElementById('countTrash');
 
+  const statFiles = document.getElementById('statFiles');
+  const statImages = document.getElementById('statImages');
+  const statPrompts = document.getElementById('statPrompts');
+  const statLinks = document.getElementById('statLinks');
+
   if (countAll) countAll.textContent = total;
-  if (countFiles) countFiles.textContent = allData.files.length;
+  if (countFiles) countFiles.textContent = docCount;
   if (countImages) countImages.textContent = imageCount;
   if (countPrompts) countPrompts.textContent = allData.prompts.length;
   if (countLinks) countLinks.textContent = allData.links.length;
   if (countTrash) countTrash.textContent = allData.trash.length;
+
+  if (statFiles) statFiles.textContent = docCount;
+  if (statImages) statImages.textContent = imageCount;
+  if (statPrompts) statPrompts.textContent = allData.prompts.length;
+  if (statLinks) statLinks.textContent = allData.links.length;
 
   // Sidebar Badges
   const badgeFiles = document.getElementById('badgeFiles');
@@ -132,7 +142,7 @@ function updateCounts() {
   const badgeLinks = document.getElementById('badgeLinks');
   const badgeTrash = document.getElementById('badgeTrash');
 
-  if (badgeFiles) badgeFiles.textContent = allData.files.length;
+  if (badgeFiles) badgeFiles.textContent = docCount;
   if (badgeImages) badgeImages.textContent = imageCount;
   if (badgePrompts) badgePrompts.textContent = allData.prompts.length;
   if (badgeLinks) badgeLinks.textContent = allData.links.length;
@@ -150,9 +160,12 @@ function renderFolderChips() {
   const container = document.getElementById('folderChipsBar');
   if (!container) return;
 
-  // Kumpulkan semua folder unik yang ada pada files
+  // Kumpulkan semua folder unik yang relevan dengan filter aktif
+  const isImageTab = currentFilter === 'images';
+  const targetFiles = (allData.files || []).filter(f => !f.is_trash && (isImageTab ? isImageFile(f) : !isImageFile(f)));
+
   const foldersSet = new Set();
-  (allData.files || []).forEach(f => {
+  targetFiles.forEach(f => {
     const fName = f.folder_name || (f.is_inbox ? 'inbox' : 'root');
     if (fName) foldersSet.add(fName);
   });
@@ -198,19 +211,20 @@ function renderSidebarFolderTree() {
   if (!container) return;
 
   const folders = allData.folders || [];
-  const files = (allData.files || []).filter(f => !f.is_trash);
-  const inboxCount = files.filter(f => f.is_inbox).length;
+  const isImageTab = currentFilter === 'images';
+  const relevantFiles = (allData.files || []).filter(f => !f.is_trash && (isImageTab ? isImageFile(f) : !isImageFile(f)));
+  const inboxCount = relevantFiles.filter(f => f.is_inbox).length;
 
   let html = `
-    <!-- Root / Semua Berkas -->
-    <div class="folder-tree-node ${!currentFolderFilter && currentFilter === 'files' ? 'active' : ''}"
+    <!-- Root / Semua Dokumen atau Semua Gambar -->
+    <div class="folder-tree-node ${!currentFolderFilter && (currentFilter === 'files' || currentFilter === 'images') ? 'active' : ''}"
          onclick="handleFolderTreeClick(null)"
          ondragover="handleFolderDragOver(event)"
          ondragleave="handleFolderDragLeave(event)"
          ondrop="handleFolderDrop(event, null, 'Root')">
-      <i data-lucide="layers" class="w-3.5 h-3.5 text-zinc-500"></i>
-      <span class="truncate flex-1">Semua Berkas</span>
-      <span class="text-[10px] text-zinc-400 font-mono px-1 rounded bg-zinc-100 dark:bg-zinc-800">${files.length}</span>
+      <i data-lucide="${isImageTab ? 'image' : 'file-text'}" class="w-3.5 h-3.5 ${isImageTab ? 'text-emerald-500' : 'text-blue-500'}"></i>
+      <span class="truncate flex-1">${isImageTab ? 'Semua Gambar' : 'Semua Dokumen'}</span>
+      <span class="text-[10px] text-zinc-400 font-mono px-1 rounded bg-zinc-100 dark:bg-zinc-800">${relevantFiles.length}</span>
     </div>
 
     <!-- Inbox -->
@@ -257,6 +271,9 @@ function renderSidebarFolderTree() {
     const isActive = currentFolderFilter === node.name || currentFolderFilter === node.path;
     const folderColor = node.color || '#3b82f6';
 
+    const folderFiles = relevantFiles.filter(f => (f.folder_name === node.name || f.folder_id === node.id || f.folder_path === node.path));
+    const countBadge = folderFiles.length;
+
     let nodeHtml = `
       <div class="folder-tree-node ${isActive ? 'active' : ''}"
            onclick="handleFolderTreeClick('${escapeHtml(node.name)}', '${node.id}')"
@@ -271,7 +288,7 @@ function renderSidebarFolderTree() {
         ` : `<span class="w-3 inline-block"></span>`}
         <i data-lucide="folder" class="w-3.5 h-3.5 flex-shrink-0" style="color: ${folderColor};"></i>
         <span class="truncate flex-1">${escapeHtml(node.name)}</span>
-        <span class="text-[10px] text-zinc-400 font-mono px-1 rounded bg-zinc-100 dark:bg-zinc-800">${node.file_count || 0}</span>
+        <span class="text-[10px] text-zinc-400 font-mono px-1 rounded bg-zinc-100 dark:bg-zinc-800">${countBadge}</span>
       </div>
     `;
 
@@ -651,7 +668,7 @@ function setFilter(type) {
   const pageSubtitle = document.getElementById('pageSubtitle');
   const titles = {
     overview: { title: 'Beranda', subtitle: 'Ringkasan aktivitas dan berkas terkini' },
-    files: { title: 'Berkas & Dokumen', subtitle: 'Kelola seluruh berkas dan dokumen di Drive Anda' },
+    files: { title: 'Dokumen', subtitle: 'Kelola berkas dokumen, PDF, spreadsheet, teks, dan data' },
     images: { title: 'Galeri Gambar', subtitle: 'Koleksi foto dan gambar dengan pratinjau langsung' },
     favorites: { title: 'Favorit & Disematkan', subtitle: 'Berkas, catatan, dan tautan yang Anda beri tanda bintang' },
     prompts: { title: 'Catatan & Prompt', subtitle: 'Koleksi prompt AI, instruksi, dan catatan kerja' },
@@ -868,7 +885,7 @@ function render() {
     headerBar.classList.toggle('hidden', !showHeader);
     headerBar.classList.toggle('flex', showHeader);
     if (pathLabel) {
-      pathLabel.textContent = currentFolderFilter ? `Folder: ${currentFolderFilter}` : (currentFilter === 'images' ? 'Semua Gambar' : 'Semua Berkas');
+      pathLabel.textContent = currentFolderFilter ? `Folder: ${currentFolderFilter}` : (currentFilter === 'images' ? 'Semua Gambar' : 'Semua Dokumen');
     }
   }
 
@@ -1057,7 +1074,11 @@ function render() {
   }
 
   if (currentFilter === 'all' || currentFilter === 'files') {
-    allData.files.forEach(f => {
+    const fileSource = currentFilter === 'files'
+      ? (allData.files || []).filter(f => !isImageFile(f))
+      : (allData.files || []);
+
+    fileSource.forEach(f => {
       const category = f.folder_name || (f.is_inbox ? 'inbox' : 'root');
       if (!currentFolderFilter || category === currentFolderFilter) {
         combined.push({
@@ -1300,11 +1321,13 @@ function render() {
 
   const pathLabel = document.getElementById('folderCurrentPathLabel');
   if (pathLabel) {
-    pathLabel.textContent = currentFolderFilter ? `Folder: ${currentFolderFilter}` : (currentFilter === 'files' ? 'Semua Berkas' : currentFilter);
+    pathLabel.textContent = currentFolderFilter ? `Folder: ${currentFolderFilter}` : (currentFilter === 'files' ? 'Semua Dokumen' : (currentFilter === 'images' ? 'Semua Gambar' : currentFilter));
   }
   const headerBar = document.getElementById('dataListHeaderBar');
   if (headerBar) {
-    const showHeader = (currentFilter === 'files' || currentFilter === 'images') && (allData.files || []).filter(f => !f.is_trash).length > 0;
+    const isImageMode = currentFilter === 'images';
+    const activeCount = (allData.files || []).filter(f => !f.is_trash && (isImageMode ? isImageFile(f) : !isImageFile(f))).length;
+    const showHeader = (currentFilter === 'files' || currentFilter === 'images') && activeCount > 0;
     headerBar.classList.toggle('hidden', !showHeader);
     headerBar.classList.toggle('flex', showHeader);
   }

@@ -1,8 +1,8 @@
 // ── ARKA Global State & Shared Utilities ─────────────────────────────────────
 const API_BASE = '/api';
 
-let authToken = null;
-let providerToken = null;
+let authToken = typeof loadToken === 'function' ? loadToken() : null;
+let providerToken = typeof loadProviderToken === 'function' ? loadProviderToken() : null;
 let supabaseClient = null;
 
 let allData = {
@@ -57,7 +57,11 @@ function selectAllFiles() {
       }
     });
   } else {
-    const fileItems = (allData.files || []).filter(f => !f.is_trash);
+    let fileItems = (allData.files || []).filter(f => !f.is_trash);
+    if (typeof isImageFile === 'function') {
+      if (currentFilter === 'images') fileItems = fileItems.filter(isImageFile);
+      else if (currentFilter === 'files') fileItems = fileItems.filter(f => !isImageFile(f));
+    }
     fileItems.forEach(f => selectedFileIds.add(String(f.id)));
   }
   updateBatchActionBar();
@@ -283,9 +287,16 @@ function getFileCategoryIcon(mime, name) {
 // ── Authenticated HTTP Request Helper ────────────────────────────────────────
 function authHeaders() {
   const headers = {};
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-  const pt = providerToken || loadProviderToken();
-  if (pt) headers['X-Provider-Token'] = pt;
+  const token = authToken || (typeof loadToken === 'function' ? loadToken() : null);
+  if (token) {
+    authToken = token;
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  const pt = providerToken || (typeof loadProviderToken === 'function' ? loadProviderToken() : null);
+  if (pt) {
+    providerToken = pt;
+    headers['X-Provider-Token'] = pt;
+  }
   return headers;
 }
 

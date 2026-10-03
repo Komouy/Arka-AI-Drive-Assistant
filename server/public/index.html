@@ -246,12 +246,12 @@
           </div>
         </button>
 
-        <!-- 2. Semua Berkas -->
+        <!-- 2. Dokumen -->
         <button type="button" onclick="setFilter('files')" id="navFiles"
                 class="nav-link w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
           <div class="flex items-center gap-2.5">
-            <i data-lucide="folder" class="w-4 h-4 text-blue-500 dark:text-blue-400"></i>
-            <span>Berkas & Dokumen</span>
+            <i data-lucide="file-text" class="w-4 h-4 text-blue-500 dark:text-blue-400"></i>
+            <span>Dokumen</span>
           </div>
           <span id="badgeFiles" class="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-mono text-zinc-500">0</span>
         </button>
@@ -431,17 +431,30 @@
         <!-- ═════════════════════════════════════════════════════════════════════ -->
         <div id="viewOverview" class="space-y-5">
           <!-- Stats Summary Strip -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <!-- 1. Dokumen -->
             <div onclick="setFilter('files')" class="cursor-pointer group bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between shadow-xs transition-all">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Total Berkas</span>
+                <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Dokumen</span>
                 <div class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
-                  <i data-lucide="file" class="w-3.5 h-3.5"></i>
+                  <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
                 </div>
               </div>
               <div id="statFiles" class="text-xl sm:text-2xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-2">0</div>
             </div>
 
+            <!-- 2. Galeri Gambar -->
+            <div onclick="setFilter('images')" class="cursor-pointer group bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between shadow-xs transition-all">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Gambar</span>
+                <div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <i data-lucide="image" class="w-3.5 h-3.5"></i>
+                </div>
+              </div>
+              <div id="statImages" class="text-xl sm:text-2xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-2">0</div>
+            </div>
+
+            <!-- 3. Catatan & Prompt -->
             <div onclick="setFilter('prompts')" class="cursor-pointer group bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between shadow-xs transition-all">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Catatan & Prompt</span>
@@ -452,6 +465,7 @@
               <div id="statPrompts" class="text-xl sm:text-2xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-2">0</div>
             </div>
 
+            <!-- 4. Tautan -->
             <div onclick="setFilter('links')" class="cursor-pointer group bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between shadow-xs transition-all">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Tautan</span>
@@ -462,7 +476,8 @@
               <div id="statLinks" class="text-xl sm:text-2xl font-bold font-mono text-zinc-900 dark:text-zinc-100 mt-2">0</div>
             </div>
 
-            <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between shadow-xs">
+            <!-- 5. Penyimpanan -->
+            <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 sm:p-4 flex flex-col justify-between shadow-xs col-span-2 sm:col-span-1">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Penyimpanan</span>
                 <div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">

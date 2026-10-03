@@ -92,19 +92,27 @@ export const authController = {
   login: async (req, res) => {
     const { email, password, username } = req.body || {};
 
-    // ── Legacy owner password login ────────────────────────────────────────────
+    // ── Owner password login (supports username or email, for local / owner use) ──
     const ownerPassword = getEnv('ARKA_PASSWORD');
-    if (ownerPassword && username && !email) {
-      if (!password) {
-        return res.status(400).json({ success: false, error: 'Nama pengguna dan kata sandi wajib diisi' });
-      }
-      const usernameMatch = String(username).trim().toLowerCase() === 'dhaifan';
-      const passwordMatch = safeEquals(String(password), ownerPassword);
-      if (!usernameMatch || !passwordMatch) {
-        return res.status(401).json({ success: false, error: 'Nama pengguna atau kata sandi salah' });
-      }
-      const token = jwt.sign({ sub: 'dhaifan', role: 'owner' }, getJwtSecret(), { expiresIn: TOKEN_TTL });
-      return res.json({ success: true, token, username: 'Dhaifan', expiresIn: TOKEN_TTL });
+    const inputIdentifier = String(username || email || '').trim().toLowerCase();
+    const isOwnerIdentifier = inputIdentifier === 'dhaifan' || inputIdentifier === 'owner' || inputIdentifier === 'dhavinal20@gmail.com' || (!email && Boolean(username));
+
+    if (ownerPassword && isOwnerIdentifier && safeEquals(String(password), ownerPassword)) {
+      const ownerUser = {
+        id: '8a1ec17e-754a-4b76-84e1-a329eba1484e',
+        sub: 'dhaifan',
+        email: 'dhavinal20@gmail.com',
+        role: 'owner',
+        user_metadata: { full_name: 'Dhaifan' }
+      };
+      const token = jwt.sign(ownerUser, getJwtSecret(), { expiresIn: TOKEN_TTL });
+      return res.json({
+        success: true,
+        token,
+        username: 'Dhaifan',
+        user: ownerUser,
+        expiresIn: TOKEN_TTL
+      });
     }
 
     // ── Supabase Auth email/password login ─────────────────────────────────────
