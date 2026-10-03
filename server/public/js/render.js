@@ -55,19 +55,48 @@ function renderSkeleton() {
 
 async function fetchAllData() {
   renderSkeleton();
+
+  // Load cached folders immediately if available to eliminate cold loading delay
   try {
+    const cached = localStorage.getItem('arka_cached_folders');
+    if (cached && (!allData.folders || allData.folders.length === 0)) {
+      allData.folders = JSON.parse(cached);
+      renderSidebarFolderTree();
+      renderFolderChips();
+    }
+  } catch {}
+
+  try {
+    // Stream folders update as soon as folders arrive, without waiting for files/links/prompts
+    const foldersPromise = authFetch(`${API_BASE}/folders`)
+      .then(r => r.json())
+      .then(res => {
+        if (Array.isArray(res?.data)) {
+          allData.folders = res.data;
+          try { localStorage.setItem('arka_cached_folders', JSON.stringify(res.data)); } catch {}
+          renderSidebarFolderTree();
+          renderFolderChips();
+          const folderDatalist = document.getElementById('folderSuggestions');
+          if (folderDatalist) {
+            folderDatalist.innerHTML = allData.folders.map(f => `<option value="${escapeHtml(f.path || f.name)}">`).join('');
+          }
+        }
+        return res;
+      })
+      .catch(() => ({ data: [] }));
+
     const [filesRes, promptsRes, linksRes, foldersRes, trashRes] = await Promise.all([
       authFetch(`${API_BASE}/files`).then(r => r.json()),
       authFetch(`${API_BASE}/prompts`).then(r => r.json()),
       authFetch(`${API_BASE}/links`).then(r => r.json()),
-      authFetch(`${API_BASE}/folders`).then(r => r.json()).catch(() => ({ data: [] })),
+      foldersPromise,
       authFetch(`${API_BASE}/files?trash=true`).then(r => r.json()).catch(() => ({ data: [] }))
     ]);
 
     allData.files = Array.isArray(filesRes.data) ? filesRes.data : [];
     allData.prompts = Array.isArray(promptsRes.data) ? promptsRes.data : [];
     allData.links = Array.isArray(linksRes.data) ? linksRes.data : [];
-    allData.folders = Array.isArray(foldersRes.data) ? foldersRes.data : [];
+    if (Array.isArray(foldersRes.data)) allData.folders = foldersRes.data;
     allData.trash = Array.isArray(trashRes.data) ? trashRes.data : [];
 
     const folderDatalist = document.getElementById('folderSuggestions');

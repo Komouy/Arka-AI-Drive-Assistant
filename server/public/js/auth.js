@@ -259,6 +259,17 @@ function showDashboard() {
   const dash = document.getElementById('dashboard');
   if (dash) dash.classList.remove('hidden');
   refreshIcons();
+
+  // Instant render from local cache so user never waits for folder tree
+  try {
+    const cachedFolders = localStorage.getItem('arka_cached_folders');
+    if (cachedFolders && (!allData.folders || allData.folders.length === 0)) {
+      allData.folders = JSON.parse(cachedFolders);
+      if (typeof renderSidebarFolderTree === 'function') renderSidebarFolderTree();
+      if (typeof renderFolderChips === 'function') renderFolderChips();
+    }
+  } catch {}
+
   if (typeof setFilter === 'function') {
     // Restore whichever tab the user was on before (persisted in sessionStorage)
     const savedFilter = typeof loadCurrentFilter === 'function' ? loadCurrentFilter() : 'overview';

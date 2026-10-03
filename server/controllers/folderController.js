@@ -55,14 +55,18 @@ export const folderController = {
         if (userId) {
           folderQuery = folderQuery.or(`user_id.eq.${userId},user_id.is.null`);
         }
-        const { data: folders, error: fErr } = await folderQuery;
-        if (fErr) return fail(res, fErr);
 
         let filesQuery = supabase.from('files').select('folder_id').eq('is_trash', false);
         if (userId) {
           filesQuery = filesQuery.or(`user_id.eq.${userId},user_id.is.null`);
         }
-        const { data: files } = await filesQuery;
+
+        const [
+          { data: folders, error: fErr },
+          { data: files }
+        ] = await Promise.all([folderQuery, filesQuery]);
+
+        if (fErr) return fail(res, fErr);
         const fileCountMap = {};
         for (const f of (files || [])) {
           if (f.folder_id) fileCountMap[f.folder_id] = (fileCountMap[f.folder_id] || 0) + 1;

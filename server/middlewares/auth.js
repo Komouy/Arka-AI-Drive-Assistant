@@ -6,6 +6,28 @@ function getJwtSecret() {
   return getEnv('JWT_SECRET') || 'arka-dev-secret-change-me';
 }
 
+// In-memory token cache (TTL: 60s) to prevent redundant network roundtrips to Supabase Auth
+const tokenUserCache = new Map();
+const TOKEN_CACHE_TTL_MS = 60 * 1000;
+
+function getCachedUser(token) {
+  const entry = tokenUserCache.get(token);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    tokenUserCache.delete(token);
+    return null;
+  }
+  return entry.user;
+}
+
+function setCachedUser(token, user) {
+  if (tokenUserCache.size > 500) {
+    const firstKey = tokenUserCache.keys().next().value;
+    tokenUserCache.delete(firstKey);
+  }
+  tokenUserCache.set(token, { user, expiresAt: Date.now() + TOKEN_CACHE_TTL_MS });
+}
+
 /**
  * Express middleware — verifies the Bearer JWT on protected routes.
  * Supports both:
@@ -32,18 +54,27 @@ export async function requireAuth(req, res, next) {
 
   // 1. Verify via Supabase Auth if Supabase is active
   if (isSupabaseConfigured()) {
+    const cachedUser = getCachedUser(token);
+    if (cachedUser) {
+      req.user = cachedUser;
+      req.providerToken = providerToken;
+      return next();
+    }
+
     try {
       const supabase = getSupabaseClient();
       if (supabase) {
         const { data, error } = await supabase.auth.getUser(token);
         if (data?.user && !error) {
-          req.user = {
+          const userObj = {
             id: data.user.id,
             sub: data.user.email || data.user.id,
             email: data.user.email,
             role: 'authenticated',
             user_metadata: data.user.user_metadata || {}
           };
+          setCachedUser(token, userObj);
+          req.user = userObj;
           req.providerToken = providerToken; // Google Drive access token
           return next();
         }
@@ -81,18 +112,27 @@ export async function optionalAuth(req, res, next) {
   const providerToken = req.headers['x-provider-token'] || null;
 
   if (isSupabaseConfigured()) {
+    const cachedUser = getCachedUser(token);
+    if (cachedUser) {
+      req.user = cachedUser;
+      req.providerToken = providerToken;
+      return next();
+    }
+
     try {
       const supabase = getSupabaseClient();
       if (supabase) {
         const { data, error } = await supabase.auth.getUser(token);
         if (data?.user && !error) {
-          req.user = {
+          const userObj = {
             id: data.user.id,
             sub: data.user.email || data.user.id,
             email: data.user.email,
             role: 'authenticated',
             user_metadata: data.user.user_metadata || {}
           };
+          setCachedUser(token, userObj);
+          req.user = userObj;
           req.providerToken = providerToken;
           return next();
         }
