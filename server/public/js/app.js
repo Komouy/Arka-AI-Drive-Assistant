@@ -12,8 +12,15 @@ window.addEventListener('DOMContentLoaded', () => {
     const isTyping = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
     const isModalOpen = !document.getElementById('previewModalBackdrop')?.classList.contains('hidden');
 
-    // 1. ESC: Close modal or mobile sidebar
+    // 1. ESC: Close modal, selection, or mobile sidebar
     if (e.key === 'Escape') {
+      if (typeof selectedFileIds !== 'undefined' && selectedFileIds.size > 0) {
+        clearFileSelection();
+        return;
+      }
+      if (typeof closeBatchMoveModal === 'function') closeBatchMoveModal();
+      if (typeof closeNewFolderModal === 'function') closeNewFolderModal();
+
       const isCreateOpen = !document.getElementById('createModalBackdrop')?.classList.contains('hidden');
       if (isModalOpen) {
         closePreview();

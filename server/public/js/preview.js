@@ -134,6 +134,124 @@ async function renderDocxPreview(buffer, container, fileName) {
   }
 }
 
+let currentPdfDoc = null;
+let currentPdfPage = 1;
+let currentPdfScale = 1.0;
+
+async function renderPdfPreview(url, container, fileName) {
+  try {
+    if (typeof pdfjsLib === 'undefined') {
+      container.innerHTML = `<iframe class="w-full h-[520px] rounded border border-zinc-200 dark:border-zinc-800 bg-white" src="${url}"></iframe>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="pdf-viewer-wrap">
+        <div class="pdf-toolbar">
+          <div class="flex items-center gap-1.5 font-mono text-xs">
+            <button type="button" id="pdfPrevBtn" class="p-1 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <span class="text-zinc-600 dark:text-zinc-400 px-1">
+              Hal <span id="pdfCurrentPage" class="font-bold text-zinc-900 dark:text-zinc-100">1</span> / <span id="pdfTotalPages">?</span>
+            </span>
+            <button type="button" id="pdfNextBtn" class="p-1 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div class="flex items-center gap-1.5 font-mono text-xs">
+            <button type="button" id="pdfZoomOutBtn" title="Perkecil (-)" class="p-1 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors">
+              <i data-lucide="zoom-out" class="w-4 h-4"></i>
+            </button>
+            <span id="pdfZoomLevel" class="text-zinc-600 dark:text-zinc-400 px-1">100%</span>
+            <button type="button" id="pdfZoomInBtn" title="Perbesar (+)" class="p-1 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors">
+              <i data-lucide="zoom-in" class="w-4 h-4"></i>
+            </button>
+            <button type="button" id="pdfFitWidthBtn" title="Sesuaikan Lebar" class="p-1 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors">
+              <i data-lucide="maximize" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+        <div class="pdf-canvas-container" id="pdfCanvasWrap">
+          <canvas id="pdfViewerCanvas"></canvas>
+        </div>
+      </div>
+    `;
+    refreshIcons();
+
+    const res = await authFetch(url);
+    if (!res.ok) throw new Error('Gagal mengambil file PDF.');
+    const arrayBuffer = await res.arrayBuffer();
+
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    currentPdfDoc = await loadingTask.promise;
+    currentPdfPage = 1;
+    currentPdfScale = 1.0;
+
+    const totalPagesEl = container.querySelector('#pdfTotalPages');
+    if (totalPagesEl) totalPagesEl.textContent = currentPdfDoc.numPages;
+
+    async function renderPage(pageNum) {
+      if (!currentPdfDoc || pageNum < 1 || pageNum > currentPdfDoc.numPages) return;
+      currentPdfPage = pageNum;
+      const page = await currentPdfDoc.getPage(pageNum);
+      const canvas = container.querySelector('#pdfViewerCanvas');
+      if (!canvas) return;
+      const context = canvas.getContext('2d');
+      const viewport = page.getViewport({ scale: currentPdfScale });
+
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport
+      };
+      await page.render(renderContext).promise;
+
+      const curPageEl = container.querySelector('#pdfCurrentPage');
+      if (curPageEl) curPageEl.textContent = pageNum;
+      const zoomLevelEl = container.querySelector('#pdfZoomLevel');
+      if (zoomLevelEl) zoomLevelEl.textContent = `${Math.round(currentPdfScale * 100)}%`;
+    }
+
+    container.querySelector('#pdfPrevBtn')?.addEventListener('click', () => {
+      if (currentPdfPage > 1) renderPage(currentPdfPage - 1);
+    });
+    container.querySelector('#pdfNextBtn')?.addEventListener('click', () => {
+      if (currentPdfPage < currentPdfDoc.numPages) renderPage(currentPdfPage + 1);
+    });
+    container.querySelector('#pdfZoomInBtn')?.addEventListener('click', () => {
+      if (currentPdfScale < 3.0) {
+        currentPdfScale += 0.2;
+        renderPage(currentPdfPage);
+      }
+    });
+    container.querySelector('#pdfZoomOutBtn')?.addEventListener('click', () => {
+      if (currentPdfScale > 0.4) {
+        currentPdfScale -= 0.2;
+        renderPage(currentPdfPage);
+      }
+    });
+    container.querySelector('#pdfFitWidthBtn')?.addEventListener('click', () => {
+      const wrap = container.querySelector('#pdfCanvasWrap');
+      if (wrap) {
+        const wrapWidth = wrap.clientWidth - 40;
+        currentPdfDoc.getPage(currentPdfPage).then(p => {
+          const unscaledVp = p.getViewport({ scale: 1.0 });
+          currentPdfScale = Math.max(0.4, Math.min(2.5, wrapWidth / unscaledVp.width));
+          renderPage(currentPdfPage);
+        });
+      }
+    });
+
+    await renderPage(1);
+  } catch (err) {
+    console.warn('[PDF Preview Fallback]', err);
+    container.innerHTML = `<iframe class="w-full h-[520px] rounded border border-zinc-200 dark:border-zinc-800 bg-white" src="${url}"></iframe>`;
+  }
+}
+
 async function renderTextCodePreview(url, container, fileName, ext) {
   try {
     const res = await authFetch(url);
@@ -144,25 +262,65 @@ async function renderTextCodePreview(url, container, fileName, ext) {
     if (isMd && typeof marked !== 'undefined') {
       container.innerHTML = `
         <div class="w-full flex flex-col h-full bg-white dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          <div class="flex items-center justify-between p-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
-            <span class="text-xs font-mono text-zinc-600 dark:text-zinc-400">Pratinjau Markdown</span>
+          <div class="flex items-center justify-between p-2.5 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+            <span class="text-xs font-mono font-medium text-zinc-600 dark:text-zinc-400">Pratinjau Markdown</span>
           </div>
-          <div class="overflow-y-auto max-h-[500px] p-3 sm:p-6 bg-white dark:bg-zinc-950 prose prose-zinc dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200 font-sans leading-relaxed">
+          <div class="overflow-y-auto max-h-[500px] p-4 sm:p-6 bg-white dark:bg-zinc-950 prose prose-zinc dark:prose-invert max-w-none text-zinc-800 dark:text-zinc-200 font-sans leading-relaxed">
             ${marked.parse(text)}
           </div>
         </div>
       `;
+      refreshIcons();
       return;
+    }
+
+    // Code files with Highlight.js
+    let highlightedCode = '';
+    const langMap = {
+      js: 'javascript', mjs: 'javascript', cjs: 'javascript', ts: 'typescript', jsx: 'javascript', tsx: 'typescript',
+      py: 'python', json: 'json', html: 'xml', htm: 'xml', css: 'css', scss: 'scss', sql: 'sql', sh: 'bash',
+      yml: 'yaml', yaml: 'yaml', toml: 'ini', xml: 'xml', c: 'c', cpp: 'cpp', java: 'java', go: 'go', rs: 'rust', php: 'php'
+    };
+    const targetLang = langMap[ext];
+
+    if (typeof hljs !== 'undefined') {
+      try {
+        if (targetLang && hljs.getLanguage(targetLang)) {
+          highlightedCode = hljs.highlight(text, { language: targetLang }).value;
+        } else {
+          highlightedCode = hljs.highlightAuto(text).value;
+        }
+      } catch {
+        highlightedCode = escapeHtml(text);
+      }
+    } else {
+      highlightedCode = escapeHtml(text);
     }
 
     const lines = text.split('\n');
     const lineNums = lines.map((_, i) => i + 1).join('\n');
+
     container.innerHTML = `
-      <div class="w-full flex overflow-auto max-h-[500px] bg-white dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800 font-mono text-xs">
-        <div class="code-line-numbers select-none text-zinc-500 dark:text-zinc-600 text-right p-2 sm:p-3 bg-zinc-50 dark:bg-zinc-900/60 border-r border-zinc-200 dark:border-zinc-800 min-w-[36px] sm:min-w-[40px] leading-relaxed whitespace-pre">${lineNums}</div>
-        <pre class="flex-1 p-2 sm:p-3 text-zinc-800 dark:text-zinc-200 whitespace-pre overflow-x-auto leading-relaxed m-0 bg-white dark:bg-zinc-950">${escapeHtml(text)}</pre>
+      <div class="w-full flex flex-col bg-white dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        <div class="flex items-center justify-between p-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-xs font-mono">
+          <span class="text-zinc-600 dark:text-zinc-400 font-semibold uppercase text-[11px]">${ext.toUpperCase()} • ${lines.length} baris</span>
+          <button type="button" id="copyCodeBtn" class="px-2.5 py-1 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 transition-colors inline-flex items-center gap-1.5">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Salin Kode</span>
+          </button>
+        </div>
+        <div class="flex overflow-auto max-h-[500px] font-mono text-xs">
+          <div class="code-line-numbers select-none text-zinc-400 dark:text-zinc-600 text-right p-3 bg-zinc-50 dark:bg-zinc-900/60 border-r border-zinc-200 dark:border-zinc-800 min-w-[40px] leading-relaxed whitespace-pre">${lineNums}</div>
+          <pre class="flex-1 p-3 text-zinc-800 dark:text-zinc-200 whitespace-pre overflow-x-auto leading-relaxed m-0 bg-white dark:bg-zinc-950"><code class="hljs">${highlightedCode}</code></pre>
+        </div>
       </div>
     `;
+
+    container.querySelector('#copyCodeBtn')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(text);
+      showToast('success', 'Kode berhasil disalin!');
+    });
+
+    refreshIcons();
   } catch (err) {
     container.innerHTML = `<div class="p-8 text-center text-red-500 dark:text-red-400 font-mono text-xs">Gagal membaca kode: ${escapeHtml(err.message)}</div>`;
   }
@@ -308,7 +466,8 @@ function openPreview(type, id, buildList = true) {
     } else if (mime.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) {
       viewerContainer.innerHTML = `<div class="p-8 w-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 rounded border border-zinc-200 dark:border-zinc-800"><audio controls class="w-full max-w-md" src="${viewUrl}"></audio></div>`;
     } else if (isPdf) {
-      viewerContainer.innerHTML = `<iframe class="w-full h-[520px] rounded border border-zinc-200 dark:border-zinc-800 bg-white" src="${viewUrl}"></iframe>`;
+      viewerContainer.innerHTML = `<div class="p-12 text-center text-zinc-500 dark:text-zinc-400 font-mono text-xs flex items-center justify-center gap-2"><i data-lucide="loader" class="w-4 h-4 spin text-red-500 dark:text-red-400"></i> Memuat dokumen PDF...</div>`;
+      renderPdfPreview(downloadUrl, viewerContainer, item.original_name);
     } else if (isSpreadsheet) {
       viewerContainer.innerHTML = `<div class="p-12 text-center text-zinc-500 dark:text-zinc-400 font-mono text-xs flex items-center justify-center gap-2"><i data-lucide="loader" class="w-4 h-4 spin text-emerald-500 dark:text-emerald-400"></i> Membaca spreadsheet...</div>`;
       authFetch(downloadUrl)

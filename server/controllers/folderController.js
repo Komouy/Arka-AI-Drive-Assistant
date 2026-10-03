@@ -51,9 +51,6 @@ export const folderController = {
         const supabase = getSupabaseClient();
         const userId = req.user?.id || null;
 
-        // Auto-cleanup: remove any empty folders before returning
-        await pruneEmptyFolders(userId);
-
         let folderQuery = supabase.from('folders').select('*').order('name', { ascending: true });
         if (userId) {
           folderQuery = folderQuery.or(`user_id.eq.${userId},user_id.is.null`);
@@ -100,7 +97,6 @@ export const folderController = {
       }
 
       // SQLite Fallback
-      await pruneEmptyFolders(null);
       const folders = db.prepare(`
         SELECT f.*, 
           (SELECT COUNT(*) FROM files WHERE folder_id = f.id AND is_trash = 0) as file_count,
@@ -457,7 +453,7 @@ export const folderController = {
   pruneEmpty: async (req, res) => {
     try {
       const userId = req.user?.id || null;
-      const result = await pruneEmptyFolders(userId);
+      const result = await pruneEmptyFolders(userId, { force: true });
       return ok(res, {
         message: result.prunedCount > 0
           ? `Berhasil membersihkan ${result.prunedCount} folder kosong.`

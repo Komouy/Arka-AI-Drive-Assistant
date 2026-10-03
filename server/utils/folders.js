@@ -211,17 +211,19 @@ export async function resolveTargetFolderSupabase(supabase, projectName, userId 
 /**
  * Automatically delete empty folders (folders with 0 non-trash files and 0 subfolders).
  * Executes bottom-up iteratively to prune empty parent directories that become empty.
+ * Supports cooldown window so newly created empty folders are not prematurely deleted.
  */
-export async function pruneEmptyFoldersSupabase(supabase, userId = null) {
+export async function pruneEmptyFoldersSupabase(supabase, userId = null, { force = false, minAgeMinutes = 5 } = {}) {
   try {
     const deletedFolderIds = [];
     let iteration = 0;
+    const cutoffTime = force ? null : new Date(Date.now() - minAgeMinutes * 60 * 1000).toISOString();
 
     while (iteration < 10) {
       iteration++;
 
       // 1. Fetch folders for this tenant
-      let fQuery = supabase.from('folders').select('id, name, parent_id');
+      let fQuery = supabase.from('folders').select('id, name, parent_id, created_at');
       if (userId) {
         fQuery = fQuery.or(`user_id.eq.${userId},user_id.is.null`);
       }
@@ -239,9 +241,15 @@ export async function pruneEmptyFoldersSupabase(supabase, userId = null) {
       const activeFolderIds = new Set((files || []).map(f => f.folder_id).filter(Boolean));
       const parentFolderIds = new Set(folders.map(f => f.parent_id).filter(Boolean));
 
-      // Find leaf folders with no files and no subfolders
+      // Find leaf folders with no files and no subfolders (older than cooldown window unless force is true)
       const emptyFolderIds = folders
-        .filter(f => !activeFolderIds.has(f.id) && !parentFolderIds.has(f.id))
+        .filter(f => {
+          if (activeFolderIds.has(f.id) || parentFolderIds.has(f.id)) return false;
+          if (!force && cutoffTime && f.created_at && f.created_at > cutoffTime) {
+            return false;
+          }
+          return true;
+        })
         .map(f => f.id);
 
       if (emptyFolderIds.length === 0) break;
@@ -267,19 +275,25 @@ export async function pruneEmptyFoldersSupabase(supabase, userId = null) {
   }
 }
 
-export function pruneEmptyFoldersSqlite() {
+export function pruneEmptyFoldersSqlite({ force = false, minAgeMinutes = 5 } = {}) {
   try {
     const deletedFolderIds = [];
     let iteration = 0;
+    const cutoffTime = force ? null : new Date(Date.now() - minAgeMinutes * 60 * 1000).toISOString();
 
     while (iteration < 10) {
       iteration++;
 
-      const emptyFolders = db.prepare(`
+      let query = `
         SELECT f.id, f.name FROM folders f
         WHERE NOT EXISTS (SELECT 1 FROM files WHERE folder_id = f.id AND is_trash = 0)
           AND NOT EXISTS (SELECT 1 FROM folders sub WHERE sub.parent_id = f.id)
-      `).all();
+      `;
+      if (!force && cutoffTime) {
+        query += ` AND (f.created_at IS NULL OR f.created_at <= '${cutoffTime.replace('T', ' ').replace('Z', '')}')`;
+      }
+
+      const emptyFolders = db.prepare(query).all();
 
       if (!emptyFolders || emptyFolders.length === 0) break;
 
@@ -300,12 +314,12 @@ export function pruneEmptyFoldersSqlite() {
   }
 }
 
-export async function pruneEmptyFolders(userId = null) {
+export async function pruneEmptyFolders(userId = null, options = {}) {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
-    return pruneEmptyFoldersSupabase(supabase, userId);
+    return pruneEmptyFoldersSupabase(supabase, userId, options);
   }
-  return pruneEmptyFoldersSqlite();
+  return pruneEmptyFoldersSqlite(options);
 }
 
 export default {

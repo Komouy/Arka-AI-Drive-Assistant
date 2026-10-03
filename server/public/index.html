@@ -62,6 +62,16 @@
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <!-- PDF.js Engine -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  <!-- Highlight.js Code Syntax Engine -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
   <!-- Custom Styles for Graph Canvas, Previews, & Scrollbars -->
   <link rel="stylesheet" href="/css/style.css">
@@ -309,6 +319,29 @@
         </button>
       </nav>
 
+      <!-- ── Sidebar Folder Tree Hierarchy ─────────────────────────────────── -->
+      <div id="sidebarFolderTreeSection" class="p-2 border-t border-zinc-200 dark:border-zinc-800 flex flex-col shrink-0">
+        <div class="flex items-center justify-between px-2 py-1 mb-1">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="folder-tree" class="w-3.5 h-3.5 text-blue-500 dark:text-blue-400"></i>
+            <span class="text-[10px] font-mono font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Pohon Folder</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button type="button" onclick="openNewFolderModal()" title="Buat Folder Baru"
+                    class="p-1 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" onclick="handlePruneEmptyFoldersUI()" title="Bersihkan Folder Kosong"
+                    class="p-1 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500/80"></i>
+            </button>
+          </div>
+        </div>
+        <div id="sidebarFolderTree" class="space-y-0.5 max-h-48 overflow-y-auto pr-1 text-xs select-none">
+          <div class="py-2 px-3 text-[11px] font-mono text-zinc-400">Memuat folder...</div>
+        </div>
+      </div>
+
       <!-- Sidebar Footer: User Profile, Theme & Logout -->
       <div class="p-3 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-2 shrink-0 bg-zinc-50/50 dark:bg-arka-900/50">
         <!-- User profile badge container -->
@@ -523,6 +556,14 @@
 
           <!-- Main Data Table / Cards Container -->
           <div class="data-table-container bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xs min-h-[340px]">
+            <!-- Batch Header Bar with Select All -->
+            <div id="dataListHeaderBar" class="hidden items-center justify-between px-3.5 py-2.5 bg-zinc-50/80 dark:bg-zinc-950/80 border-b border-zinc-200 dark:border-zinc-800 text-xs font-mono text-zinc-500">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="selectAllCheckbox" onchange="handleSelectAllToggle(this)" class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-0 cursor-pointer">
+                <label for="selectAllCheckbox" class="cursor-pointer select-none font-medium text-zinc-700 dark:text-zinc-300">Pilih Semua</label>
+              </div>
+              <div id="folderCurrentPathLabel" class="text-[11px] truncate text-zinc-400">Semua Berkas</div>
+            </div>
             <div id="dataList" class="flex flex-col">
               <div class="p-8 text-center text-xs font-mono text-zinc-500">Memuat data...</div>
             </div>
@@ -805,6 +846,86 @@
 
       <!-- Modal Footer -->
       <div id="previewFooterActions" class="p-3 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-end gap-2 flex-wrap"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- ── 5. FLOATING BATCH ACTIONS BAR ────────────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="batchActionBar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-zinc-900/95 dark:bg-zinc-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl border border-zinc-700/80 px-4 py-2.5 hidden items-center gap-3 animate-fade-in-fast max-w-[95vw] sm:max-w-xl">
+    <div class="flex items-center gap-2 pr-3 border-r border-zinc-700">
+      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span id="batchSelectedCount" class="text-xs font-mono font-semibold whitespace-nowrap">0 dipilih</span>
+    </div>
+    <div class="flex items-center gap-1.5 overflow-x-auto">
+      <button type="button" onclick="openBatchMoveModal()" class="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-mono flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs">
+        <i data-lucide="folder-input" class="w-3.5 h-3.5 text-blue-400"></i>
+        <span>Pindah</span>
+      </button>
+      <button type="button" onclick="handleBatchDownloadZip()" class="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-mono flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs">
+        <i data-lucide="archive" class="w-3.5 h-3.5 text-emerald-400"></i>
+        <span>Unduh ZIP</span>
+      </button>
+      <button type="button" onclick="handleBatchDelete()" class="px-2.5 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-mono flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-400"></i>
+        <span>Hapus</span>
+      </button>
+      <button type="button" onclick="clearFileSelection()" title="Batalkan pilihan (Esc)" class="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- ── 6. BATCH MOVE MODAL ─────────────────────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="batchMoveModalBackdrop" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
+        <div class="flex items-center gap-2">
+          <i data-lucide="folder-input" class="w-4 h-4 text-blue-500"></i>
+          <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Pindahkan Berkas Terpilih</h3>
+        </div>
+        <button type="button" onclick="closeBatchMoveModal()" class="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-4 space-y-3">
+        <div class="text-xs text-zinc-500 dark:text-zinc-400">Pilih folder tujuan untuk berkas yang dipilih:</div>
+        <div id="batchMoveFolderList" class="space-y-1 max-h-56 overflow-y-auto font-mono text-xs pr-1"></div>
+      </div>
+      <div class="p-3 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2">
+        <button type="button" onclick="closeBatchMoveModal()" class="px-3 py-1.5 rounded-lg text-xs font-mono bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- ── 7. NEW FOLDER MODAL ─────────────────────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="newFolderModalBackdrop" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white dark:bg-arka-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
+        <div class="flex items-center gap-2">
+          <i data-lucide="folder-plus" class="w-4 h-4 text-blue-500"></i>
+          <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Buat Folder Baru</h3>
+        </div>
+        <button type="button" onclick="closeNewFolderModal()" class="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <form onsubmit="handleCreateFolderSubmit(event)" class="p-4 space-y-3">
+        <div>
+          <label for="newFolderNameInput" class="block text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase">Nama Folder</label>
+          <input type="text" id="newFolderNameInput" required placeholder="contoh: Projects/Website"
+                 class="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors">
+          <p class="text-[10px] text-zinc-400 mt-1">Dapat menggunakan garis miring untuk folder bersarang (contoh: <code>Kerja/2026</code>).</p>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeNewFolderModal()" class="px-3 py-1.5 rounded-lg text-xs font-mono bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors">Batal</button>
+          <button type="submit" id="btnSubmitNewFolder" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-zinc-900 hover:bg-black dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-950 shadow-xs transition-colors">Buat Folder</button>
+        </div>
+      </form>
     </div>
   </div>
 

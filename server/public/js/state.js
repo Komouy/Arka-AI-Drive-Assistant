@@ -21,9 +21,64 @@ let isAutoOrganizingBatch = false;
 const autoOrganizingIds = new Set();
 let isProcessingAutoQueue = false;
 
+// State untuk multi-select berkas & aksi massal
+let selectedFileIds = new Set();
+
+// State untuk hierarki folder sidebar tree
+let expandedFolderIds = new Set();
+
+// State untuk drag-and-drop file
+let draggedFileId = null;
+
 // State untuk modal preview & navigasi Next/Prev
 let currentPreviewIndex = -1;
 let currentPreviewList = [];
+
+// Helper Multi-Select
+function toggleSelectFile(fileId, event) {
+  if (event) event.stopPropagation();
+  const idStr = String(fileId);
+  if (selectedFileIds.has(idStr)) {
+    selectedFileIds.delete(idStr);
+  } else {
+    selectedFileIds.add(idStr);
+  }
+  updateBatchActionBar();
+  if (typeof refreshSelectionUI === 'function') refreshSelectionUI();
+}
+
+function selectAllFiles() {
+  const fileItems = (allData.files || []).filter(f => !f.is_trash);
+  if (currentFolderFilter) {
+    fileItems.filter(f => (f.folder_name || (f.is_inbox ? 'inbox' : 'root')) === currentFolderFilter)
+      .forEach(f => selectedFileIds.add(String(f.id)));
+  } else {
+    fileItems.forEach(f => selectedFileIds.add(String(f.id)));
+  }
+  updateBatchActionBar();
+  if (typeof refreshSelectionUI === 'function') refreshSelectionUI();
+}
+
+function clearFileSelection() {
+  selectedFileIds.clear();
+  updateBatchActionBar();
+  if (typeof refreshSelectionUI === 'function') refreshSelectionUI();
+}
+
+function updateBatchActionBar() {
+  const bar = document.getElementById('batchActionBar');
+  const countBadge = document.getElementById('batchSelectedCount');
+  if (!bar) return;
+  const count = selectedFileIds.size;
+  if (count > 0) {
+    bar.classList.remove('hidden');
+    bar.classList.add('flex');
+    if (countBadge) countBadge.textContent = `${count} dipilih`;
+  } else {
+    bar.classList.add('hidden');
+    bar.classList.remove('flex');
+  }
+}
 
 // ── Theme Management (Light & Dark Mode) ───────────────────────────────────
 const THEME_KEY = 'arka_theme';

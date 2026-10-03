@@ -325,4 +325,136 @@ html:not(.dark) .code-content-pre {
   transform: scale(0.98);
 }
 
+/* ── Sidebar Folder Tree Hierarchy ────────────────────────────────────────── */
+.folder-tree-node {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: #71717a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+html.dark .folder-tree-node {
+  color: #a1a1aa;
+}
+.folder-tree-node:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #09090b;
+}
+html.dark .folder-tree-node:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f4f4f5;
+}
+.folder-tree-node.active {
+  background: rgba(99, 102, 241, 0.12) !important;
+  color: #6366f1 !important;
+  font-weight: 600;
+}
+html.dark .folder-tree-node.active {
+  background: rgba(99, 102, 241, 0.2) !important;
+  color: #a5b4fc !important;
+}
+
+/* Folder Tree Drag Target Highlight */
+.folder-tree-node.drag-target {
+  background: rgba(16, 185, 129, 0.22) !important;
+  color: #10b981 !important;
+  outline: 2px dashed #10b981;
+  outline-offset: -2px;
+  transform: scale(1.02);
+}
+
+.folder-tree-children {
+  margin-left: 0.6rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+}
+html.dark .folder-tree-children {
+  border-left-color: rgba(255, 255, 255, 0.08);
+}
+
+.tree-chevron {
+  transition: transform 0.15s ease;
+}
+.tree-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+/* ── Dragging State on Files ──────────────────────────────────────────────── */
+.draggable-file {
+  cursor: grab;
+}
+.draggable-file:active {
+  cursor: grabbing;
+}
+.draggable-file.is-dragging {
+  opacity: 0.45;
+  border-style: dashed !important;
+}
+
+/* ── PDF.js In-Browser Canvas Viewer ──────────────────────────────────────── */
+.pdf-viewer-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #18181c;
+  border: 1px solid #27272a;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+html:not(.dark) .pdf-viewer-wrap {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+}
+
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: #121215;
+  border-bottom: 1px solid #27272a;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+html:not(.dark) .pdf-toolbar {
+  background: #ffffff;
+  border-bottom-color: #e4e4e7;
+}
+
+.pdf-canvas-container {
+  overflow: auto;
+  max-height: 520px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1rem;
+  background: #09090b;
+}
+html:not(.dark) .pdf-canvas-container {
+  background: #e4e4e7;
+}
+
+#pdfViewerCanvas {
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+}
+
+/* ── Syntax Highlighting Enhancements ─────────────────────────────────────── */
+pre code.hljs {
+  padding: 1rem !important;
+  border-radius: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+
 

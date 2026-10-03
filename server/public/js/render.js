@@ -80,6 +80,7 @@ async function fetchAllData() {
 
     updateCounts();
     renderFolderChips();
+    renderSidebarFolderTree();
     if (currentFilter === 'overview' || currentFilter === 'all') {
       renderOverview();
     } else {
@@ -171,7 +172,11 @@ function renderFolderChips() {
         Semua Folder
       </button>
       ${folders.map(fName => `
-        <button type="button" class="whitespace-nowrap flex-shrink-0 px-2.5 py-1 rounded text-xs transition-colors ${currentFolderFilter === fName ? 'bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 shadow-sm font-medium' : 'bg-zinc-200/70 dark:bg-zinc-900/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent'}" onclick="setFolderFilter('${escapeHtml(fName)}')">
+        <button type="button" class="whitespace-nowrap flex-shrink-0 px-2.5 py-1 rounded text-xs transition-colors ${currentFolderFilter === fName ? 'bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 shadow-sm font-medium' : 'bg-zinc-200/70 dark:bg-zinc-900/60 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent'}"
+                onclick="setFolderFilter('${escapeHtml(fName)}')"
+                ondragover="handleFolderDragOver(event)"
+                ondragleave="handleFolderDragLeave(event)"
+                ondrop="handleFolderDrop(event, null, '${escapeHtml(fName)}')">
           ${escapeHtml(fName)}
         </button>
       `).join('')}
@@ -183,7 +188,424 @@ function renderFolderChips() {
 function setFolderFilter(folderName) {
   currentFolderFilter = folderName;
   renderFolderChips();
+  renderSidebarFolderTree();
   render();
+}
+
+// ── Sidebar Folder Tree Hierarchy ──────────────────────────────────────────
+function renderSidebarFolderTree() {
+  const container = document.getElementById('sidebarFolderTree');
+  if (!container) return;
+
+  const folders = allData.folders || [];
+  const files = (allData.files || []).filter(f => !f.is_trash);
+  const inboxCount = files.filter(f => f.is_inbox).length;
+
+  let html = `
+    <!-- Root / Semua Berkas -->
+    <div class="folder-tree-node ${!currentFolderFilter && currentFilter === 'files' ? 'active' : ''}"
+         onclick="handleFolderTreeClick(null)"
+         ondragover="handleFolderDragOver(event)"
+         ondragleave="handleFolderDragLeave(event)"
+         ondrop="handleFolderDrop(event, null, 'Root')">
+      <i data-lucide="layers" class="w-3.5 h-3.5 text-zinc-500"></i>
+      <span class="truncate flex-1">Semua Berkas</span>
+      <span class="text-[10px] text-zinc-400 font-mono px-1 rounded bg-zinc-100 dark:bg-zinc-800">${files.length}</span>
+    </div>
+
+    <!-- Inbox -->
+    <div class="folder-tree-node ${currentFolderFilter === 'inbox' ? 'active' : ''}"
+         onclick="handleFolderTreeClick('inbox')"
+         ondragover="handleFolderDragOver(event)"
+         ondragleave="handleFolderDragLeave(event)"
+         ondrop="handleFolderDrop(event, null, 'inbox')">
+      <i data-lucide="inbox" class="w-3.5 h-3.5 text-amber-500"></i>
+      <span class="truncate flex-1">Inbox</span>
+      ${inboxCount > 0 ? `<span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">${inboxCount}</span>` : ''}
+    </div>
+  `;
+
+  if (folders.length === 0) {
+    html += `
+      <div class="py-2.5 px-2 text-[10px] font-mono text-zinc-400 text-center">
+        Belum ada folder khusus
+      </div>
+    `;
+    container.innerHTML = html;
+    refreshIcons();
+    return;
+  }
+
+  // Build recursive folder map
+  const map = new Map();
+  const roots = [];
+  folders.forEach(f => {
+    map.set(String(f.id), { ...f, children: [] });
+  });
+  folders.forEach(f => {
+    const node = map.get(String(f.id));
+    if (f.parent_id && map.has(String(f.parent_id))) {
+      map.get(String(f.parent_id)).children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+
+  function renderTreeNode(node, depth = 0) {
+    const hasChildren = node.children && node.children.length > 0;
+    const isExpanded = expandedFolderIds.has(String(node.id));
+    const isActive = currentFolderFilter === node.name || currentFolderFilter === node.path;
+    const folderColor = node.color || '#3b82f6';
+
+    let nodeHtml = `
+      <div class="folder-tree-node ${isActive ? 'active' : ''}"
+           onclick="handleFolderTreeClick('${escapeHtml(node.name)}', '${node.id}')"
+           ondragover="handleFolderDragOver(event)"
+           ondragleave="handleFolderDragLeave(event)"
+           ondrop="handleFolderDrop(event, '${node.id}', '${escapeHtml(node.name)}')"
+           title="${escapeHtml(node.path || node.name)}">
+        ${hasChildren ? `
+          <button type="button" onclick="toggleFolderNode('${node.id}', event)" class="p-0.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">
+            <i data-lucide="chevron-right" class="w-3 h-3 tree-chevron ${isExpanded ? 'expanded' : ''}"></i>
+          </button>
+        ` : `<span class="w-3 inline-block"></span>`}
+        <i data-lucide="folder" class="w-3.5 h-3.5 flex-shrink-0" style="color: ${folderColor};"></i>
+        <span class="truncate flex-1">${escapeHtml(node.name)}</span>
+        <span class="text-[10px] text-zinc-400 font-mono px-1 rounded bg-zinc-100 dark:bg-zinc-800">${node.file_count || 0}</span>
+      </div>
+    `;
+
+    if (hasChildren && isExpanded) {
+      nodeHtml += `
+        <div class="folder-tree-children">
+          ${node.children.map(child => renderTreeNode(child, depth + 1)).join('')}
+        </div>
+      `;
+    }
+
+    return nodeHtml;
+  }
+
+  html += roots.map(root => renderTreeNode(root)).join('');
+  container.innerHTML = html;
+  refreshIcons();
+}
+
+function toggleFolderNode(folderId, event) {
+  if (event) event.stopPropagation();
+  const idStr = String(folderId);
+  if (expandedFolderIds.has(idStr)) {
+    expandedFolderIds.delete(idStr);
+  } else {
+    expandedFolderIds.add(idStr);
+  }
+  renderSidebarFolderTree();
+}
+
+function handleFolderTreeClick(folderName, folderId) {
+  currentFolderFilter = folderName;
+  if (currentFilter !== 'files' && currentFilter !== 'images') {
+    setFilter('files');
+  } else {
+    renderFolderChips();
+    renderSidebarFolderTree();
+    render();
+  }
+}
+
+// ── Drag and Drop Handlers for File Moving ──────────────────────────────────
+function handleFileDragStart(event, fileId, fileName) {
+  draggedFileId = fileId;
+  event.dataTransfer.setData('text/plain', fileId);
+  event.dataTransfer.effectAllowed = 'move';
+  const target = event.currentTarget;
+  if (target) target.classList.add('is-dragging');
+}
+
+function handleFileDragEnd(event) {
+  draggedFileId = null;
+  const target = event.currentTarget;
+  if (target) target.classList.remove('is-dragging');
+  document.querySelectorAll('.folder-tree-node.drag-target').forEach(el => el.classList.remove('drag-target'));
+}
+
+function handleFolderDragOver(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  event.dataTransfer.dropEffect = 'move';
+  const node = event.currentTarget;
+  if (node && !node.classList.contains('drag-target')) {
+    node.classList.add('drag-target');
+  }
+}
+
+function handleFolderDragLeave(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const node = event.currentTarget;
+  if (node) node.classList.remove('drag-target');
+}
+
+async function handleFolderDrop(event, targetFolderId, targetFolderName) {
+  event.preventDefault();
+  event.stopPropagation();
+  const node = event.currentTarget;
+  if (node) node.classList.remove('drag-target');
+
+  const fileId = draggedFileId || event.dataTransfer.getData('text/plain');
+  if (!fileId) return;
+
+  try {
+    const file = (allData.files || []).find(f => String(f.id) === String(fileId));
+    const fileName = file ? file.original_name : 'File';
+
+    let body = {};
+    if (targetFolderId && targetFolderId !== 'null' && targetFolderId !== 'inbox' && targetFolderId !== 'root') {
+      body.folder_id = targetFolderId;
+    } else if (targetFolderName === 'inbox') {
+      body.is_inbox = true;
+      body.folder_id = null;
+    } else {
+      body.folder_id = null;
+    }
+
+    const res = await authFetch(`${API_BASE}/files/${fileId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    showToast('success', `File "${fileName}" dipindahkan ke "${targetFolderName || 'Root'}"`);
+    await fetchAllData();
+  } catch (err) {
+    showToast('error', `Gagal memindahkan file: ${err.message}`);
+  } finally {
+    draggedFileId = null;
+  }
+}
+
+// ── Multi-Select Checkboxes & Batch Actions ──────────────────────────────────
+function handleSelectAllToggle(checkbox) {
+  if (checkbox && checkbox.checked) {
+    selectAllFiles();
+  } else {
+    clearFileSelection();
+  }
+}
+
+function refreshSelectionUI() {
+  document.querySelectorAll('input[type="checkbox"][onchange*="toggleSelectFile"]').forEach(cb => {
+    const match = cb.getAttribute('onchange')?.match(/'([^']+)'/);
+    if (match && match[1]) {
+      cb.checked = selectedFileIds.has(match[1]);
+    }
+  });
+  const selectAllCb = document.getElementById('selectAllCheckbox');
+  if (selectAllCb) {
+    const activeFiles = (allData.files || []).filter(f => !f.is_trash);
+    selectAllCb.checked = activeFiles.length > 0 && selectedFileIds.size >= activeFiles.length;
+  }
+}
+
+function openBatchMoveModal() {
+  const modal = document.getElementById('batchMoveModalBackdrop');
+  const listContainer = document.getElementById('batchMoveFolderList');
+  if (!modal || !listContainer) return;
+
+  const folders = allData.folders || [];
+  let html = `
+    <button type="button" onclick="handleBatchMoveToFolder(null, 'Root / Tanpa Folder')" class="w-full text-left px-3 py-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 flex items-center justify-between transition-colors">
+      <div class="flex items-center gap-2">
+        <i data-lucide="folder" class="w-4 h-4 text-zinc-500"></i>
+        <span>📁 Root / Tanpa Folder</span>
+      </div>
+    </button>
+  `;
+
+  folders.forEach(f => {
+    html += `
+      <button type="button" onclick="handleBatchMoveToFolder('${f.id}', '${escapeHtml(f.name)}')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-between transition-colors">
+        <div class="flex items-center gap-2 min-w-0">
+          <i data-lucide="folder" class="w-4 h-4 text-blue-500 flex-shrink-0"></i>
+          <span class="truncate">${escapeHtml(f.path || f.name)}</span>
+        </div>
+        <span class="text-[10px] text-zinc-400 font-mono flex-shrink-0">${f.file_count || 0} file</span>
+      </button>
+    `;
+  });
+
+  listContainer.innerHTML = html;
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  refreshIcons();
+}
+
+function closeBatchMoveModal() {
+  const modal = document.getElementById('batchMoveModalBackdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+async function handleBatchMoveToFolder(targetFolderId, targetFolderName) {
+  closeBatchMoveModal();
+  const fileIds = Array.from(selectedFileIds);
+  if (fileIds.length === 0) return;
+
+  showToast('info', `Memindahkan ${fileIds.length} berkas ke "${targetFolderName}"...`);
+
+  let successCount = 0;
+  for (const id of fileIds) {
+    try {
+      const res = await authFetch(`${API_BASE}/files/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder_id: targetFolderId })
+      });
+      if (res.ok) successCount++;
+    } catch {}
+  }
+
+  clearFileSelection();
+  showToast('success', `${successCount} dari ${fileIds.length} berkas berhasil dipindahkan!`);
+  await fetchAllData();
+}
+
+async function handleBatchDelete() {
+  const fileIds = Array.from(selectedFileIds);
+  if (fileIds.length === 0) return;
+
+  if (!confirm(`Pindahkan ${fileIds.length} berkas yang dipilih ke tong sampah?`)) {
+    return;
+  }
+
+  showToast('info', `Memindahkan ${fileIds.length} berkas ke sampah...`);
+  let successCount = 0;
+  for (const id of fileIds) {
+    try {
+      const res = await authFetch(`${API_BASE}/files/${id}`, { method: 'DELETE' });
+      if (res.ok) successCount++;
+    } catch {}
+  }
+
+  clearFileSelection();
+  showToast('success', `${successCount} berkas dipindahkan ke tong sampah.`);
+  await fetchAllData();
+}
+
+async function handleBatchDownloadZip() {
+  const fileIds = Array.from(selectedFileIds);
+  if (fileIds.length === 0) return;
+
+  if (typeof JSZip === 'undefined') {
+    showToast('error', 'Pustaka pembuat ZIP belum termuat.');
+    return;
+  }
+
+  showToast('info', `Menyiapkan ${fileIds.length} berkas ke dalam ZIP...`);
+  const zip = new JSZip();
+
+  let packed = 0;
+  for (const id of fileIds) {
+    const f = (allData.files || []).find(item => String(item.id) === String(id));
+    if (!f) continue;
+    try {
+      const downloadUrl = `/api/files/${id}/download${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
+      const res = await authFetch(downloadUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        zip.file(f.original_name || `file_${id}`, blob);
+        packed++;
+      }
+    } catch (err) {
+      console.warn(`[ZIP download error for ${id}]`, err);
+    }
+  }
+
+  if (packed === 0) {
+    showToast('error', 'Tidak ada file yang dapat diunduh.');
+    return;
+  }
+
+  const content = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(content);
+  a.download = `ARKA_Export_${new Date().toISOString().slice(0, 10)}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+
+  showToast('success', `Berhasil mengunduh ${packed} berkas dalam ZIP!`);
+}
+
+// ── New Folder Creation & Pruning UI ────────────────────────────────────────
+function openNewFolderModal() {
+  const modal = document.getElementById('newFolderModalBackdrop');
+  const input = document.getElementById('newFolderNameInput');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    if (input) {
+      input.value = '';
+      setTimeout(() => input.focus(), 100);
+    }
+  }
+}
+
+function closeNewFolderModal() {
+  const modal = document.getElementById('newFolderModalBackdrop');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+async function handleCreateFolderSubmit(event) {
+  event.preventDefault();
+  const input = document.getElementById('newFolderNameInput');
+  const folderName = input ? input.value.trim() : '';
+  if (!folderName) return;
+
+  const btn = document.getElementById('btnSubmitNewFolder');
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await authFetch(`${API_BASE}/folders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path_str: folderName })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+    closeNewFolderModal();
+    showToast('success', `Folder "${folderName}" berhasil dibuat!`);
+    await fetchAllData();
+  } catch (err) {
+    showToast('error', `Gagal membuat folder: ${err.message}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function handlePruneEmptyFoldersUI() {
+  if (!confirm('Bersihkan semua folder kosong yang tidak memiliki file?')) return;
+  try {
+    const res = await authFetch(`${API_BASE}/folders/empty`, { method: 'DELETE' });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    showToast('info', json.message || 'Pembersihan folder kosong selesai.');
+    await fetchAllData();
+  } catch (err) {
+    showToast('error', `Gagal membersihkan folder: ${err.message}`);
+  }
 }
 
 // ── Tab Navigation Filter ───────────────────────────────────────────────────
@@ -489,11 +911,19 @@ function render() {
         triggerSilentAutoOrganize(f.id, f.suggested_folder);
       }
 
+      const isSelected = selectedFileIds.has(safeId);
       return `
-            <div class="group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md" id="row-FILE-${safeId}">
+            <div class="draggable-file group bg-white dark:bg-zinc-900 border ${isSelected ? 'border-emerald-500 ring-2 ring-emerald-500/30' : 'border-zinc-200 dark:border-zinc-800'} hover:border-zinc-300 dark:hover:border-zinc-700 rounded-xl overflow-hidden flex flex-col transition-all duration-300 hover:shadow-md relative"
+                 id="row-FILE-${safeId}"
+                 draggable="true"
+                 ondragstart="handleFileDragStart(event, '${safeId}', '${safeTitle}')"
+                 ondragend="handleFileDragEnd(event)">
+              <div class="absolute top-2.5 left-2.5 z-20" onclick="event.stopPropagation()">
+                <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSelectFile('${safeId}', event)" class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-0 cursor-pointer bg-white/95 dark:bg-zinc-900/95 shadow-sm">
+              </div>
               <div class="relative h-40 sm:h-48 w-full bg-zinc-100 dark:bg-zinc-950 overflow-hidden cursor-pointer flex items-center justify-center" onclick="openPreview('FILE', '${safeId}')" title="Buka pratinjau: ${safeTitle}">
                 <img src="${viewUrl}" alt="${safeTitle}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.onerror=null; this.src='/placeholder-image.svg';">
-                <span class="absolute top-2 left-2 inline-flex items-center justify-center h-5 px-2 text-[10px] font-mono font-bold uppercase bg-white/90 dark:bg-black/70 text-zinc-800 dark:text-zinc-200 rounded-md backdrop-blur-md shadow-sm border border-transparent">${escapeHtml(ext.toUpperCase() || 'IMG')}</span>
+                <span class="absolute top-2 left-9 inline-flex items-center justify-center h-5 px-2 text-[10px] font-mono font-bold uppercase bg-white/90 dark:bg-black/70 text-zinc-800 dark:text-zinc-200 rounded-md backdrop-blur-md shadow-sm border border-transparent">${escapeHtml(ext.toUpperCase() || 'IMG')}</span>
                 ${f.is_favorite ? '<span class="absolute top-2 right-2 inline-flex items-center justify-center w-6 h-6 rounded-md bg-amber-500/90 text-white backdrop-blur-md shadow-sm" title="Disematkan di Favorit"><i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i></span>' : ''}
                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-3">
                   <span class="text-xs text-white font-medium flex items-center gap-1.5 drop-shadow-md"><i data-lucide="maximize-2" class="w-4 h-4"></i> <span class="hidden sm:inline">Lihat Penuh</span></span>
@@ -794,14 +1224,20 @@ function render() {
       </button>
     ` : '';
 
+    const isSelected = selectedFileIds.has(safeId);
     return `
-      <div class="px-3 sm:px-4 py-3 sm:py-3.5 border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors flex flex-col gap-1.5 ${item.is_favorite ? 'bg-amber-500/[0.03] dark:bg-amber-500/[0.03]' : ''}" id="row-${item.type}-${safeId}">
+      <div class="px-3 sm:px-4 py-3 sm:py-3.5 border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors flex flex-col gap-1.5 ${isSelected ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border-l-4 border-l-emerald-500' : (item.is_favorite ? 'bg-amber-500/[0.03] dark:bg-amber-500/[0.03]' : '')} ${item.type === 'FILE' ? 'draggable-file' : ''}"
+           id="row-${item.type}-${safeId}"
+           ${item.type === 'FILE' ? `draggable="true" ondragstart="handleFileDragStart(event, '${safeId}', '${safeTitle}')" ondragend="handleFileDragEnd(event)"` : ''}>
         <div class="flex items-start sm:items-center justify-between gap-2 sm:gap-3 flex-col sm:flex-row">
           <div class="flex items-center gap-2 flex-wrap min-w-0 flex-1 w-full sm:w-auto">
+            ${item.type === 'FILE' ? `
+              <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSelectFile('${safeId}', event)" class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-0 cursor-pointer flex-shrink-0">
+            ` : ''}
             ${starBtn}
             ${miniThumbHtml}
             <span class="text-[10px] sm:text-[11px] font-mono text-zinc-400 dark:text-zinc-500 flex-shrink-0">#${safeId.length > 8 ? safeId.slice(0, 8) + '...' : safeId}</span>
-            <span class="text-xs sm:text-sm font-medium text-zinc-900 dark:text-zinc-200 truncate max-w-[200px] sm:max-w-md">${titleHtml}</span>
+            <span class="text-xs sm:text-sm font-medium text-zinc-900 dark:text-zinc-200 truncate max-w-[200px] sm:max-w-md cursor-pointer hover:underline" onclick="openPreview('${item.type}', '${safeId}')">${titleHtml}</span>
             ${item.is_favorite ? '<span class="inline-flex items-center gap-0.5 text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 flex-shrink-0"><i data-lucide="pin" class="w-2.5 h-2.5"></i> PIN</span>' : ''}
             <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/60 flex-shrink-0">${item.type === 'TRASH' ? 'SAMPAH' : item.type}</span>
             <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700/40 flex-shrink-0 max-w-[80px] sm:max-w-none truncate">${escapeHtml(item.category)}</span>
@@ -830,6 +1266,18 @@ function render() {
   }).join('');
 
   refreshIcons();
+
+  const pathLabel = document.getElementById('folderCurrentPathLabel');
+  if (pathLabel) {
+    pathLabel.textContent = currentFolderFilter ? `Folder: ${currentFolderFilter}` : (currentFilter === 'files' ? 'Semua Berkas' : currentFilter);
+  }
+  const headerBar = document.getElementById('dataListHeaderBar');
+  if (headerBar) {
+    const showHeader = (currentFilter === 'files' || currentFilter === 'images') && (allData.files || []).filter(f => !f.is_trash).length > 0;
+    headerBar.classList.toggle('hidden', !showHeader);
+    headerBar.classList.toggle('flex', showHeader);
+  }
+  refreshSelectionUI();
 }
 
 // ── Quick Star / Pin Favorite Action ───────────────────────────────────────
