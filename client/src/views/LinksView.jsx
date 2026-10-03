@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, Plus, Trash2, ExternalLink } from 'lucide-react';
+import { Globe, Plus, Trash2, ExternalLink, Star } from 'lucide-react';
 import { api } from '../services/api';
 
 export function LinksView({ links = [], onRefresh }) {
@@ -13,6 +13,11 @@ export function LinksView({ links = [], onRefresh }) {
       await api.deleteLink(id);
       if (onRefresh) onRefresh();
     }
+  };
+
+  const handleToggleFavorite = async (link) => {
+    await api.toggleFavoriteLink(link.id, link.is_favorite);
+    if (onRefresh) onRefresh();
   };
 
   const handleCreate = async (e) => {
@@ -101,6 +106,15 @@ export function LinksView({ links = [], onRefresh }) {
                     <span className="truncate">{link.domain || link.url}</span>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleToggleFavorite(link)}
+                      className={`p-1 rounded-lg transition-colors ${
+                        link.is_favorite ? 'text-amber-400' : 'text-zinc-500 hover:text-amber-400'
+                      }`}
+                      title={link.is_favorite ? 'Hapus dari Favorit' : 'Tambah ke Favorit'}
+                    >
+                      <Star className={`w-3.5 h-3.5 ${link.is_favorite ? 'fill-amber-400' : ''}`} />
+                    </button>
                     <a
                       href={link.url}
                       target="_blank"

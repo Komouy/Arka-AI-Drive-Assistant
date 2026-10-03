@@ -40,10 +40,19 @@ export const api = {
   // Status & System
   getStatus: async () => {
     const res = await authFetch(`${API_BASE}/status`);
-    return res.json();
+    const json = await res.json();
+    return json.data || json;
   },
 
   // Auth
+  signup: async (email, password, name) => {
+    const res = await fetch(`${API_BASE}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name })
+    });
+    return res.json();
+  },
   login: async (email, password) => {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
@@ -142,6 +151,13 @@ export const api = {
     const res = await authFetch(`${API_BASE}/prompts/${id}`, { method: 'DELETE' });
     return res.json();
   },
+  toggleFavoritePrompt: async (id, isFavorite) => {
+    const res = await authFetch(`${API_BASE}/prompts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_favorite: !isFavorite })
+    });
+    return res.json();
+  },
 
   // Links
   getLinks: async () => {
@@ -158,6 +174,13 @@ export const api = {
   },
   deleteLink: async (id) => {
     const res = await authFetch(`${API_BASE}/links/${id}`, { method: 'DELETE' });
+    return res.json();
+  },
+  toggleFavoriteLink: async (id, isFavorite) => {
+    const res = await authFetch(`${API_BASE}/links/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_favorite: !isFavorite })
+    });
     return res.json();
   },
 

@@ -1,4 +1,5 @@
 import { db } from '../database/db.js';
+import archiver from 'archiver';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -1737,6 +1738,81 @@ export const fileController = {
       }
 
       return res.download(physicalPath, file.original_name);
+    } catch (err) {
+      return fail(res, err);
+    }
+  },
+
+  // Batch download multiple files as ZIP archive
+  downloadZip: async (req, res) => {
+    try {
+      const rawIds = req.query.ids;
+      if (!rawIds) return badRequest(res, 'Parameter ids (ID berkas dipisah koma) diperlukan');
+      const idList = String(rawIds).split(',').map(s => s.trim()).filter(Boolean);
+      if (idList.length === 0) return badRequest(res, 'Daftar ID berkas kosong');
+
+      let targetFiles = [];
+      const userId = req.user?.id || null;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        let query = supabase.from('files').select('*').in('id', idList);
+        if (userId) query = query.or(`user_id.eq.${userId},user_id.is.null`);
+        const { data, error } = await query;
+        if (error) return fail(res, error);
+        targetFiles = data || [];
+      } else {
+        const placeholders = idList.map(() => '?').join(',');
+        targetFiles = db.prepare(`SELECT * FROM files WHERE id IN (${placeholders})`).all(...idList);
+      }
+
+      if (targetFiles.length === 0) {
+        return notFound(res, 'Tidak ada berkas yang ditemukan untuk diunduh');
+      }
+
+      const zipName = `arka_batch_${Date.now()}.zip`;
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+
+      const archive = archiver('zip', { zlib: { level: 6 } });
+      archive.on('error', (err) => {
+        console.error('[ZIP Error]', err);
+        if (!res.headersSent) res.status(500).send({ error: err.message });
+      });
+      archive.pipe(res);
+
+      const usedNames = new Set();
+      for (const file of targetFiles) {
+        let fileName = file.original_name || `file_${file.id}`;
+        let ext = path.extname(fileName);
+        let base = path.basename(fileName, ext);
+        let counter = 1;
+        while (usedNames.has(fileName.toLowerCase())) {
+          fileName = `${base}_${counter}${ext}`;
+          counter++;
+        }
+        usedNames.add(fileName.toLowerCase());
+
+        try {
+          if (isSupabaseConfigured() && file.storage_path) {
+            const supabase = getSupabaseClient();
+            const { data: blob } = await supabase.storage.from(BUCKET_NAME).download(file.storage_path);
+            if (blob) {
+              const buf = Buffer.from(await blob.arrayBuffer());
+              archive.append(buf, { name: fileName });
+            }
+          } else {
+            const p = physicalPathOf(file);
+            if (fs.existsSync(p)) {
+              archive.file(p, { name: fileName });
+            }
+          }
+        } catch (fErr) {
+          console.warn(`[ZIP] Failed to append file ${file.id}:`, fErr.message);
+        }
+      }
+
+      await archive.finalize();
     } catch (err) {
       return fail(res, err);
     }

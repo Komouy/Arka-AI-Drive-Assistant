@@ -16,7 +16,8 @@ import {
   LogOut, 
   Layers, 
   HardDrive,
-  Sparkles
+  Sparkles,
+  X
 } from 'lucide-react';
 import { useDriveStore } from '../store/useDriveStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -29,7 +30,9 @@ export function Sidebar({ files = [], folders = [], prompts = [], links = [], tr
     setFolderFilter, 
     openNewFolderModal,
     theme,
-    toggleTheme
+    toggleTheme,
+    isSidebarOpen,
+    closeSidebar
   } = useDriveStore();
   const { user, logout, providerToken } = useAuthStore();
 
@@ -101,6 +104,7 @@ export function Sidebar({ files = [], folders = [], prompts = [], links = [], tr
             if (currentFilter !== 'files' && currentFilter !== 'images') {
               setFilter('files');
             }
+            closeSidebar();
           }}
           className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
             isActive 
@@ -139,51 +143,72 @@ export function Sidebar({ files = [], folders = [], prompts = [], links = [], tr
   const userAvatar = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   return (
-    <aside className="w-64 h-screen flex flex-col flex-shrink-0 border-r border-zinc-800/60 bg-zinc-950/90 backdrop-blur-xl select-none">
-      {/* Brand Header */}
-      <div className="p-4 border-b border-zinc-800/60 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="font-display font-bold text-sm tracking-wide flex items-center gap-1.5 text-zinc-100">
-              ARKA <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">PRO</span>
+    <>
+      {/* Mobile Drawer Overlay */}
+      {isSidebarOpen && (
+        <div 
+          onClick={closeSidebar}
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden animate-fade-in"
+        />
+      )}
+
+      <aside className={`fixed md:static inset-y-0 left-0 z-50 w-64 h-screen flex flex-col flex-shrink-0 border-r border-zinc-800/60 bg-zinc-950/95 backdrop-blur-xl select-none transition-transform duration-200 ease-in-out ${
+        isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'
+      }`}>
+        {/* Brand Header */}
+        <div className="p-4 border-b border-zinc-800/60 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+              <Sparkles className="w-4 h-4" />
             </div>
-            <div className="text-[10px] font-mono text-zinc-400">AI Drive Assistant</div>
+            <div>
+              <div className="font-display font-bold text-sm tracking-wide flex items-center gap-1.5 text-zinc-100">
+                ARKA <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">PRO</span>
+              </div>
+              <div className="text-[10px] font-mono text-zinc-400">AI Drive Assistant</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={toggleTheme}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
+              title="Ganti Tema"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={closeSidebar}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-white md:hidden"
+              title="Tutup Menu"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        <button 
-          onClick={toggleTheme}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
-          title="Ganti Tema"
-        >
-          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </button>
-      </div>
+        {/* Main Navigation */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1 text-xs">
+          <div className="px-2 py-1 text-[10px] font-mono font-semibold uppercase tracking-wider text-zinc-400">
+            Menu Utama
+          </div>
 
-      {/* Main Navigation */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-1 text-xs">
-        <div className="px-2 py-1 text-[10px] font-mono font-semibold uppercase tracking-wider text-zinc-400">
-          Menu Utama
-        </div>
-
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentFilter === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                setFilter(item.id);
-                setFolderFilter(null);
-              }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl font-medium transition-all ${
-                isActive
-                  ? 'bg-zinc-800 text-zinc-100 shadow-sm font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
-              }`}
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentFilter === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setFilter(item.id);
+                  setFolderFilter(null);
+                  closeSidebar();
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl font-medium transition-all ${
+                  isActive
+                    ? 'bg-zinc-800 text-zinc-100 shadow-sm font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+                }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <Icon className={`w-4 h-4 flex-shrink-0 ${item.color}`} />
@@ -276,5 +301,6 @@ export function Sidebar({ files = [], folders = [], prompts = [], links = [], tr
         </div>
       </div>
     </aside>
+  </>
   );
 }

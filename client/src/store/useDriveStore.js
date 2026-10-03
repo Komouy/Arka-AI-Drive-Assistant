@@ -4,11 +4,21 @@ export const useDriveStore = create((set, get) => ({
   // Filter & Navigation
   currentFilter: 'overview',
   setFilter: (filter) => {
-    set({ currentFilter: filter });
+    set({ currentFilter: filter, isSidebarOpen: false });
     if (filter !== 'files' && filter !== 'images') {
       get().clearSelection();
     }
   },
+
+  // Mobile Sidebar Drawer
+  isSidebarOpen: false,
+  openSidebar: () => set({ isSidebarOpen: true }),
+  closeSidebar: () => set({ isSidebarOpen: false }),
+  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+
+  // AI Prompt Bridge (from Preview modal or suggestions)
+  pendingAiPrompt: null,
+  setPendingAiPrompt: (prompt) => set({ pendingAiPrompt: prompt }),
 
   // Folder filtering
   currentFolderFilter: null,

@@ -14,9 +14,10 @@ export function GalleryView({ files = [], onRefresh }) {
   const { 
     currentFolderFilter, 
     searchQuery, 
-    openPreview,
-    selectedFileIds,
-    toggleSelectFile
+    openPreview, 
+    selectedFileIds, 
+    toggleSelectFile,
+    selectAllFiles 
   } = useDriveStore();
 
   function isImageFile(f) {
@@ -94,9 +95,34 @@ export function GalleryView({ files = [], onRefresh }) {
   }
 
   const previewList = imageList.map(f => ({ type: 'FILE', id: f.id }));
+  const allVisibleSelected = imageList.length > 0 && imageList.every(f => selectedFileIds.has(String(f.id)));
+
+  const handleSelectAllToggle = () => {
+    if (allVisibleSelected) {
+      imageList.forEach(f => toggleSelectFile(f.id));
+    } else {
+      selectAllFiles(imageList.map(f => f.id));
+    }
+  };
 
   return (
-    <div className="p-6 space-y-4 animate-fade-in">
+    <div className="p-4 sm:p-6 space-y-4 animate-fade-in max-w-7xl mx-auto">
+      {/* Top Controls Bar */}
+      <div className="flex items-center justify-between px-1">
+        <button
+          onClick={handleSelectAllToggle}
+          className="flex items-center gap-2 text-xs font-mono text-zinc-400 hover:text-white transition-colors cursor-pointer"
+        >
+          <input
+            type="checkbox"
+            checked={allVisibleSelected}
+            onChange={() => {}}
+            className="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-blue-600 focus:ring-0 cursor-pointer"
+          />
+          <span>Pilih Semua ({imageList.length} gambar)</span>
+        </button>
+      </div>
+
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {imageList.map(file => {
           const isSelected = selectedFileIds.has(String(file.id));
@@ -139,7 +165,9 @@ export function GalleryView({ files = [], onRefresh }) {
                 {/* Checkbox badge on top-left */}
                 <div 
                   onClick={(e) => { e.stopPropagation(); toggleSelectFile(file.id); }}
-                  className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className={`absolute top-2 left-2 transition-opacity ${
+                    isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
                 >
                   <input
                     type="checkbox"

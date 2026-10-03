@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Plus, Sparkles, Folder, RefreshCw } from 'lucide-react';
+import { Search, Plus, Sparkles, Folder, RefreshCw, Menu } from 'lucide-react';
 import { useDriveStore } from '../store/useDriveStore';
 
 export function HeaderBar({ systemStatus, onRefresh, isRefreshing }) {
@@ -9,7 +9,8 @@ export function HeaderBar({ systemStatus, onRefresh, isRefreshing }) {
     setFolderFilter, 
     searchQuery, 
     setSearchQuery, 
-    openUploadModal 
+    openUploadModal,
+    toggleSidebar
   } = useDriveStore();
 
   const titles = {
@@ -33,12 +34,19 @@ export function HeaderBar({ systemStatus, onRefresh, isRefreshing }) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
-  const totalBytes = systemStatus?.stats?.totalBytes || 0;
+  const totalBytes = systemStatus?.data?.stats?.totalBytes || systemStatus?.stats?.totalBytes || 0;
 
   return (
-    <header className="h-16 px-6 border-b border-zinc-800/60 bg-zinc-950/70 backdrop-blur-xl flex items-center justify-between gap-4 flex-shrink-0">
+    <header className="h-16 px-4 sm:px-6 border-b border-zinc-800/60 bg-zinc-950/70 backdrop-blur-xl flex items-center justify-between gap-3 sm:gap-4 flex-shrink-0">
       {/* Title & Path */}
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <button
+          onClick={toggleSidebar}
+          className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-850 md:hidden flex-shrink-0"
+          title="Buka Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-base font-bold text-zinc-100 font-display truncate">

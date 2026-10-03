@@ -22,6 +22,11 @@ export function PromptsView({ prompts = [], onRefresh }) {
     }
   };
 
+  const handleToggleFavorite = async (prompt) => {
+    await api.toggleFavoritePrompt(prompt.id, prompt.is_favorite);
+    if (onRefresh) onRefresh();
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!content.trim()) return;
@@ -109,6 +114,15 @@ export function PromptsView({ prompts = [], onRefresh }) {
                     {prompt.category || 'General'}
                   </span>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleToggleFavorite(prompt)}
+                      className={`p-1 rounded-lg transition-colors ${
+                        prompt.is_favorite ? 'text-amber-400' : 'text-zinc-500 hover:text-amber-400'
+                      }`}
+                      title={prompt.is_favorite ? 'Hapus dari Favorit' : 'Tambah ke Favorit'}
+                    >
+                      <Star className={`w-3.5 h-3.5 ${prompt.is_favorite ? 'fill-amber-400' : ''}`} />
+                    </button>
                     <button
                       onClick={() => handleCopy(prompt.id, prompt.content)}
                       className="p-1 rounded-lg text-zinc-400 hover:text-white transition-colors"

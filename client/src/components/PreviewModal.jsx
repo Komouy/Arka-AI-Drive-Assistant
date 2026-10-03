@@ -17,7 +17,7 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
 
 export function PreviewModal({ files = [], prompts = [] }) {
-  const { previewItem, closePreview, navigatePreview, setFilter } = useDriveStore();
+  const { previewItem, closePreview, navigatePreview, setFilter, setPendingAiPrompt } = useDriveStore();
   const [fileContent, setFileContent] = useState(null);
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'content'
@@ -91,7 +91,11 @@ export function PreviewModal({ files = [], prompts = [] }) {
   };
 
   const handleAskAiThisFile = () => {
+    const targetName = file?.original_name || prompt?.title || 'dokumen';
     closePreview();
+    if (setPendingAiPrompt) {
+      setPendingAiPrompt(`Tolong rangkum dan jelaskan isi dari berkas "${targetName}"`);
+    }
     setFilter('ai');
   };
 
