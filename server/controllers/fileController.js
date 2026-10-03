@@ -1,8 +1,4 @@
 import { db } from '../database/db.js';
-import { createRequire } from 'node:module';
-const _require = createRequire(import.meta.url);
-// archiver is a CommonJS module — use createRequire so it works in ESM on all Node versions
-const archiver = _require('archiver');
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -1777,7 +1773,17 @@ export const fileController = {
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
 
-      const archive = archiver('zip', { zlib: { level: 6 } });
+      const archiverModule = await import('archiver');
+      let archive;
+      if (typeof archiverModule.default === 'function') {
+        archive = archiverModule.default('zip', { zlib: { level: 6 } });
+      } else if (archiverModule.Archiver) {
+        archive = new archiverModule.Archiver('zip', { zlib: { level: 6 } });
+      } else if (typeof archiverModule === 'function') {
+        archive = archiverModule('zip', { zlib: { level: 6 } });
+      } else {
+        throw new Error('Modul archiver tidak kompatibel');
+      }
       archive.on('error', (err) => {
         console.error('[ZIP Error]', err);
         if (!res.headersSent) res.status(500).send({ error: err.message });
