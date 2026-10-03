@@ -21,6 +21,7 @@
 import fs from 'node:fs';
 import { getGemini, groqChat, MODELS, describeAIError } from './providers.js';
 import { isMultimodal, isTextLike, FILE_CATEGORIES } from '../utils/fileTypes.js';
+import { getFastDocumentPreview } from './documentExtractor.js';
 
 /**
  * Inline multimodal payloads are capped by the provider request size (~20 MB),
@@ -46,7 +47,7 @@ function buildTextAnalysisPrompt(filename, mimeType, textPreview = '', hint = ''
 
 File: "${filename}"
 MIME: "${mimeType}"
-${hint ? `Catatan: ${hint}\n` : ''}${textPreview ? `Cuplikan isi (500 karakter pertama):\n${textPreview.slice(0, 500)}\n` : ''}
+${hint ? `Catatan: ${hint}\n` : ''}${textPreview ? `Cuplikan isi dokumen aktual:\n${textPreview.slice(0, 2000)}\n` : ''}
 Daftar folder yang sudah ada di workspace pengguna:
 [${folderListStr}]
 
@@ -163,7 +164,8 @@ function readTextPreview(filePath, maxBytes = 2000) {
 }
 
 async function analyzeWithGroq(filePath, mimeType, filename, hint = '', existingFolders = []) {
-  const textPreview = isTextLike(mimeType, filename) ? readTextPreview(filePath) : '';
+  const docPreview = await getFastDocumentPreview(filePath, mimeType, filename, 2500);
+  const textPreview = docPreview || (isTextLike(mimeType, filename) ? readTextPreview(filePath) : '');
   const prompt = buildTextAnalysisPrompt(filename, mimeType, textPreview, hint, existingFolders);
   const raw = await groqChat(
     [{ role: 'user', content: prompt }],
@@ -174,7 +176,8 @@ async function analyzeWithGroq(filePath, mimeType, filename, hint = '', existing
 
 // ── Analyze text/code/doc with Gemini (Fallback or alternative) ────────────────
 async function analyzeWithGeminiText(filePath, mimeType, filename, hint = '', existingFolders = []) {
-  const textPreview = isTextLike(mimeType, filename) ? readTextPreview(filePath) : '';
+  const docPreview = await getFastDocumentPreview(filePath, mimeType, filename, 2500);
+  const textPreview = docPreview || (isTextLike(mimeType, filename) ? readTextPreview(filePath) : '');
   const prompt = buildTextAnalysisPrompt(filename, mimeType, textPreview, hint, existingFolders);
   const gemini = getGemini();
   const result = await gemini.models.generateContent({

@@ -1190,6 +1190,7 @@ function render() {
 
       actionBtn = `
         ${suggestBtns}
+        <button class="px-2 py-1 rounded text-xs font-mono text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border border-indigo-200/60 dark:border-indigo-800/60 transition-colors inline-flex items-center gap-1" onclick="askAiAboutFile('${safeId}', '${escapeHtml(item.title || '')}')" title="Tanya AI tentang isi berkas ini"><i data-lucide="sparkles" class="w-3 h-3 text-indigo-500"></i> <span>tanya AI</span></button>
         <button class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" onclick="openPreview('FILE', '${safeId}')"><i data-lucide="eye" class="w-3 h-3"></i> <span>pratinjau</span></button>
         <button class="px-2 py-1 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-zinc-200 dark:border-zinc-700 transition-colors inline-flex items-center gap-1" onclick="downloadFile('${safeId}', '${escapeHtml(item.title || 'unduhan')}')"><i data-lucide="download" class="w-3 h-3"></i> <span>unduh</span></button>
       `;

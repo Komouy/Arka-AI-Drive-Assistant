@@ -1178,6 +1178,79 @@ export const fileController = {
     }
   },
 
+  // GET /api/files/:id/content — Extract text from document (PDF, Word DOCX, text/code/csv)
+  getContent: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const query = String(req.query.q || req.query.query || '').trim();
+      const maxLength = parseInt(req.query.max_length, 10) || 8000;
+
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        const userId = req.user?.id || null;
+        let q = supabase.from('files').select('*').eq('id', id);
+        if (userId) q = q.or(`user_id.eq.${userId},user_id.is.null`);
+        const { data: file, error: fErr } = await q.maybeSingle();
+        if (fErr) return fail(res, fErr);
+        if (!file) return notFound(res, 'File tidak ditemukan');
+
+        let buffer = null;
+        if (file.storage_path) {
+          const { data: blob, error: dlErr } = await supabase.storage.from(BUCKET_NAME).download(file.storage_path);
+          if (dlErr || !blob) {
+            return res.status(502).json({ success: false, error: 'Gagal mengunduh file dari penyimpanan cloud' });
+          }
+          buffer = Buffer.from(await blob.arrayBuffer());
+        }
+
+        const { extractDocumentContent } = await import('../ai/documentExtractor.js');
+        const result = await extractDocumentContent({
+          buffer,
+          mimeType: file.mime_type,
+          filename: file.original_name,
+          maxLength,
+          query
+        });
+
+        return ok(res, {
+          data: {
+            id: file.id,
+            original_name: file.original_name,
+            mime_type: file.mime_type,
+            ...result
+          }
+        });
+      }
+
+      // SQLite
+      const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(id));
+      if (!file) return notFound(res, 'File tidak ditemukan');
+
+      const physPath = physicalPathOf(file);
+      if (!fs.existsSync(physPath)) return notFound(res, 'File fisik tidak ditemukan di disk');
+
+      const { extractDocumentContent } = await import('../ai/documentExtractor.js');
+      const result = await extractDocumentContent({
+        filePath: physPath,
+        mimeType: file.mime_type,
+        filename: file.original_name,
+        maxLength,
+        query
+      });
+
+      return ok(res, {
+        data: {
+          id: file.id,
+          original_name: file.original_name,
+          mime_type: file.mime_type,
+          ...result
+        }
+      });
+    } catch (err) {
+      return fail(res, err);
+    }
+  },
+
   // Batch auto-organize all unorganized files based on AI suggestions
   autoOrganizeAll: async (req, res) => {
     try {

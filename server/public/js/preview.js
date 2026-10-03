@@ -506,7 +506,15 @@ function openPreview(type, id, buildList = true) {
       </button>
     ` : '';
 
+    const askAiBtn = type !== 'TRASH' ? `
+      <button type="button" onclick="askAiAboutFile('${escapeHtml(String(item.id))}', '${escapeHtml(item.original_name || '')}')" class="px-3 py-1.5 rounded text-xs font-mono bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors inline-flex items-center gap-1.5" title="Tanya AI tentang isi dokumen ini">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400"></i>
+        <span>Tanya AI Dokumen</span>
+      </button>
+    ` : '';
+
     footerActions.innerHTML = `
+      ${askAiBtn}
       ${starBtnModal}
       <button type="button" onclick="downloadFile('${escapeHtml(String(item.id))}', '${escapeHtml(item.original_name || 'unduhan')}')" class="px-3.5 py-1.5 rounded text-xs font-mono bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 font-medium transition-colors inline-flex items-center gap-1.5"><i data-lucide="download" class="w-3.5 h-3.5"></i> <span>Unduh File</span></button>
     `;
@@ -515,4 +523,20 @@ function openPreview(type, id, buildList = true) {
   backdrop.classList.remove('hidden');
   backdrop.classList.add('open');
   refreshIcons();
+}
+
+function askAiAboutFile(fileId, fileName) {
+  closePreview();
+  if (typeof setFilter === 'function') {
+    setFilter('ai');
+  }
+  const promptText = `Tolong jelaskan isi dan ringkasan penting dari file "${fileName}" (ID: ${fileId})`;
+  setTimeout(() => {
+    const input = document.getElementById('aiChatInput');
+    if (input) {
+      input.value = promptText;
+      if (typeof aiChatAutoResize === 'function') aiChatAutoResize(input);
+      input.focus();
+    }
+  }, 160);
 }

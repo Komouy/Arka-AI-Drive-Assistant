@@ -16,13 +16,16 @@
  * Supports both Supabase (Vercel/cloud) and SQLite (local dev).
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { db } from '../database/db.js';
-import { isSupabaseConfigured, getSupabaseClient } from '../config/supabase.js';
+import { isSupabaseConfigured, getSupabaseClient, BUCKET_NAME } from '../config/supabase.js';
 import { getGroq, getGemini, MODELS, describeAIError } from './providers.js';
-import { getEnv } from '../config/env.js';
+import { getEnv, STORAGE_DIR } from '../config/env.js';
 import { getFileTypeCategory } from '../utils/fileTypes.js';
 import { likePattern } from '../utils/search.js';
 import { getGuideText, guideTopicsText } from './usageGuide.js';
+import { extractDocumentContent } from './documentExtractor.js';
 
 /**
  * Berapa banyak baris terbaru yang diambil dari Supabase sebelum difilter di JS.
@@ -46,6 +49,21 @@ const TOOLS = [
           type:  { type: 'string', description: 'Filter tipe file: Image, Video, Audio, Document, Code, Archive, Other' }
         },
         required: ['query']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_document_content',
+      description: 'Baca isi teks lengkap dari suatu dokumen (PDF, Word DOCX, TXT, Markdown, CSV, JSON, atau kode). Gunakan saat pengguna bertanya tentang isi spesifik, ringkasan, atau analisis mendalam suatu dokumen.',
+      parameters: {
+        type: 'object',
+        properties: {
+          file_id: { type: 'string', description: 'ID file target (dari hasil search_files)' },
+          query:   { type: 'string', description: 'Pertanyaan atau topik pencarian spesifik untuk memfokuskan ekstraksi teks pada dokumen panjang (opsional)' }
+        },
+        required: ['file_id']
       }
     }
   },
@@ -268,6 +286,128 @@ async function executeTool(name, args, userId = null) {
         : rows;
 
       return { files: filtered, count: filtered.length };
+    }
+
+    case 'read_document_content': {
+      const targetParam = String(args.file_id || '').trim();
+      const query = String(args.query || '').trim();
+      if (!targetParam) {
+        return { error: 'file_id wajib disertakan untuk membaca dokumen' };
+      }
+
+      if (useSupabase) {
+        const supabase = getSupabaseClient();
+        let file = null;
+
+        // Cari berdasarkan ID langsung
+        let q = supabase
+          .from('files')
+          .select('id, original_name, stored_name, mime_type, size, storage_path, gdrive_file_id')
+          .eq('id', targetParam)
+          .eq('is_trash', false);
+        q = scopeToUser(q, userId);
+        const { data: directFile } = await q.maybeSingle();
+        file = directFile;
+
+        // Fallback: Jika tidak ditemukan dan targetParam berupa nama file
+        if (!file) {
+          let nameQ = supabase
+            .from('files')
+            .select('id, original_name, stored_name, mime_type, size, storage_path, gdrive_file_id')
+            .eq('is_trash', false);
+          nameQ = scopeToUser(nameQ, userId);
+          const { data: candidates = [] } = await nameQ.order('created_at', { ascending: false }).limit(60);
+          file = candidates.find(c => c.original_name.toLowerCase() === targetParam.toLowerCase())
+              || candidates.find(c => c.original_name.toLowerCase().includes(targetParam.toLowerCase()));
+        }
+
+        if (!file) {
+          return { error: `Dokumen "${targetParam}" tidak ditemukan di workspace` };
+        }
+
+        let buffer = null;
+        if (file.storage_path) {
+          const { data: blob, error: dlErr } = await supabase.storage.from(BUCKET_NAME).download(file.storage_path);
+          if (dlErr || !blob) {
+            return { error: `Gagal mengunduh dokumen dari penyimpanan cloud: ${dlErr?.message || 'unknown'}` };
+          }
+          buffer = Buffer.from(await blob.arrayBuffer());
+        }
+
+        const extractRes = await extractDocumentContent({
+          buffer,
+          mimeType: file.mime_type,
+          filename: file.original_name,
+          maxLength: 8000,
+          query
+        });
+
+        if (!extractRes.ok) {
+          return {
+            file_id: file.id,
+            filename: file.original_name,
+            error: extractRes.error || 'Gagal mengekstrak teks dari dokumen ini'
+          };
+        }
+
+        return {
+          file_id: file.id,
+          filename: file.original_name,
+          document_type: extractRes.type,
+          total_pages: extractRes.totalPages,
+          raw_characters: extractRes.rawLength,
+          content: extractRes.text,
+          truncated: extractRes.truncated,
+          instruction_for_ai: 'Jawab pertanyaan pengguna berdasarkan isi teks dokumen aktual di atas secara lengkap dan akurat.'
+        };
+      }
+
+      // SQLite Mode
+      let file = null;
+      if (!isNaN(Number(targetParam))) {
+        file = db.prepare('SELECT id, original_name, stored_name, mime_type, size, path FROM files WHERE id = ? AND is_trash = 0').get(Number(targetParam));
+      }
+      if (!file) {
+        file = db.prepare('SELECT id, original_name, stored_name, mime_type, size, path FROM files WHERE original_name = ? AND is_trash = 0').get(targetParam)
+            || db.prepare('SELECT id, original_name, stored_name, mime_type, size, path FROM files WHERE original_name LIKE ? AND is_trash = 0 LIMIT 1').get(`%${targetParam}%`);
+      }
+
+      if (!file) {
+        return { error: `Dokumen "${targetParam}" tidak ditemukan di workspace` };
+      }
+
+      const storageRoot = STORAGE_DIR;
+      const resolved = path.resolve(storageRoot, file.path);
+      if (!resolved.startsWith(storageRoot) || !fs.existsSync(resolved)) {
+        return { error: `Berkas fisik "${file.original_name}" tidak ditemukan di disk` };
+      }
+
+      const extractRes = await extractDocumentContent({
+        filePath: resolved,
+        mimeType: file.mime_type,
+        filename: file.original_name,
+        maxLength: 8000,
+        query
+      });
+
+      if (!extractRes.ok) {
+        return {
+          file_id: file.id,
+          filename: file.original_name,
+          error: extractRes.error || 'Gagal mengekstrak teks dari dokumen ini'
+        };
+      }
+
+      return {
+        file_id: file.id,
+        filename: file.original_name,
+        document_type: extractRes.type,
+        total_pages: extractRes.totalPages,
+        raw_characters: extractRes.rawLength,
+        content: extractRes.text,
+        truncated: extractRes.truncated,
+        instruction_for_ai: 'Jawab pertanyaan pengguna berdasarkan isi teks dokumen aktual di atas secara lengkap dan akurat.'
+      };
     }
 
     case 'search_prompts': {
@@ -839,6 +979,11 @@ Aturan:
 - Jawaban harus SINGKAT dan LENGKAP: maksimal ~100 kata / 6 baris poin, selalu akhiri dengan kalimat yang utuh — jangan terputus.
 - Percakapan sebelumnya disertakan. Jika pesan adalah respon lanjutan seperti "ya", "ya semua", "oke", "bersihkan", atau "lanjutkan", pahami konteks percakapan sebelumnya dan SEGERA jalankan tindakan yang dibahas!
 - JANGAN pernah mengarang fitur, URL, atau opsi yang tidak ada. Sebutkan hanya yang ada di panduan atau hasil tool.
+- MEMBACA ISI DOKUMEN & CHAT DENGAN FILE (RAG):
+  Jika pengguna bertanya tentang isi spesifik, ringkasan, analisis, atau detail angka/poin dari suatu dokumen (PDF, Word DOCX, TXT, CSV, kode):
+  1. Cari file terkait via 'search_files' untuk mendapatkan ID-nya (atau jika pengguna sudah menyebutkan ID/nama file, kamu bisa langsung memanggil 'read_document_content').
+  2. Panggil tool 'read_document_content' dengan parameter file_id dan query pengguna.
+  3. Jawab pertanyaan pengguna berdasarkan teks aktual yang diekstrak dari dokumen tersebut secara akurat, jelas, dan faktual.
 - KONTROL WORKSPACE & PERIZINAN AKSI (Human-in-the-Loop):
   Jika pengguna meminta kamu melakukan perubahan atau kontrol workspace (seperti mengganti nama file, memindahkan file ke folder, menghapus file atau folder, membuka pratinjau file, atau berpindah navigasi):
   1. Cari dulu data file atau folder terkait menggunakan tool (search_files, list_folders) untuk mendapatkan ID-nya.

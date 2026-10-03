@@ -304,6 +304,15 @@ async function runTests() {
       return `HTTP ${res.status}`;
     });
 
+    // Content Extraction
+    await test('GET /api/files/:id/content → ekstraksi teks dokumen', async () => {
+      if (!fileId) throw new Error('Tidak ada fileId');
+      const { res, json } = await req('GET', `/api/files/${fileId}/content`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${json?.error}`);
+      if (!json?.data?.text) throw new Error('Teks hasil ekstraksi dokumen kosong');
+      return `charCount: ${json.data.rawLength} type: ${json.data.type}`;
+    });
+
     // ── 5. Inbox ──────────────────────────────────────────────────────────────
     section('INBOX');
 
