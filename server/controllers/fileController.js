@@ -1,5 +1,8 @@
 import { db } from '../database/db.js';
-import archiver from 'archiver';
+import { createRequire } from 'node:module';
+const _require = createRequire(import.meta.url);
+// archiver is a CommonJS module — use createRequire so it works in ESM on all Node versions
+const archiver = _require('archiver');
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
