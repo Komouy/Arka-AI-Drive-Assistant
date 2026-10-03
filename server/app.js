@@ -107,9 +107,13 @@ app.use((err, _req, res, _next) => {
 });
 
 // ── Startup background tasks ──────────────────────────────────────────────────
-// Run after all routes are registered so the server is ready
-autoOrganizeStartupSweep().catch(err =>
-  console.warn('[ARKA AI] Startup auto-organize sweep skipped:', err.message)
-);
+// Deferred with setTimeout so the module is fully evaluated and exported first.
+// This prevents a sync throw inside autoOrganizeStartupSweep from crashing
+// the Vercel serverless cold start before the first request is handled.
+setTimeout(() => {
+  autoOrganizeStartupSweep().catch(err =>
+    console.warn('[ARKA AI] Startup auto-organize sweep skipped:', err.message)
+  );
+}, 0);
 
 export default app;
