@@ -6,8 +6,11 @@ node_modules/
 client/node_modules/
 client/dist/
 
-# Database (local only)
-database/
+# Database (local SQLite only)
+database/*.db
+database/*.sqlite
+database/*.db-wal
+database/*.db-shm
 
 # Storage files (local only)
 storage/uploads/*
