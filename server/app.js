@@ -82,6 +82,14 @@ app.get('/', (req, res) => {
   });
 });
 
+// ── SPA catch-all for React frontend ──────────────────────────────────────────
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/storage')) {
+    return next();
+  }
+  return res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+});
+
 // ── Centralised error handling ────────────────────────────────────────────────
 app.use((err, _req, res, _next) => {
   if (err instanceof SyntaxError && 'body' in err) {

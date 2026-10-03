@@ -9,6 +9,9 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "dev:client": "npm run dev --prefix client",
+    "build:client": "npm --prefix client install && npm --prefix client run build",
+    "build": "npm --prefix client install && npm --prefix client run build",
     "test": "node scripts/test-endpoints.mjs"
   },
   "dependencies": {
